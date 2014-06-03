@@ -1,0 +1,48 @@
+#!/bin/bash
+
+remote_working_directory=$2
+nachos_directory=nachos-csci402/
+archive_name=nachos-csci402.gzl
+
+function usage {
+    printf "kUTILS (Kolsh-Utilities)\n\n"
+    printf "SYNOPSYIS\n"
+    printf "\tkUTILS [push/pull/help] [remote working directory]\n\n"
+    printf "DESCRIPTION\n"
+    printf "\tA utility that assists with working with Nachos on Aludra.\n\n"
+    printf "USAGE\n"
+    printf "\tpush\tPushes the local working directory to the remote directory.\n\n"
+    printf "\tpull\tPulls the remote directory from Aludra to your local machine. OVERWRITES ALL LOCAL CHANGES.\n\n"
+    printf "\thelp\tPrints the help menu.\n\n"
+}
+
+function pull {
+    echo "Downloading remote directory "$remote_working_directory/$nachos_directory
+    echo "======="
+
+    ssh aludra "cd $remote_working_directory; tar -cf $archive_name $nachos_directory"
+    scp aludra:$remote_working_directory/$archive_name ./
+    ssh aludra "cd $remote_working_directory; rm -f $archive_name"
+
+    tar -xf $archive_name
+    rm $archive_name
+}
+
+function push {
+    rsync -rtvz -C --delete --exclude "*.o" * aludra:$1
+}
+
+case "$1" in
+    push )
+        push $2
+        ;;
+    pull )
+        pull $2
+        ;;
+    help )
+        usage
+        ;;
+    * )
+        usage
+        ;;
+esac
