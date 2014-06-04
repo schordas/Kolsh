@@ -131,6 +131,7 @@ def pull(remoteWorkingDirectory):
 
 def push(remoteWorkingDirectory):
     exe = ExecutionContext(True)
+    print "syncing changes with aludra"
     exe.execute('rsync -rtvz -C --delete --exclude "*.o" * aludra:'+remoteWorkingDirectory)
 
 def watch(remoteWorkingDirectory):
@@ -149,6 +150,7 @@ def watch(remoteWorkingDirectory):
         def process(self, event):
             # the file will be processed here
             print event.src_path, event.event_type      # print now only for debug
+            push(remoteWorkingDirectory)
 
         def on_any_event(self, event):
             self.process(event)
