@@ -118,7 +118,7 @@ def pull(remoteWorkingDirectory):
     print "=================================================================================="
 
     print "compressing remote directory"
-    exe.execute('ssh aludra "cd '+remoteWorkingDirectory+'; tar -cf '+archiveName+' '+nachosDirectory+'"')
+    exe.execute('ssh aludra "cd '+remoteWorkingDirectory+'; tar -cf --exclude=*.o '+archiveName+' '+nachosDirectory+'"')
 
     print "downloading remote directory"
     exe.execute('scp aludra:'+remoteWorkingDirectory+'/'+archiveName+' ./')
