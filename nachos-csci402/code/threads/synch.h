@@ -21,6 +21,7 @@
 #include "thread.h"
 #include "list.h"
 
+
 // The following class defines a "semaphore" whose value is a non-negative
 // integer.  The semaphore has only two operations P() and V():
 //
@@ -78,6 +79,7 @@ class Lock {
 					// Condition variable ops below.
 
   private:
+    List *waitQueue;
     char* name;				// for debugging
     // plus some other stuff you'll need to define
     bool isBusy; //to determine if the lock has been aquired (busy) or is released (free)
@@ -133,6 +135,8 @@ class Condition {
 
   private:
     char* name;
+    Lock* waitLock;
+    List* waitQueue;
     // plus some other stuff you'll need to define
 };
 #endif // SYNCH_H
