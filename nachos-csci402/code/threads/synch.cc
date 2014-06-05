@@ -127,20 +127,71 @@ void Lock::Acquire() {
 	}
 	interrupt->SetLevel(oldLevel);}
 void Lock::Release() {
-int oldLevel = interrupt->SetLevel(IntOff);
-//code
-interrupt->SetLevel(oldLevel);
-return;}
+	int oldLevel = interrupt->SetLevel(IntOff);
+	//if we do not own the lock we cannot release it
+	if(!isHeldByCurrentThread()){
+		//Error message
+		printf("Error: currentThread is not Lock owner. Cannot release lock");
+		//restore interrupts
+		interrupt->SetLevel(oldLevel);
+		return;
+	}
+
+	if(/*the wait queue is not empty*/){
+		//Remove thread from the wait queue
+		//place thread in ready queue
+		//make that thread the lock owner
+	}
+	else{//the wait queue is empty
+		//free the lock
+		isBusy = false;
+		//clear lock ownership
+		ownerThread = NULL;
+	}
+	//restore interrupts
+	interrupt->SetLevel(oldLevel);
+	return;
+}
 
 Condition::Condition(char* debugName) { }
 Condition::~Condition() { }
 void Condition::Wait(Lock* conditionLock) { 
-int oldLevel = interrupt->SetLevel(IntOff);
-ASSERT(FALSE); 
-//Not Sure Where to restore}
+	//disable interrupts
+	int oldLevel = interrupt->SetLevel(IntOff);
+	if(conditionLock == NULL){
+		//conditionLock is NULL, cannot later reference a NULL lock
+		printf("%s\n", "Error: Lock is NULL, cannot reference an NULL pointer");
+		//restore interrupts
+		interrupt->SetLevel(oldLevel);
+		return;
+	}
+
+	if(/*waitingLock == NULL*/){
+	//waitingLock = conditionLock;
+	}
+
+	if(/*waitingLock != NULL*/){
+		printf("%s\n", "Error: The Waiting Lock is NULL");
+		interrupt->SetLevel(oldLevel);
+		return;
+	}
+	//put self into wait queue
+	conditionLock->Release();
+	currentThread->sleep();
+	conditionLock->Acquire();
+	interrupt->SetLevel(oldLevel);
+	ASSERT(FALSE); 
+	//Not Sure Where to restore
+}
 void Condition::Signal(Lock* conditionLock) { 
-int oldLevel = interrupt->SetLevel(IntOff);
-//code
-interrupt->SetLevel(oldLevel);}
+	int oldLevel = interrupt->SetLevel(IntOff);
+	if(/*Wait queue is empty*/){
+		interrupt->SetLevel(oldLevel);
+		return;
+	}
+
+	if()
+	interrupt->SetLevel(oldLevel);
+}
 void Condition::Broadcast(Lock* conditionLock) { 
 int oldLevel = interrupt->SetLevel(IntOff);}
