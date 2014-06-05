@@ -128,18 +128,18 @@ void Lock::Acquire() {
 		//TODO: add to wait queue
 		currentThread->Sleep();	
 	}
-	interrupt->SetLevel(oldLevel);
+	(void) interrupt->SetLevel(oldLevel);
 }
 
 void Lock::Release() {
-	Thread* thread;
+	Thread *thread;
 	IntStatus oldLevel = interrupt->SetLevel(IntOff);
 	//if we do not own the lock we cannot release it
 	if(!isHeldByCurrentThread()){
 		//Error message
 		printf("Error: currentThread is not Lock owner. Cannot release lock");
 		//restore interrupts
-		interrupt->SetLevel(oldLevel);
+		(void) interrupt->SetLevel(oldLevel);
 		return;
 	}
 
@@ -158,15 +158,17 @@ void Lock::Release() {
 		ownerThread = NULL;
 	}
 	//restore interrupts
-	interrupt->SetLevel(oldLevel);
-	return;
+	(void) interrupt->SetLevel(oldLevel);
 }
 
 Condition::Condition(char* debugName) {
 	name = debugName;
 	waitQueue = new List;
+	waitLock = NULL;
 }
-Condition::~Condition() { }
+Condition::~Condition() { 
+	delete waitQueue;
+}
 void Condition::Wait(Lock* conditionLock) { 
 	//disable interrupts
 	IntStatus oldLevel = interrupt->SetLevel(IntOff);
@@ -174,7 +176,7 @@ void Condition::Wait(Lock* conditionLock) {
 		//conditionLock is NULL, cannot later reference a NULL lock
 		printf("%s\n", "Error: Lock is NULL, cannot reference an NULL pointer");
 		//restore interrupts
-		interrupt->SetLevel(oldLevel);
+		(void) interrupt->SetLevel(oldLevel);
 		return;
 	}
 
@@ -184,7 +186,7 @@ void Condition::Wait(Lock* conditionLock) {
 
 	if(waitLock != conditionLock){
 		printf("%s\n", "Error: The Waiting Lock and the Condition Lock do not match.");
-		interrupt->SetLevel(oldLevel);
+		(void) interrupt->SetLevel(oldLevel);
 		return;
 	}
 	waitQueue->Append((void *)currentThread);
@@ -192,20 +194,20 @@ void Condition::Wait(Lock* conditionLock) {
 	currentThread->Sleep();
 	//aquire lock so that another thread doesn't enter a critical section where wait is called
 	conditionLock->Acquire();
-	interrupt->SetLevel(oldLevel);
+	(void) interrupt->SetLevel(oldLevel);
 	//ASSERT(FALSE); 
 }
 void Condition::Signal(Lock* conditionLock) { 
-	Thread* thread;
+	Thread *thread;
 	IntStatus oldLevel = interrupt->SetLevel(IntOff);
 	if(waitQueue->IsEmpty()){
-		interrupt->SetLevel(oldLevel);
+		(void) interrupt->SetLevel(oldLevel);
 		return;
 	}
 
 	if(waitLock != conditionLock){
 		printf("%s\n", "Error: The Waiting Lock and the Condition Lock do not match.");
-		interrupt->SetLevel(oldLevel);
+		(void) interrupt->SetLevel(oldLevel);
 		return;
 	}
 	thread = (Thread*)waitQueue->Remove();
@@ -214,7 +216,7 @@ void Condition::Signal(Lock* conditionLock) {
 	if(waitQueue->IsEmpty()){
 		waitLock = NULL;
 	}
-	interrupt->SetLevel(oldLevel);
+	(void) interrupt->SetLevel(oldLevel);
 }
 void Condition::Broadcast(Lock* conditionLock) { 
 	while(!waitQueue->IsEmpty()){
