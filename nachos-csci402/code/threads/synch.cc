@@ -145,7 +145,7 @@ void Lock::Release() {
 
 	if(!waitQueue->IsEmpty()){
 		//Remove thread from the wait queue
-		thread = (Thread *) waitQueue->Remove();
+		thread = (Thread *)waitQueue->Remove();
 		//place thread in ready queue
 		scheduler->ReadyToRun(thread);
 		//make that thread the lock owner
@@ -187,7 +187,7 @@ void Condition::Wait(Lock* conditionLock) {
 		interrupt->SetLevel(oldLevel);
 		return;
 	}
-	waitQueue->Append(currentThread);
+	waitQueue->Append((void *)currentThread);
 	conditionLock->Release();
 	currentThread->Sleep();
 	//aquire lock so that another thread doesn't enter a critical section where wait is called
@@ -208,9 +208,9 @@ void Condition::Signal(Lock* conditionLock) {
 		interrupt->SetLevel(oldLevel);
 		return;
 	}
-	thread = (Thread*) waitQueue->Remove();
+	thread = (Thread*)waitQueue->Remove();
 	scheduler->ReadyToRun(thread);
-	//if...
+	
 	if(waitQueue->IsEmpty()){
 		waitLock = NULL;
 	}
