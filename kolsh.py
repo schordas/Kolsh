@@ -8,6 +8,7 @@ from threading import Thread
 from Queue import Queue, Empty
 import sys
 import time
+import pdb
 
 archiveName = 'nachos-csci402.gz'
 nachosDirectory = 'nachos-csci402/'
@@ -132,7 +133,7 @@ def pull(remoteWorkingDirectory):
 def push(remoteWorkingDirectory):
     exe = ExecutionContext(True)
     print "syncing changes with aludra"
-    exe.execute('rsync -rtvz -C --delete --exclude "*.o" * aludra:'+remoteWorkingDirectory)
+    exe.execute('rsync -rtvz -C --delete --exclude-from=excludes.txt * aludra:'+remoteWorkingDirectory)
 
 def watch(remoteWorkingDirectory):
 
@@ -145,11 +146,15 @@ def watch(remoteWorkingDirectory):
         sys.exit(1)
 
     class FSEventHandler(PatternMatchingEventHandler):
-        patterns = ["*"]
+        def __init__(self):
+            ignore_patterns = [".git"]
+            patterns = [nachosDirectory]
+            super(FSEventHandler, self).__init__(ignore_patterns=ignore_patterns, patterns=patterns, ignore_directories=True)
 
         def process(self, event):
             # the file will be processed here
             print event.src_path, event.event_type      # print now only for debug
+            pdb.set_trace()
             push(remoteWorkingDirectory)
 
         def on_any_event(self, event):
