@@ -8,7 +8,6 @@ from threading import Thread
 from Queue import Queue, Empty
 import sys
 import time
-import pdb
 
 archiveName = 'nachos-csci402.gz'
 nachosDirectory = 'nachos-csci402/'
@@ -148,20 +147,19 @@ def watch(remoteWorkingDirectory):
     class FSEventHandler(PatternMatchingEventHandler):
         def __init__(self):
             ignore_patterns = [".git"]
-            patterns = [nachosDirectory]
-            super(FSEventHandler, self).__init__(ignore_patterns=ignore_patterns, patterns=patterns, ignore_directories=True)
+            patterns = ["*"]
+            super(FSEventHandler, self).__init__(ignore_patterns=ignore_patterns, patterns=patterns)
 
         def process(self, event):
             # the file will be processed here
             print event.src_path, event.event_type      # print now only for debug
-            pdb.set_trace()
             push(remoteWorkingDirectory)
 
         def on_any_event(self, event):
             self.process(event)
 
 
-    path = '.'
+    path = './'+nachosDirectory
     observer = Observer()
     observer.schedule(FSEventHandler(), path, recursive=True)
     observer.start()
