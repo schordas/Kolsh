@@ -1,0 +1,21 @@
+Title: Writeup for Project 1, Summer 2014
+Date: 06/06/2014
+Group: Name			Email				StudentID
+	Sam Chordas		chordas@usc.edu		2652701844
+	Richard Chan	
+	Nikhil Handyal
+
+	I.	Requirements:
+	Part 1:
+		Part 1 of project 1 is devoted to building the operating system itself. In this project we are required to implement synchronization among threads. 
+		Threads must be able to acquire and release locks one at a time. No more than one thread can hold a particular lock (and thus only the thread that holds that lock can release it). Only the thread that holds a lock can release the lock. 
+		We must also implement the condition variables: Wait, Signal, and Broadcast. Wait must ensure that if a lock has been acquired by a thread, any other thread trying to obtain that lock is put to sleep until the current thread holding the lock releases the lock and it is the waiting threads turn to obtain the lock. Signal is used by the thread that currently holds the lock in order to wake up a sleeping thread that is waiting to obtain the lock. Broadcast signals all threads to wake up. 
+		In order for any of the condition variables to be called by a thread, that thread must have acquired the lock. The thread that is calling Signal or Broadcast must have acquired that lock associated with that condition. 
+		All interrupts must be disabled before any further commands in the Acquire, Release, Wait, Signal functions to ensure that the code executes without being switched out of the CPU prematurely in regard to our desired functionality.
+		Any behavior of a program that attempts to violate the above requirements should result in a debug or print message that presents the nature of the error and the program will terminate. 
+		No assertion failures are allowed.  
+	I.	Design:
+	II.	Implementation:
+	III.	Testing:
+	IV.	Discussion:
+	V.	Miscellaneous:
