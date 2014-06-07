@@ -132,7 +132,7 @@ def pull(remoteWorkingDirectory):
 def push(remoteWorkingDirectory):
     exe = ExecutionContext(True)
     print "syncing changes with aludra"
-    exe.execute('rsync -rtvz -C --delete --exclude "*.o" * aludra:'+remoteWorkingDirectory)
+    exe.execute('rsync -rtvz -C --delete --exclude-from=excludes.txt * aludra:'+remoteWorkingDirectory)
 
 def watch(remoteWorkingDirectory):
 
@@ -145,7 +145,10 @@ def watch(remoteWorkingDirectory):
         sys.exit(1)
 
     class FSEventHandler(PatternMatchingEventHandler):
-        patterns = ["*"]
+        def __init__(self):
+            ignore_patterns = [".git"]
+            patterns = ["*"]
+            super(FSEventHandler, self).__init__(ignore_patterns=ignore_patterns, patterns=patterns)
 
         def process(self, event):
             # the file will be processed here
@@ -156,7 +159,7 @@ def watch(remoteWorkingDirectory):
             self.process(event)
 
 
-    path = '.'
+    path = './'+nachosDirectory
     observer = Observer()
     observer.schedule(FSEventHandler(), path, recursive=True)
     observer.start()
