@@ -1,0 +1,30 @@
+push a local branch to remote
+	git push origin <local branch>
+
+have local branch track remote branch
+	git branch --set-upstream <local branch> origin/<remote branch>
+
+delete local branch
+	git branch -D <local branch>
+
+delete remote branch
+	git push origin :<remote branch (w/o origin/)>
+
+update branch lists
+	git branch -a or git branch -r
+	then
+	git remote update
+	
+	if there are fewer remote branches than local branches
+	git remote prune origin
+
+checkout remote branch
+	git checkout -b <local branch> origin/<remote branch> 
+
+
+checkout a local commit (revert changes)
+reference: http://stackoverflow.com/questions/2007662/rollback-to-an-old-commit-using-git
+	to checkout into the current branch
+		git checkout <commit>
+	to checkout into a new branch
+		git checkout <commit> -b <branchname>

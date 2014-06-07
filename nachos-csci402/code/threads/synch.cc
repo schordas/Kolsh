@@ -120,12 +120,13 @@ void Lock::Acquire() {
 		return;
 	}
 	//if the lock is not busy, we make it busy and make the current thread the owner
-	if (isBusy){
+	if (isBusy == false){
 		isBusy = true;
 		ownerThread = currentThread;
 	}
 	else{ //the lock is busy in which case we put the thread into the wait queue and put it to sleep 
 		//TODO: add to wait queue
+		waitQueue->Append((void *)currentThread);
 		currentThread->Sleep();	
 	}
 	(void) interrupt->SetLevel(oldLevel);
