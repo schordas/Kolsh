@@ -1,4 +1,4 @@
-// main.cc 
+// main.cc
 //	Bootstrap code to initialize the operating system kernel.
 //
 //	Allows direct calls into internal operating system functions,
@@ -93,7 +93,7 @@ main(int argc, char **argv)
 	argCount = 1;
         if (!strcmp(*argv, "-z"))               // print copyright
             printf (copyright);
-         if (!strcmp(*argv, "-T"))               // print copyright
+         if (!strcmp(*argv, "-T"))               // run the test Suite
            	TestSuite();
 #ifdef USER_PROGRAM
         if (!strcmp(*argv, "-x")) {        	// run a user program
