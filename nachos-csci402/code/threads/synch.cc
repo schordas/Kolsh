@@ -110,7 +110,7 @@ Lock::~Lock() {
 	delete waitQueue;
 }
 bool Lock::isHeldByCurrentThread(){
-	return this->ownerThread == currentThread;
+	return (ownerThread == currentThread);
 }
 void Lock::Acquire() {
 	IntStatus oldLevel = interrupt->SetLevel(IntOff);
@@ -138,7 +138,7 @@ void Lock::Release() {
 	//if we do not own the lock we cannot release it
 	if(!isHeldByCurrentThread()){
 		//Error message
-		printf("Error: currentThread is not Lock owner. Cannot release lock");
+		printf("Error: currentThread %s is not Lock owner. Cannot release lock\n", currentThread->getName());
 		//restore interrupts
 		(void) interrupt->SetLevel(oldLevel);
 		return;

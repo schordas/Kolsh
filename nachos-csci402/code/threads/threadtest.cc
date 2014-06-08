@@ -308,22 +308,65 @@ void t5_t2() {
 using namespace std;
 
 #define PATIENTS_NUMBER 20
-
+#define RECEPTIONISTS_COUNT 5
 Lock* recLineLock[PATIENTS_NUMBER];
-
+int recToken[RECEPTIONISTS_COUNT];
+Condition* RecLineCV[RECEPTIONISTS_COUNT];
+Condition* RecCV[RECEPTIONISTS_COUNT];
 
 void patient(int index){
 	char debug_name[20];
-	printf("Index num: %u \n" ,index );
+	printf("Patient [%u]:\n" ,index );
 	sprintf(debug_name, "Patient line lock # %d", index);
-	printf("%s \n",debug_name);
+	//printf("%s \n",debug_name);
+	//Acquire Lock for waiting in line
 	recLineLock[index] = new Lock(debug_name);
 	recLineLock[index]->Acquire();
+	//Find the shortest line, if no line, go to receptionist and if there are lines, go to the shortest line
+	int shortest, line_index;
+	for(int i = 0; i < RecCount; i++){
+		//index the shortest line and update shortest count
+		if(RecLineCount[i] < shortest){
+			line_index = i;
+			shortest = RecLineCount[i];
+		}
+		//If Receptionist is available
+		if(recState[i] == 0){
+			recState[i] = 1; //make him busy
+			line_index = i;
+			shortest = -1;
+			break;	
+		}
+		//If all receptionist are busy, wait in line
+		if(shortest > -1){
+			RecLineCount[line_index]++;
+			RecLineCV[line_index]->Wait(recLineLock[index]);
+			RecLineCount[line_index]--;
+		}
+	}
+	recLineLock[index]->Release();
+	RecCV[line_index]->Signal();
+	RecCV[line_index]->Wait();
+	int myToken = recToken[line_index];
+	RecCV[line_index]->Signal();
+	
+	
+	}
 	printf("Patient Acquire Line Lock\n");
 	recLineLock[index]->Release();
 	printf("Patient Release Line Lock %s\n", recLineLock[index]->getName());
 
 
+
+
+}
+
+void Receptionist(int index){
+	while(true){
+		recLineLock
+	
+	
+	}
 
 
 }
