@@ -138,7 +138,7 @@ void Lock::Release() {
 	//if we do not own the lock we cannot release it
 	if(!isHeldByCurrentThread()){
 		//Error message
-		printf("Error: currentThread %s is not Lock owner. Cannot release lock", currentThread->getName());
+		printf("Error: currentThread %s is not Lock owner. Cannot release lock\n", currentThread->getName());
 		//restore interrupts
 		(void) interrupt->SetLevel(oldLevel);
 		return;
