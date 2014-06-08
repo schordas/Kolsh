@@ -11,7 +11,6 @@
 
 #include "copyright.h"
 #include "system.h"
-
 //----------------------------------------------------------------------
 // SimpleThread
 //  Loop 5 times, yielding the CPU to another ready thread 
@@ -304,6 +303,40 @@ void t5_t2() {
     t5_l1.Release();
 }
 
+#include "synch.h"
+
+using namespace std;
+
+#define PATIENTS_NUMBER 20
+
+Lock* recLineLock[PATIENTS_NUMBER];
+
+
+void patient(int index){
+	char debug_name[20];
+	printf("Index num: %u \n" ,index );
+	sprintf(debug_name, "Patient line lock # %d", index);
+	printf("%s \n",debug_name);
+	recLineLock[index] = new Lock(debug_name);
+	recLineLock[index]->Acquire();
+	printf("Patient Acquire Line Lock\n");
+	recLineLock[index]->Release();
+	printf("Patient Release Line Lock %s\n", recLineLock[index]->getName());
+
+
+
+
+}
+
+
+
+void Doctor(){
+
+
+
+
+}
+
 // --------------------------------------------------
 // TestSuite()
 //     This is the main thread of the test suite.  It runs the
@@ -328,7 +361,10 @@ void TestSuite() {
     Thread *t;
     char *name;
     int i;
-    
+    t = new Thread("t1_t1");
+    t->Fork((VoidFunctionPtr)patient,0);
+
+	/*
     // Test 1
 
     printf("Starting Test 1\n");
@@ -410,6 +446,6 @@ void TestSuite() {
 
     t = new Thread("t5_t2");
     t->Fork((VoidFunctionPtr)t5_t2,0);
-
+	*/
 }
 #endif
