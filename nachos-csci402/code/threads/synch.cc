@@ -190,6 +190,8 @@ void Condition::Wait(Lock* conditionLock) {
 		(void) interrupt->SetLevel(oldLevel);
 		return;
 	}
+	printf("Current thread: %s is waiting on condition[%s] and lock[%s]\n", currentThread->getName(), this->getName()
+	,conditionLock->getName());
 	waitQueue->Append((void *)currentThread);
 	conditionLock->Release();
 	currentThread->Sleep();
@@ -202,6 +204,8 @@ void Condition::Signal(Lock* conditionLock) {
 	Thread *thread;
 	IntStatus oldLevel = interrupt->SetLevel(IntOff);
 	if(waitQueue->IsEmpty()){
+		printf("%s -- Condition Signal Error: The waitQueue is empty [Lock: %s]\n", currentThread->getName(),
+		conditionLock->getName());
 		(void) interrupt->SetLevel(oldLevel);
 		return;
 	}
