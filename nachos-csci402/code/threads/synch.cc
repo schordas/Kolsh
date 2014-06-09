@@ -104,127 +104,43 @@ Lock::Lock(char* debugName) {
 	name = debugName;
 	ownerThread = NULL;
 	isBusy = false;
-	waitQueue = new List;
 }
-Lock::~Lock() {
-	delete waitQueue;
-}
-bool Lock::isHeldByCurrentThread(){
-	return (ownerThread == currentThread);
+Lock::~Lock() {}
+bool isHeldByCurrentThread(){
+	return ownerThread == currentThread;
 }
 void Lock::Acquire() {
-	IntStatus oldLevel = interrupt->SetLevel(IntOff);
+	int oldLevel = interrupt->SetLevel(IntOff);
 	//if the current thread holds the lock we do not need ot continue
 	if (isHeldByCurrentThread()){
 		interrupt->SetLevel(oldLevel);
 		return;
 	}
 	//if the lock is not busy, we make it busy and make the current thread the owner
-	if (isBusy == false){
+	if (isBusy){
 		isBusy = true;
 		ownerThread = currentThread;
 	}
 	else{ //the lock is busy in which case we put the thread into the wait queue and put it to sleep 
 		//TODO: add to wait queue
-		waitQueue->Append((void *)currentThread);
 		currentThread->Sleep();	
 	}
-	(void) interrupt->SetLevel(oldLevel);
-}
-
+	interrupt->SetLevel(oldLevel);}
 void Lock::Release() {
-	Thread *thread;
-	IntStatus oldLevel = interrupt->SetLevel(IntOff);
-	//if we do not own the lock we cannot release it
-	if(!isHeldByCurrentThread()){
-		//Error message
-		printf("Error: currentThread %s is not Lock owner. Cannot release lock\n", currentThread->getName());
-		//restore interrupts
-		(void) interrupt->SetLevel(oldLevel);
-		return;
-	}
+int oldLevel = interrupt->SetLevel(IntOff);
+//code
+interrupt->SetLevel(oldLevel);
+return;}
 
-	if(!waitQueue->IsEmpty()){
-		//Remove thread from the wait queue
-		thread = (Thread *)waitQueue->Remove();
-		//place thread in ready queue
-		scheduler->ReadyToRun(thread);
-		//make that thread the lock owner
-		ownerThread = thread;
-	}
-	else{//the wait queue is empty
-		//free the lock
-		isBusy = false;
-		//clear lock ownership
-		ownerThread = NULL;
-	}
-	//restore interrupts
-	(void) interrupt->SetLevel(oldLevel);
-}
-
-Condition::Condition(char* debugName) {
-	name = debugName;
-	waitQueue = new List;
-	waitLock = NULL;
-}
-Condition::~Condition() { 
-	delete waitQueue;
-}
+Condition::Condition(char* debugName) { }
+Condition::~Condition() { }
 void Condition::Wait(Lock* conditionLock) { 
-	//disable interrupts
-	IntStatus oldLevel = interrupt->SetLevel(IntOff);
-	if(conditionLock == NULL){
-		//conditionLock is NULL, cannot later reference a NULL lock
-		printf("%s\n", "Error: Lock is NULL, cannot reference an NULL pointer");
-		//restore interrupts
-		(void) interrupt->SetLevel(oldLevel);
-		return;
-	}
-
-	if(waitLock == NULL){
-		waitLock = conditionLock;
-	}
-
-	if(waitLock != conditionLock){
-		printf("%s\n", "Error: The Waiting Lock and the Condition Lock do not match.");
-		(void) interrupt->SetLevel(oldLevel);
-		return;
-	}
-	printf("Current thread: %s is waiting on condition[%s] and lock[%s]\n", currentThread->getName(), this->getName()
-	,conditionLock->getName());
-	waitQueue->Append((void *)currentThread);
-	conditionLock->Release();
-	currentThread->Sleep();
-	//aquire lock so that another thread doesn't enter a critical section where wait is called
-	conditionLock->Acquire();
-	(void) interrupt->SetLevel(oldLevel);
-	//ASSERT(FALSE); 
-}
+int oldLevel = interrupt->SetLevel(IntOff);
+ASSERT(FALSE); 
+//Not Sure Where to restore}
 void Condition::Signal(Lock* conditionLock) { 
-	Thread *thread;
-	IntStatus oldLevel = interrupt->SetLevel(IntOff);
-	if(waitQueue->IsEmpty()){
-		printf("%s -- Condition Signal Error: The waitQueue is empty [Lock: %s]\n", currentThread->getName(),
-		conditionLock->getName());
-		(void) interrupt->SetLevel(oldLevel);
-		return;
-	}
-
-	if(waitLock != conditionLock){
-		printf("%s\n", "Error: The Waiting Lock and the Condition Lock do not match.");
-		(void) interrupt->SetLevel(oldLevel);
-		return;
-	}
-	thread = (Thread*)waitQueue->Remove();
-	scheduler->ReadyToRun(thread);
-	
-	if(waitQueue->IsEmpty()){
-		waitLock = NULL;
-	}
-	(void) interrupt->SetLevel(oldLevel);
-}
+int oldLevel = interrupt->SetLevel(IntOff);
+//code
+interrupt->SetLevel(oldLevel);}
 void Condition::Broadcast(Lock* conditionLock) { 
-	while(!waitQueue->IsEmpty()){
-		Condition::Signal(conditionLock);
-	}
-}
+int oldLevel = interrupt->SetLevel(IntOff);}
