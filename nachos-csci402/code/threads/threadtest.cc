@@ -307,68 +307,157 @@ void t5_t2() {
 
 using namespace std;
 
-#define PATIENTS_NUMBER 20
+#define PATIENTS_COUNT 20
 #define RECEPTIONISTS_COUNT 5
-Lock* recLineLock[PATIENTS_NUMBER];
+#define DOCTORS_COUNT 2
+#define DOORBOYS_COUNT 5
+Lock recLineLock("recLineLock");
+Lock* recLock[RECEPTIONISTS_COUNT];
+Lock tokenLock("tokenLock");
+Condition* recLineCV[RECEPTIONISTS_COUNT];
+Condition* recCV[RECEPTIONISTS_COUNT];
 int recToken[RECEPTIONISTS_COUNT];
-Condition* RecLineCV[RECEPTIONISTS_COUNT];
-Condition* RecCV[RECEPTIONISTS_COUNT];
+int recLineCount[RECEPTIONISTS_COUNT];
+int recState[RECEPTIONISTS_COUNT];
+int nextToken;
+//DoorBoy
+Lock* doorboyLock[DOORBOYS_COUNT];
+Condition* doorboyCV[DOORBOYS_COUNT];
+
+//Doctor
+Lock* doctorLock[DOCTORS_COUNT];
+Condition* doctorCV{DOCTORS_COUNT];
 
 void patient(int index){
 	char debug_name[20];
-	printf("Patient [%u]:\n" ,index );
+	//printf("Patient [%u]:\n" ,index );
 	sprintf(debug_name, "Patient line lock # %d", index);
 	//printf("%s \n",debug_name);
 	//Acquire Lock for waiting in line
-	recLineLock[index] = new Lock(debug_name);
-	recLineLock[index]->Acquire();
+	recLineLock.Acquire();
+	printf("Patient [%u]: Acquired %s\n" ,index, recLineLock.getName() );
 	//Find the shortest line, if no line, go to receptionist and if there are lines, go to the shortest line
 	int shortest, line_index;
-	for(int i = 0; i < RecCount; i++){
+	for(int i = 0; i < RECEPTIONISTS_COUNT; i++){
 		//index the shortest line and update shortest count
-		if(RecLineCount[i] < shortest){
+		if(recLineCount[i] < shortest){
 			line_index = i;
-			shortest = RecLineCount[i];
+			shortest = recLineCount[i];
 		}
 		//If Receptionist is available
 		if(recState[i] == 0){
+			printf("\t Found an available receptionist [%d]\n", i);
 			recState[i] = 1; //make him busy
 			line_index = i;
 			shortest = -1;
 			break;	
 		}
+	}
 		//If all receptionist are busy, wait in line
 		if(shortest > -1){
-			RecLineCount[line_index]++;
-			RecLineCV[line_index]->Wait(recLineLock[index]);
-			RecLineCount[line_index]--;
+			printf("\t shortest : %d, larger than -1, increment and wait\n", shortest);
+			recLineCount[line_index]++;
+			recLineCV[line_index]->Wait(&recLineLock);
+			recLineCount[line_index]--;
+		}
+	
+	printf("Line Index: %d\n", line_index);
+	recLineLock.Release();
+	printf("Patient [%u]: Released %s\n" ,index, recLineLock.getName() );
+	recLock[line_index]->Acquire();
+	printf("Patient [%u]: Acquired %s\n" ,index, recLock[line_index]->getName() );
+	recCV[line_index]->Signal(recLock[line_index]);
+	printf("Patient [%u]: Signaled %s and going to wait\n" ,index, recCV[line_index]->getName() );
+	recCV[line_index]->Wait(recLock[line_index]);
+	int myToken = recToken[line_index];
+	printf("Patient [%u]: Acquired token: %d\n" ,index, myToken );
+	recCV[line_index]->Signal(recLock[line_index]);
+	//Now patient acquired a unique token number [myToken], going to stand in line to meet doctor
+	recCV[line_index]->Wait(recLock[line_index]);
+	
+}
+
+
+
+
+
+
+void receptionist(int index){
+	char* debug_name;
+	//Assign pointers to new variables
+	debug_name = new char[20];
+	sprintf(debug_name, "Receptionist #%d LineCV", index);
+	recLineCV[index] = new Condition(debug_name);
+	
+	debug_name = new char[20];
+	sprintf(debug_name, "recLock #%d", index);
+	recLock[index] = new Lock(debug_name);
+	
+	debug_name = new char[20];
+	sprintf(debug_name, "recCV #%d", index);
+	recCV[index] = new Condition(debug_name);
+	
+	recLineCount[index] = 0;
+	while(true){
+		recLineLock.Acquire();
+		printf("receptionist [%u]: Acquired %s\n" ,index, recLineLock.getName() );
+		recState[index] = 0;
+		printf("recLineCount : %d\n", recLineCount[index]);
+		if(recLineCount[index] > 0){
+			//People waiting in this receptionist's line
+			printf("receptionist [%u]: Signals %s\n", index, recLineCV[index]->getName());
+			recLineCV[index]->Signal(&recLineLock); //Signal those patient waiting in line
+			recState[index] = 1;	//Make me busy
+		}
+		recLock[index]->Acquire(); //Receptionist enter the lock first
+		printf("receptionist [%u]: Acquired %s and going to release %s\n", index, recLock[index]->getName()
+			, recLineLock.getName() );
+		recLineLock.Release();
+		//Wait for patient to ask for token
+		printf("receptionist [%u]: Going to wait %s\n" ,index, recCV[index]->getName() );
+		recCV[index]->Wait(recLock[index]);
+		tokenLock.Acquire();
+		printf("receptionist [%u]: Acquired %s\n" ,index, tokenLock.getName() );
+		recToken[index] = nextToken;
+		nextToken++;
+		tokenLock.Release();
+		//Signal patient to take the token
+		recCV[index]->Signal(recLock[index]);
+		printf("receptionist [%u]: Signalled %s and Going to wait\n" ,index, recCV[index]->getName() );
+		recCV[index]->Wait(recLock[index]);
+		printf("receptionist [%u]: Released %s\n" ,index, recLock[index]->getName());
+		recLock[index]->Release();
+		//If there are no one in the line, waiting until hospital manager signals if more than 2 in line
+		if(recLineCount[index] == 0){
+			printf("receptionist [%u]: No one waiting in line, go to break with %s\n" ,index, recCV[index]->getName() );
+			recLock[index]->Acquire();
+			recCV[index]->Wait(recLock[index]);
 		}
 	}
-	recLineLock[index]->Release();
-	RecCV[line_index]->Signal();
-	RecCV[line_index]->Wait();
-	int myToken = recToken[line_index];
-	RecCV[line_index]->Signal();
-	
-	
-	}
-	printf("Patient Acquire Line Lock\n");
-	recLineLock[index]->Release();
-	printf("Patient Release Line Lock %s\n", recLineLock[index]->getName());
-
-
 
 
 }
 
-void Receptionist(int index){
+void DoorBoy(int index){
+	char* debug_name;
+	//Assign pointers to new variables
+	debug_name = new char[20];
+	sprintf(debug_name, "DoorboyCV #%d", index);
+	doorboyCV[index] = new Condition(debug_name);
+	
+	debug_name = new char[20];
+	sprintf(debug_name, "DoorboyLock #%d", index);
+	doorboyLock[index] = new Lock(debug_name);
+	
+	
 	while(true){
-		recLineLock
+		doorboyLock.Acquire();
+		doctorCV->Wait(doorboyLock);
+		
 	
 	
+
 	}
-
-
 }
 
 
@@ -404,9 +493,21 @@ void TestSuite() {
     Thread *t;
     char *name;
     int i;
-    t = new Thread("t1_t1");
-    t->Fork((VoidFunctionPtr)patient,0);
-
+	char debug_name[20];
+	
+	for(i = 0; i < RECEPTIONISTS_COUNT; i++){
+		sprintf(debug_name, "Receptionist Function #%d", i);
+		t = new Thread(debug_name);
+		t->Fork((VoidFunctionPtr)receptionist,i);
+	}
+	
+	for(i = 0; i < PATIENTS_COUNT; i++){
+		sprintf(debug_name, "Patient Function #%d", i);
+		t = new Thread(debug_name);
+		t->Fork((VoidFunctionPtr)patient,i);
+	}
+	
+	
 	/*
     // Test 1
 
