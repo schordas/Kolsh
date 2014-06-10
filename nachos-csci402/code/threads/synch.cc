@@ -190,7 +190,7 @@ void Condition::Wait(Lock* conditionLock) {
 		(void) interrupt->SetLevel(oldLevel);
 		return;
 	}
-	printf("Current thread: %s is waiting on condition[%s] and lock[%s]\n", currentThread->getName(), this->getName()
+	printf("Current thread: %s is waiting on condition[%s] and lock[%s]\n\n", currentThread->getName(), this->getName()
 	,conditionLock->getName());
 	waitQueue->Append((void *)currentThread);
 	conditionLock->Release();
