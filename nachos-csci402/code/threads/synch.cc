@@ -126,6 +126,7 @@ void Lock::Acquire() {
 	}
 	else{ //the lock is busy in which case we put the thread into the wait queue and put it to sleep 
 		//TODO: add to wait queue
+		printf("Error: currentThread %s is trying to acquire %s lock: %s\n", currentThread->getName(), ownerThread->getName(), this->getName());
 		waitQueue->Append((void *)currentThread);
 		currentThread->Sleep();	
 	}
@@ -138,7 +139,7 @@ void Lock::Release() {
 	//if we do not own the lock we cannot release it
 	if(!isHeldByCurrentThread()){
 		//Error message
-		printf("Error: currentThread %s is not Lock owner. Cannot release lock\n", currentThread->getName());
+		printf("Error: currentThread %s is not Lock owner [%s]. Cannot release lock\n", currentThread->getName(), ownerThread->getName());
 		//restore interrupts
 		(void) interrupt->SetLevel(oldLevel);
 		return;
@@ -190,10 +191,13 @@ void Condition::Wait(Lock* conditionLock) {
 		(void) interrupt->SetLevel(oldLevel);
 		return;
 	}
-	printf("Current thread: %s is waiting on condition[%s] and lock[%s]\n\n", currentThread->getName(), this->getName()
+	printf("Current thread: %s is waiting on condition[%s] and lock[%s]\n", currentThread->getName(), this->getName()
 	,conditionLock->getName());
 	waitQueue->Append((void *)currentThread);
+	//printf("OwnerThread of Lock %s is %s\n",conditionLock->getName(), conditionLock->getownerThread()->getName());
+
 	conditionLock->Release();
+	printf("%s\n","");
 	currentThread->Sleep();
 	//aquire lock so that another thread doesn't enter a critical section where wait is called
 	conditionLock->Acquire();
