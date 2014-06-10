@@ -311,7 +311,7 @@ using namespace std;
 
 #define PATIENTS_COUNT 10
 #define RECEPTIONISTS_COUNT 5
-#define DOCTORS_COUNT 3
+#define DOCTORS_COUNT 5
 #define DOORBOYS_COUNT 5
 #define CASHIERS_COUNT 3
 #define CLERKS_COUNT 3
@@ -330,6 +330,7 @@ int nextToken;
 int doctor_to_visit[PATIENTS_COUNT];
 int patient_illness[PATIENTS_COUNT];
 char* patient_medicine[PATIENTS_COUNT];
+int door_boy_line_number;
 int patient_phar_bill[PATIENTS_COUNT];
 int patient_money_spent_at_cashier[PATIENTS_COUNT];
 //DoorBoy
@@ -427,31 +428,31 @@ void patient(int index){
 	//Pick a random doctor
 	random_doctor_index = rand()%DOCTORS_COUNT;
 		printf("Random Doctor index: %u\n", random_doctor_index);
-	doctor_to_visit[index] = random_doctor_index;
 	//Signal the door boy
 			printf("Patient [%u]: signal %s\n" ,index, doctorWaitLine.getName() );
 	doctorWaitLine.Signal(&doctorWaitLock);
+	doctor_to_visit[doorboyLineCount] = random_doctor_index;
+			printf("Patient [%u]: doorboyLineCount: %u\n" ,index, doorboyLineCount );
 	doorboyLineCount++;
 	doctorWaitLine.Wait(&doctorWaitLock);
 		printf("Patient [%u]: Got signalled by %s\n" ,index, doctorWaitLine.getName() );
-	doorboyLineCount--;
 	doctorWaitLock.Release();
 
 	//Wait for doorboy to signal, then go straight to doctor
-	doctorLock[doctor_to_visit[index]]->Acquire();
-			printf("Patient [%u]: signal %s\n" ,index, doctorCV[doctor_to_visit[index]]->getName() );
-	doctorCV[doctor_to_visit[index]]->Signal(doctorLock[doctor_to_visit[index]]);
+	doctorLock[doctor_to_visit[doorboyLineCount]]->Acquire();
+			printf("Patient [%u]: signal %s\n" ,index, doctorCV[doctor_to_visit[doorboyLineCount]]->getName() );
+	doctorCV[doctor_to_visit[doorboyLineCount]]->Signal(doctorLock[doctor_to_visit[doorboyLineCount]]);
 	//patient's index for the doctor
-	current_patient_index[doctor_to_visit[index]] = index;
-	doctorCV[doctor_to_visit[index]]->Wait(doctorLock[doctor_to_visit[index]]);
-		printf("Patient [%u]: Got signalled by %s\n" ,index, doctorCV[doctor_to_visit[index]]->getName() );
+	current_patient_index[doctor_to_visit[doorboyLineCount]] = index;
+	doctorCV[doctor_to_visit[doorboyLineCount]]->Wait(doctorLock[doctor_to_visit[doorboyLineCount]]);
+		printf("Patient [%u]: Got signalled by %s\n" ,index, doctorCV[doctor_to_visit[doorboyLineCount]]->getName() );
 	//Doctor finished examining, get a prescription
-	patient_illness[index] = doctor_prescription[doctor_to_visit[index]];
+	patient_illness[index] = doctor_prescription[doctor_to_visit[doorboyLineCount]];
 	
 	//Signal the doctor so he know I am leaving
-			printf("Patient [%u]: signal %s\n" ,index, doctorCV[doctor_to_visit[index]]->getName() );
-	doctorCV[doctor_to_visit[index]]->Signal(doctorLock[doctor_to_visit[index]]);
-	doctorLock[doctor_to_visit[index]]->Release();
+			printf("Patient [%u]: signal %s\n" ,index, doctorCV[doctor_to_visit[doorboyLineCount]]->getName() );
+	doctorCV[doctor_to_visit[doorboyLineCount]]->Signal(doctorLock[doctor_to_visit[doorboyLineCount]]);
+	doctorLock[doctor_to_visit[doorboyLineCount]]->Release();
 	
 	//go to the cashier, find the shortest line
 	cashier_Line_Lock.Acquire();
@@ -616,14 +617,15 @@ void DoorBoy(int index){
 		doctorWaitLock.Acquire();
 		doctorWaitLine.Wait(&doctorWaitLock);
 			printf("DoorBoy [%u]: Got signalled by %s\n" ,index, doctorWaitLine.getName() );
-		doctorToDoorboyLock[random_doctor_index]->Acquire();
-		doctorToDoorboyCV[random_doctor_index]->Signal(doctorToDoorboyLock[random_doctor_index]);
+			printf("DoorBoy receive random doctor index: %u\n", doctor_to_visit[doorboyLineCount]);
+		doctorToDoorboyLock[doctor_to_visit[doorboyLineCount]]->Acquire();
+		doctorToDoorboyCV[doctor_to_visit[doorboyLineCount]]->Signal(doctorToDoorboyLock[doctor_to_visit[doorboyLineCount]]);
 		doctorWaitLock.Release();
-		doctorToDoorboyCV[random_doctor_index]->Wait(doctorToDoorboyLock[random_doctor_index]);
-			printf("DoorBoy [%u]: Got signalled by %s\n" ,index, doctorToDoorboyCV[random_doctor_index]->getName() );
+		doctorToDoorboyCV[doctor_to_visit[doorboyLineCount]]->Wait(doctorToDoorboyLock[doctor_to_visit[doorboyLineCount]]);
+			printf("DoorBoy [%u]: Got signalled by %s\n" ,index, doctorToDoorboyCV[doctor_to_visit[doorboyLineCount]]->getName() );
 		//Wait for the doctor to signal, so we know he is ready
 		doctorWaitLine.Signal(&doctorWaitLock);
-		doctorToDoorboyLock[random_doctor_index]->Release();
+		doctorToDoorboyLock[doctor_to_visit[doorboyLineCount]]->Release();
 		if(doorboyLineCount == 0){
 			door_boy_break_lock[index]->Acquire();
 			door_boy_break_CV[index]->Wait(door_boy_break_lock[index]);
