@@ -331,6 +331,7 @@ int doctor_to_visit[PATIENTS_COUNT];
 int patient_prescription[PATIENTS_COUNT]; //4 Type of illnesses, [1,2,3,4];
 char* patient_medicine[PATIENTS_COUNT];
 char* patient_phar_bill[PATIENTS_COUNT];
+int patient_money_spent_at_cashier[PATIENTS_COUNT];
 //DoorBoy
 Lock* doorboyLock[DOORBOYS_COUNT];
 Lock doctorWaitLock("doctorWaitLock");
@@ -360,6 +361,7 @@ Condition* cashier_break_CV[CASHIERS_COUNT];
 int cashier_state[CASHIERS_COUNT];
 int cashier_line[CASHIERS_COUNT];
 int patient_index_for_cashier[CASHIERS_COUNT];
+int cashier_consulting_fee[CASHIERS_COUNT];
 int totalIncome; //Hospital's income from patients
 
 //Pharmacy_Clerk
@@ -472,11 +474,19 @@ void patient(int index){
 	cashier_Line_Lock.Release();
 	//Passed the line, Going to see cashier
 	cashierLock[line_index].Acquire();
+	//Store the patient index for cashier use
 	patient_index_for_cashier[line_index] = index;
 	cashierCV[line_index]->Signal(cashierLock[line_index]);
 	cashierCV[line_index]->Wait(cashierLock[line_index]);
+	//paid the cashier
+	patient_money_spent_at_cashier[index] = cashier_consulting_fee[line_index];
+	cashierCV[line_index]->Signal(cashierLock[line_index]);
+	cashierCV[line_index]->Wait(cashierLock[line_index]);
+	//Cashier collected the money, leave now
 	cashierLock[line_index].Release();
-	//Cashier signalled, now go to pharmacy clerk, find the shortest line
+	
+	
+	//now go to pharmacy clerk, find the shortest line
 	phar_clerk_line_Lock.Acquire();
 	shortest = phar_clerk_line[0];
 	for(int i = 0; i < CLERKS_COUNT; i++){
@@ -748,10 +758,14 @@ void Cashier(int index){
 		cashierLock[index]->Acquire();
 		cashier_Line_Lock.Release();
 		cashierCV[index]->Wait(cashierLock[index]);
-		//Patient signalled, get the payment from patient
+		//Patient signalled, send the payment to the patient
 		int patient_token = myToken[patient_index_for_cashier[index]];
-		int consulting_fee = patientFee[patient_token];
-		totalIncome += consulting_fee;
+		cashier_consulting_fee[index] = patientFee[patient_token];
+		//Wait for the patient to pay
+		cashierCV[index]->Signal(cashierLock[index]);
+		cashierCV[index]->Wait(cashierLock[index]);
+		//Get money
+		totalIncome += patient_money_spent_at_cashier[patient_index_for_cashier[index]];
 		//Make them leave
 		cashierCV[index]->Signal(cashierLock[index]);
 		//If line is empty, go to break
