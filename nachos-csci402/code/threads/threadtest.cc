@@ -338,6 +338,7 @@ Lock* doorboyLock[DOORBOYS_COUNT];
 Lock doctorWaitLock("doctorWaitLock");
 Condition* doorboyCV[DOORBOYS_COUNT];
 Condition doctorWaitLine("doctorWaitLine");
+Condition doorboy_doctorWaitLine("doorboy_doctorWaitLine");
 Lock* door_boy_break_lock[DOORBOYS_COUNT];
 Condition* door_boy_break_CV[DOORBOYS_COUNT];
 int doorboyLineCount;
@@ -430,8 +431,8 @@ void patient(int index){
 	random_doctor_index = rand()%DOCTORS_COUNT;
 		printf("Random Doctor index: %u\n", random_doctor_index);
 	//Signal the door boy
-		printf("Patient [%u]: signal %s\n" ,index, doctorWaitLine.getName() );
-	doctorWaitLine.Signal(&doctorWaitLock);
+		printf("Patient [%u]: signal %s\n" ,index, doorboy_doctorWaitLine.getName() );
+	doorboy_doctorWaitLine.Signal(&doctorWaitLock);
 	doctor_to_visit[doorboyLineCount] = random_doctor_index;
 		printf("Patient [%u]: doorboyLineCount: %u\n" ,index, doorboyLineCount );
 	doorboyLineCount++;
@@ -619,9 +620,9 @@ void DoorBoy(int index){
 		printf("\nDoor_Boy [%u]\n", index);
 		int doctor_index;
 		doctorWaitLock.Acquire();
-		doctorWaitLine.Wait(&doctorWaitLock);
+		doorboy_doctorWaitLine.Wait(&doctorWaitLock);
 		doctor_index = doorboyLineCount_called;
-			printf("DoorBoy [%u]: Got signalled by %s\n" ,index, doctorWaitLine.getName() );
+			printf("DoorBoy [%u]: Got signalled by %s\n" ,index, doorboy_doctorWaitLine.getName() );
 			printf("DoorBoy receive random doctor index: %u\n", doctor_to_visit[doctor_index]);
 		doctorToDoorboyLock[doctor_to_visit[doctor_index]]->Acquire();
 		doctorToDoorboyCV[doctor_to_visit[doctor_index]]->Signal(doctorToDoorboyLock[doctor_to_visit[doctor_index]]);
