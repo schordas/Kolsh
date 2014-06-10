@@ -195,10 +195,10 @@ void Condition::Wait(Lock* conditionLock) {
 	waitQueue->Append((void *)currentThread);
 	conditionLock->Release();
 	currentThread->Sleep();
-	//aquire lock so that another thread doesn't enter a critical section where wait is called
+	
+	// acquire lock so that another thread doesn't enter a critical section where wait is called
 	conditionLock->Acquire();
 	(void) interrupt->SetLevel(oldLevel);
-	//ASSERT(FALSE); 
 }
 void Condition::Signal(Lock* conditionLock) { 
 	Thread *thread;
