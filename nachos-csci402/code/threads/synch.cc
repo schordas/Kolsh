@@ -47,8 +47,7 @@ Semaphore::Semaphore(char* debugName, int initialValue)
 //  is still waiting on the semaphore!
 //----------------------------------------------------------------------
 
-Semaphore::~Semaphore()
-{
+Semaphore::~Semaphore() {
     delete queue;
 }
 
@@ -62,9 +61,7 @@ Semaphore::~Semaphore()
 //  when it is called.
 //----------------------------------------------------------------------
 
-void
-Semaphore::P()
-{
+void Semaphore::P() {
     IntStatus oldLevel = interrupt->SetLevel(IntOff);   // disable interrupts
     
     while (value == 0) {            // semaphore not available
@@ -208,7 +205,6 @@ void Condition::Wait(Lock* conditionLock) {
 }
 
 void Condition::Signal(Lock* conditionLock) { 
-    
     IntStatus oldLevel = interrupt->SetLevel(IntOff);
     if(waitQueue->IsEmpty()){
         printf("%s -- Condition Signal Error: The waitQueue is empty [Lock: %s]\n", currentThread->getName(),
@@ -230,6 +226,7 @@ void Condition::Signal(Lock* conditionLock) {
     }
     (void) interrupt->SetLevel(oldLevel);
 }
+
 void Condition::Broadcast(Lock* conditionLock) { 
     while(!waitQueue->IsEmpty()){
         Condition::Signal(conditionLock);

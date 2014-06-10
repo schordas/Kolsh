@@ -74,7 +74,7 @@ class Lock {
 
     void Acquire(); // these are the only operations on a lock
     void Release(); // they are both *atomic*
-
+	Thread* getownerThread() { return ownerThread; }
     bool isHeldByCurrentThread();   // true if the current thread
                     // holds this lock.  Useful for
                     // checking in Release, and in
