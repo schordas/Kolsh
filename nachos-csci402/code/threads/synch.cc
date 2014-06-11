@@ -194,7 +194,7 @@ void Condition::Wait(Lock* conditionLock) {
         (void) interrupt->SetLevel(oldLevel);
         return;
     }
-    printf("Current thread: %s is waiting on condition[%s] and lock[%s]\n", currentThread->getName(), this->getName()
+    printf("\tCurrent thread: %s is waiting on condition[%s] and lock[%s]\n\n", currentThread->getName(), this->getName()
     ,conditionLock->getName());
     waitQueue->Append((void *)currentThread);
     conditionLock->Release();
@@ -218,9 +218,11 @@ void Condition::Signal(Lock* conditionLock) {
         (void) interrupt->SetLevel(oldLevel);
         return;
     }
+	printf("\t%s was signalled\n", this->getName());
     Thread *thread = (Thread*)waitQueue->Remove();
     scheduler->ReadyToRun(thread);
-    
+    printf("\t%s now in the Ready Queue\n", thread->getName());
+
     if(waitQueue->IsEmpty()){
         waitLock = NULL;
     }

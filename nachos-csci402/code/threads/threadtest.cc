@@ -347,27 +347,28 @@ int patient_money_spent_at_cashier[PATIENTS_COUNT];
 Lock* doorboyLock[DOORBOYS_COUNT];
 Condition* doorboyCV[DOORBOYS_COUNT];
 
-Condition* door_boy_WaitLine_CV[DOORBOYS_COUNT];
 Lock door_boy_WaitLine_Lock("door_boy_WaitLine_Lock");
 
 Condition* door_boy_signal_patient_CV[DOORBOYS_COUNT];
 Lock* door_boy_signal_patient_Lock[DOORBOYS_COUNT];
 
 Condition* doorboy_doctorWaitLine[DOORBOYS_COUNT];
+Condition* door_boy_ready_for_patient_CV[DOORBOYS_COUNT];
 Lock doorboy_doctorWaitLock("doorboy_doctorWaitLock");
 Lock* door_boy_break_lock[DOORBOYS_COUNT];
 Condition* door_boy_break_CV[DOORBOYS_COUNT];
+
+Lock* doorboy_patient_lock[DOORBOYS_COUNT];
 int doorboyLineCount[DOORBOYS_COUNT];
 int doorboyLineCount_called;
 int doorboyState[DOORBOYS_COUNT]; // 0 = available, 1 = busy, 2 = on break
 deque<int> doorboy_index_for_doctor;
+
 //Doctor
 Lock* doctorLock[DOCTORS_COUNT];
 Condition* doctorCV[DOCTORS_COUNT];
-
 Lock* doctorToDoorboyLock[DOCTORS_COUNT];
 Condition* doctorToDoorboyCV[DOCTORS_COUNT];
-
 Lock* doctor_line_lock[DOCTORS_COUNT];
 Condition* doctor_line_CV[DOCTORS_COUNT];
 
@@ -408,7 +409,6 @@ int medicine_cost[CLERKS_COUNT];
 int phar_income;
 
 void patient(int index){
-<<<<<<< HEAD
     char debug_name[20];
     sprintf(debug_name, "Patient line lock # %d", index);
     
@@ -444,10 +444,10 @@ void patient(int index){
 
     }
     recLineLock.Release();
-    printf("Patient [%u]: Released %s\n" ,index, recLineLock.getName() );
+		printf("Patient [%u]: Released %s\n" ,index, recLineLock.getName() );
 
     recLock[line_index]->Acquire();
-    printf("Patient [%u]: Acquired %s\n" ,index, recLock[line_index]->getName() );
+		printf("Patient [%u]: Acquired %s\n" ,index, recLock[line_index]->getName() );
     recCV[line_index]->Signal(recLock[line_index]);
     recCV[line_index]->Wait(recLock[line_index]);
     myToken[index] = recToken[line_index];
@@ -457,10 +457,11 @@ void patient(int index){
     //Now patient acquired a unique token number [myToken], going to stand in line to meet doctor
     
 	//Doorboy
+		printf("Patient [%u]: Going to get %s\n" ,index, door_boy_WaitLine_Lock.getName());
 	door_boy_WaitLine_Lock.Acquire();
 	shortest = doorboyLineCount[0];
 	int doorboy_index;
-	for(int i = 0; i < RECEPTIONISTS_COUNT; i++){
+	for(int i = 0; i < DOORBOYS_COUNT; i++){
 		//index the shortest line and update shortest count
 		if(doorboyLineCount[i] < shortest){
 			doorboy_index = i;
@@ -468,7 +469,7 @@ void patient(int index){
 		}
 		//If door boy is available
 		if(doorboyState[i] == 0){
-			printf("\t Found an available receptionist [%d]\n", i);
+			printf("\t Found an available doorboy [%d]\n", i);
 			doorboy_index = i;
 			doorboyState[i] = 1; //make him busy
 			shortest = -1;
@@ -482,56 +483,41 @@ void patient(int index){
 		doorboy_doctorWaitLine[doorboy_index]->Wait(&door_boy_WaitLine_Lock);
 		doorboyLineCount[doorboy_index]--;
 	}
+		printf("Patient [%u]: Door Boy index: %d\n" ,index, doorboy_index);
 	door_boy_WaitLine_Lock.Release();
 	doorboyLock[doorboy_index]->Acquire();
-	door_boy_WaitLine_CV[doorboy_index]->Signal(doorboyLock[doorboy_index]);
+		printf("Patient [%u]: Released %s, acquired %s\n" ,index, door_boy_WaitLine_Lock.getName(),doorboyLock[doorboy_index]->getName() );
+	door_boy_ready_for_patient_CV[doorboy_index]->Signal(doorboyLock[doorboy_index]);
+		printf("Patient [%u]: Signalled %s\n" ,index, door_boy_ready_for_patient_CV[doorboy_index]->getName());
+	doorboyLock[doorboy_index]->Release();
 	//Pick a random doctor
 	int random_doctor_index;
 	random_doctor_index = rand()%DOCTORS_COUNT;
-		printf("Random Doctor index: %u\n", random_doctor_index);
+		printf("\tRandom Doctor index: %u\n", random_doctor_index);
 	doctor_to_visit[doorboy_index] = random_doctor_index;
-	
-	doorboyCV[doorboy_index]->Wait(doorboyLock[doorboy_index]);
-	//Wait for door boy to signal and then go to doctor
-	
-	
-/* 	doorboy_doctorWaitLock.Acquire();
-	//Signal the door boy
-		printf("Patient [%u]: signal %s\n" ,index, doorboy_doctorWaitLine[doorboy_index->getName() );
-	doorboy_doctorWaitLine[doorboy_index]->Signal(&doorboy_doctorWaitLock);
-	int doorboy_line_index;
-	doorboy_line_index	= doorboyLineCount; 
-	//'doorboy_line_index' This number will start at 0 
-	//and increment with each patient that enter the line
-	doctor_to_visit[doorboy_line_index] = random_doctor_index;
-	//doctor_to_visit should get a incrementing index value for patient in lines.
-		printf("Patient [%u]: doorboy_line_index: %u\n" ,index, doorboy_line_index );
-	doorboyLineCount++;
-	doctorWaitLock.Acquire();
-	doorboy_doctorWaitLock.Release();
-	doctorWaitLine.Wait(&doctorWaitLock);
-		printf("Patient [%u]: Got signalled by %s\n" ,index, doctorWaitLine.getName() );
-	doctorWaitLock.Release(); */
+	doorboy_patient_lock[doorboy_index]->Acquire();
+	doorboyCV[doorboy_index]->Wait(doorboy_patient_lock[doorboy_index]);
+	doorboy_patient_lock[doorboy_index]->Release();
+	//doorboy to signalled, then go straight to doctor
 	
 	
-
-	//Wait for doorboy to signal, then go straight to doctor
-	doctorLock[doctor_to_visit[doorboy_index]]->Acquire();
-		printf("Patient [%u]: signal %s\n" ,index, doctorCV[doctor_to_visit[doorboy_index]]->getName() );
-	doctorCV[doctor_to_visit[doorboy_index]]->Signal(doctorLock[doctor_to_visit[doorboy_index]]);
+	doctorLock[random_doctor_index]->Acquire();
+		printf("Patient [%u]: signal %s\n" ,index, doctorCV[random_doctor_index]->getName() );
+	doctorCV[random_doctor_index]->Signal(doctorLock[random_doctor_index]);
+	
 	//patient's index for the doctor
-	current_patient_index[doctor_to_visit[doorboy_index]] = index;
-	doctorCV[doctor_to_visit[doorboy_index]]->Wait(doctorLock[doctor_to_visit[doorboy_index]]);
-		printf("Patient [%u]: Got signalled by %s\n" ,index, doctorCV[doctor_to_visit[doorboy_index]]->getName() );
+	current_patient_index[random_doctor_index] = index;
+	doctorCV[random_doctor_index]->Wait(doctorLock[random_doctor_index]);
+		printf("Patient [%u]: Got signalled by %s\n" ,index, doctorCV[random_doctor_index]->getName() );
 
 		//Doctor finished examining, get a prescription
-	patient_illness[index] = doctor_prescription[doctor_to_visit[doorboy_index]];
+	patient_illness[index] = doctor_prescription[random_doctor_index];
 		printf("Patient [%u]: My prescription is %u\n" ,index ,patient_illness[index]);
 	//Signal the doctor so he know I am leaving
-		printf("Patient [%u]: signal %s\n" ,index, doctorCV[doctor_to_visit[doorboy_index]]->getName() );
-	doctorCV[doctor_to_visit[doorboy_index]]->Signal(doctorLock[doctor_to_visit[doorboy_index]]);
+		printf("Patient [%u]: signal %s\n" ,index, doctorCV[random_doctor_index]->getName() );
+	doctorCV[random_doctor_index]->Signal(doctorLock[random_doctor_index]);
 		printf("Patient [%u]: Leaving doctor, going to cashier\n" ,index);
-	doctorLock[doctor_to_visit[doorboy_index]]->Release();
+	doctorLock[random_doctor_index]->Release();
 	
 	//go to the cashier, find the shortest line
 	cashier_Line_Lock.Acquire();
@@ -551,6 +537,8 @@ void patient(int index){
 		}
 	}
 	if(shortest > -1){
+		printf("\t %d people are waiting for Cashier#%d\n", cashier_line[line_index], line_index);
+		printf("\tPeople waiting for cashier, get in line\n");
 		cashier_line[line_index]++;
 		cashier_Line_CV[line_index]->Wait(&cashier_Line_Lock);
 		cashier_line[line_index]--;
@@ -570,7 +558,7 @@ void patient(int index){
 	cashierCV[line_index]->Wait(cashierLock[line_index]);
 	//Cashier collected the money, leave now
 	cashierLock[line_index]->Release();
-	
+		printf("Patient [%d]: Leaving cashier, going to clerk\n" ,index);
 	
 	//now go to pharmacy clerk, find the shortest line
 	phar_clerk_line_Lock.Acquire();
@@ -595,23 +583,24 @@ void patient(int index){
 		phar_clerk_line_CV[line_index]->Wait(&phar_clerk_line_Lock);
 		phar_clerk_line[line_index]--;
 	}
-	phar_clerk_line_Lock.Release();
 	//Line passed
+		printf("Patient [%u]: Going to Clerk #%d\n" ,index, line_index);
 	phar_clerk_Lock[line_index]->Acquire();
+	phar_clerk_line_Lock.Release();
 	patient_index_to_clerk[line_index] = index;
 	phar_clerk_CV[line_index]->Signal(phar_clerk_Lock[line_index]);
 	phar_clerk_CV[line_index]->Wait(phar_clerk_Lock[line_index]);
 	//Get the medicine, and pay the cost; signal the clerk
 	patient_medicine[index] = medicine[line_index];
 	patient_phar_bill[index] = medicine_cost[line_index];
+		printf("Patient [%d] Got %s, Bill is %d\n", index, patient_medicine[index],patient_phar_bill[index]);
 	//Signal the clerk to pay
 	phar_clerk_CV[line_index]->Signal(phar_clerk_Lock[line_index]);
 	phar_clerk_CV[line_index]->Wait(phar_clerk_Lock[line_index]);
-
+		printf("Patient [%u]: Paid the bill, signal to leave hospital\n" ,index);
 	//Tell the clerk I am leaving	
 	phar_clerk_CV[line_index]->Signal(phar_clerk_Lock[line_index]);
 	phar_clerk_Lock[line_index]->Release();
-	
 	//Leave hospital
 }
 
@@ -691,90 +680,94 @@ void DoorBoy(int index) {
 	sprintf(debug_name, "DoorboyLock #%d", index);
 	doorboyLock[index] = new Lock(debug_name);
 	
-	debug_name = new char[20];
+	debug_name = new char[30];
+	sprintf(debug_name, "doorboy_patient_lock #%d", index);
+	doorboy_patient_lock[index] = new Lock(debug_name);
+	
+	debug_name = new char[40];
+	sprintf(debug_name, "door_boy_ready_for_patient_CV #%d", index);
+	door_boy_ready_for_patient_CV[index] = new Condition(debug_name);	
+
+	
+	debug_name = new char[30];
 	sprintf(debug_name, "door_boy_break_lock #%d", index);
 	door_boy_break_lock[index] = new Lock(debug_name);
 	
-	debug_name = new char[20];
+	debug_name = new char[30];
 	sprintf(debug_name, "door_boy_break_CV #%d", index);
 	door_boy_break_CV[index] = new Condition(debug_name);	
-	int doctor_index;
 	
-	debug_name = new char[20];
+	debug_name = new char[40];
 	sprintf(debug_name, "door_boy_signal_patient_Lock #%d", index);
 	door_boy_signal_patient_Lock[index] = new Lock(debug_name);
 	
-	debug_name = new char[20];
+	debug_name = new char[40];
 	sprintf(debug_name, "door_boy_signal_patient_CV #%d", index);
 	door_boy_signal_patient_CV[index] = new Condition(debug_name);	
-	int doctor_index;	
 	
-	debug_name = new char[20];
-	sprintf(debug_name, "door_boy_WaitLine_Lock #%d", index);
-	door_boy_WaitLine_Lock[index] = new Lock(debug_name);
 	
-	debug_name = new char[20];
-	sprintf(debug_name, "door_boy_WaitLine_CV #%d", index);
-	door_boy_WaitLine_CV[index] = new Condition(debug_name);	
-	
-	debug_name = new char[20];
+	debug_name = new char[30];
 	sprintf(debug_name, "doorboy_doctorWaitLine #%d", index);
 	doorboy_doctorWaitLine[index] = new Condition(debug_name);
 	
-	int doctor_index;	
+	int doctor_index;
+	bool needToWait;
 	while(true){
 		printf("Door_Boy [%u] --top--\n", index);
 		door_boy_WaitLine_Lock.Acquire();
 		doorboyState[index] = 0;
 		if(doorboyLineCount[index] > 0){
 			//People waiting in line
-			doorboy_doctorWaitLine[doorboy_index]->Signal(&door_boy_WaitLine_Lock);
+			doorboy_doctorWaitLine[index]->Signal(&door_boy_WaitLine_Lock);
 			doorboyState[index] = 1;
 		}
 		doorboyLock[index]->Acquire();
 		door_boy_WaitLine_Lock.Release();
-		door_boy_WaitLine_CV[index]->Wait(doorboyLock[index]);
-		//Wait for patient to signal
+		door_boy_ready_for_patient_CV[index]->Wait(doorboyLock[index]);
+			printf("Door_Boy [%u] Patient had signalled\n", index);
+		//A patient has come to door boy, door boy wait for doctor line
 		doctor_index = doctor_to_visit[index];
-			printf("DoorBoy receive random doctor index: %u\n", doctor_to_visit[index]);
+		printf("DoorBoy [%d] receive random doctor index: %u\n",index, doctor_index);
 
+		doctor_line_lock[doctor_index]->Acquire();
+		//default is to wait		
+		needToWait = true;
+		if(doctor_state[doctor_index] == 0){
+				printf("\t doctor [%d] is available\n", doctor_index);
+				doctor_state[doctor_index] = 1; //make him busy
+				needToWait = false;
+		}
+		//If doctor is busy, wait in line
+		if(needToWait == true){
+			printf("\t need to wait for doctor #%d\n", doctor_index);
+			doctor_line[doctor_index]++;
+			doctor_line_CV[doctor_index]->Wait(doctor_line_lock[doctor_index]);
+				printf("Door_Boy [%u] Doctor signalled, walk out of the line\n", index);
+			doctor_line[doctor_index]--;
+
+		}
+		doctor_line_lock[doctor_index]->Release();
+		doorboyLock[index]->Release();
 		doctorToDoorboyLock[doctor_index]->Acquire();
-		doorboyLock[index]->Release();
+		//Signal the doctor
 		doctorToDoorboyCV[doctor_index]->Signal(doctorToDoorboyLock[doctor_index]);
-		door_boy_signal_patient_Lock[index]->Acquire();
-		door_boy_index_for_doctor[doctor_index] = index;
+		door_boy_index_for_doctor[doctor_index] = index;	//store this index for doctor
 		doctorToDoorboyLock[doctor_index]->Release();
+		door_boy_signal_patient_Lock[index]->Acquire();
 		door_boy_signal_patient_CV[index]->Wait(door_boy_signal_patient_Lock[index]);
-		//Wait for Doctor to signal, and then send the patient
-		//Signal the selected doctor
-		doorboyLock[index]->Acquire();
+			printf("Door_Boy [%u] Going to signal the patient\n", index);
 		door_boy_signal_patient_Lock[index]->Release();
-		doorboyCV[index]->Signal(doorboyLock[index]);
-		doorboyLock[index]->Release();
-
-/* 		doctorToDoorboyLock[doctor_to_visit[doctor_index]]->Acquire();
-		doctorToDoorboyCV[doctor_to_visit[doctor_index]]->Signal(doctorToDoorboyLock[doctor_to_visit[doctor_index]]);
-		doctor_state[doctor_to_visit[doctor_index]] = 1;
-		
-		doctorToDoorboyLock[doctor_to_visit[doctor_index]]->Release();
-		//Store my index into deque
-		doorboy_index_for_doctor.push_back(index);
-		
-		doorboyLock[index]->Acquire();
-		doorboyCV[index]->Wait(doorboyLock[index]);
-		//doctorToDoorboyCV[doctor_to_visit[doctor_index]]->Wait(doctorToDoorboyLock[doctor_to_visit[doctor_index]]);
-			printf("DoorBoy [%u]: Got signalled by %s\n" ,index, doctorToDoorboyCV[doctor_to_visit[doctor_index]]->getName() );
-		//Wait for the doctor to signal, so we know he is ready
-			printf("DoorBoy [%u]: Signal %s, patient go to see doctor\n" ,index, doctorWaitLock.getName());
-		doctorWaitLock.Acquire();
-		doctorWaitLine.Signal(&doctorWaitLock);
-			printf("DoorBoy [%u]: Trying to release lock %s\n" ,index, doctorWaitLock.getName() );
-		doctorWaitLock.Release();
-		doorboyLock[index]->Release(); */
-		if(doctor_index == doorboyLineCount){
+		//Wait for Doctor to signal, and then send the patient
+		doorboy_patient_lock[index]->Acquire();
+		doorboyCV[index]->Signal(doorboy_patient_lock[index]);
+		doorboy_patient_lock[index]->Release();
+		//Done, if no people waiting go to break
+		if(doorboyLineCount[index] == 0){
 				printf("DoorBoy [%u]: Break, no one in line \n" ,index);
+			doorboyState[index] = 2;
 			door_boy_break_lock[index]->Acquire();
 			door_boy_break_CV[index]->Wait(door_boy_break_lock[index]);
+			door_boy_break_lock[index]->Release();
 			//Wait for manager to call
 		}
 	}
@@ -812,8 +805,17 @@ void Doctor(int index) {
 	int door_boy_index;
 	while(true){
 		printf("Doctor [%u] --top--\n", index);
+		doctor_line_lock[index]->Acquire();
+		doctor_state[index] = 0;
+		printf("Doctor [%u]: %d Door_boys waiting\n", index, doctor_line[index]);
+		if(doctor_line[index] > 0){
+			doctor_line_CV[index]->Signal(doctor_line_lock[index]);
+			doctor_state[index] = 1;// Make myself busy
+		}
+		
 		doctorToDoorboyLock[index]->Acquire();
-		doctorToDoorboyCV[index]->Wait(doctorToDoorboyLock[index]);
+		doctor_line_lock[index]->Release();
+		doctorToDoorboyCV[index]->Wait(doctorToDoorboyLock[index]); //Wait for doorboy to signal
 			printf("Doctor [%d]: Got signalled by door boy: %s\n", index, doctorToDoorboyCV[index]->getName());
 		//A door boy has signalled, signal the door boy to bring in the patient
 		//Signal the particular door boy
@@ -821,10 +823,10 @@ void Doctor(int index) {
 		door_boy_signal_patient_Lock[door_boy_index]->Acquire();
 		doctorToDoorboyLock[index]->Release();
 		door_boy_signal_patient_CV[door_boy_index]->Signal(door_boy_signal_patient_Lock[door_boy_index]);
-		//Signal the door boy
+		//Signalled the door boy
 		//Waiting for the patient
-		doctorLock[index]->Acquire();
 		door_boy_signal_patient_Lock[door_boy_index]->Release();
+		doctorLock[index]->Acquire();
 			printf("Doctor [%d]: Waitinf for patient at %s\n", index, doctorCV[index]->getName());
 		doctorCV[index]->Wait(doctorLock[index]);
 			printf("Doctor [%d]: Patient signalled with %s\n", index, doctorCV[index]->getName());
@@ -866,6 +868,7 @@ void Doctor(int index) {
 			printf("\t Cost for this patient is %d\n", patientFee[myToken[current_patient_index[index]]]);
 		doctorCV[index]->Signal(doctorLock[index]);
 		doctorCV[index]->Wait(doctorLock[index]);
+			printf("Doctor [%u] Let the Patient Leave\n", index);
 		doctorLock[index]->Release();
 		//Doctor decide if he want to break
 		int break_chance = rand()% 100;
@@ -875,6 +878,7 @@ void Doctor(int index) {
 			for(int i = 0; i < 5; i++){
 				currentThread->Yield();
 			}
+			printf("Doctor [%d] come back from break\n", index);
 		}
 		
 	}
@@ -915,6 +919,7 @@ void Cashier(int index) {
 		cashierLock[index]->Acquire();
 		cashier_Line_Lock.Release();
 		cashierCV[index]->Wait(cashierLock[index]);
+			printf("Cashier [%u] Back from Wait\n", index);
 		//Patient signalled, send the payment to the patient
 		int patient_token = myToken[patient_index_for_cashier[index]];
 		cashier_consulting_fee[index] = patientFee[patient_token];
@@ -923,17 +928,23 @@ void Cashier(int index) {
 		cashierCV[index]->Signal(cashierLock[index]);
 			printf("Cashier [%d]: Signalled %s and Wait\n", index,  cashierLock[index]->getName());
 		cashierCV[index]->Wait(cashierLock[index]);
+			printf("Cashier [%u] Back from Wait\n", index);
+
 		//Get money
-			printf("Cashier [%d]: Get money %d\n", index,  patient_money_spent_at_cashier[patient_index_for_cashier[index]]);
+			printf("Cashier [%d]: Got money %d\n", index,  patient_money_spent_at_cashier[patient_index_for_cashier[index]]);
 		totalIncome += patient_money_spent_at_cashier[patient_index_for_cashier[index]];
+			printf("\tTotal income is %d\n", totalIncome);
 		//Make them leave
 		cashierCV[index]->Signal(cashierLock[index]);
+		cashierLock[index]->Release();
 		//If line is empty, go to break
 		if(cashier_line[index] == 0){
 			printf("Cashier [%d]: No one in line, break\n", index);
 			cashier_state[index] = 2;
 			cashier_break_lock[index]->Acquire();
 			cashier_break_CV[index]->Wait(cashier_break_lock[index]);
+			cashier_break_lock[index]->Release();
+				printf("Cashier [%u] Back from Break\n", index);
 			//hospital manager called
 		}
 		
@@ -964,15 +975,14 @@ void clerk(int index) {
 	debug_name2 = new char[40];
 	sprintf(debug_name2, "phar_clerk_break_Lock #%d", index);
 	phar_clerk_break_Lock[index] = new Lock(debug_name2);
-	
-
-	
+	int patient_condition;
 	while(true) {
 		printf("Clerk [%u] --top--\n", index);
 		phar_clerk_line_Lock.Acquire();
 			printf("Clerk [%d]: Acquired Lock %s\n", index, phar_clerk_line_Lock.getName());
 		phar_clerk_state[index] = 0;
 		if(phar_clerk_line[index] > 0){
+				printf("\t%dPeople waiting in Line\n", phar_clerk_line[index]);
 			phar_clerk_line_CV[index]->Signal(&phar_clerk_line_Lock);
 			phar_clerk_state[index] = 1;
 		}
@@ -980,7 +990,7 @@ void clerk(int index) {
 		phar_clerk_line_Lock.Release();
 		phar_clerk_CV[index]->Wait(phar_clerk_Lock[index]);
 		//get the prescription
-		int patient_condition;
+			printf("Clerk [%u]: now helping patient#%d\n", index, patient_index_to_clerk[index]);
 		patient_condition = patient_illness[patient_index_to_clerk[index]];
 		//Analyse the prescription and give medicine
 		//Prescription is number from 1 ~ 4
@@ -1011,6 +1021,8 @@ void clerk(int index) {
 		phar_clerk_CV[index]->Wait(phar_clerk_Lock[index]);
 		//The patient return with the bill, collect the bill and make him leave
 		phar_income += patient_phar_bill[patient_index_to_clerk[index]];
+			printf("Clerk [%d]: Patient had paid\n", index);
+			printf("\t Phar_income : %d\n", phar_income);
 		//Signal him so he can leave
 		phar_clerk_CV[index]->Signal(phar_clerk_Lock[index]);
 		phar_clerk_CV[index]->Wait(phar_clerk_Lock[index]);
@@ -1021,7 +1033,50 @@ void clerk(int index) {
 			phar_clerk_state[index] = 2;
 			phar_clerk_break_Lock[index]->Acquire();
 			phar_clerk_break_CV[index]->Wait(phar_clerk_break_Lock[index]);
+			phar_clerk_break_Lock[index]->Release();
+				printf("Clerk [%d] Came back from break\n", index);
 			//Wait for manager's signal
+		}
+	}
+}
+
+void manager(int index){
+	int random_interval;
+
+	while(true){
+		for(int a = 0; a < 5; a++){
+			currentThread->Yield();
+			random_interval = rand()%100;
+			printf("###manager### Random value: %d\n", random_interval);
+			if(random_interval > 10){
+				for(int i = 0; i < DOORBOYS_COUNT; i++){
+					if(doorboyLineCount[i] > 0 && doorboyState[i] == 2){
+						door_boy_break_lock[i]->Acquire();
+						printf("###Manager###:: wake up door_boy #%d\n", i);
+						door_boy_break_CV[i]->Signal(door_boy_break_lock[i]);
+						door_boy_break_lock[i]->Release();
+					}
+				}
+				for(int i = 0; i < CASHIERS_COUNT; i++){
+					if(cashier_line[i] > 0 && cashier_state[i] == 2){
+						printf("###Manager###:: wake up cashier #%d\n", i);
+						cashier_break_lock[i]->Acquire();
+						cashier_break_CV[i]->Signal(cashier_break_lock[i]);
+						cashier_break_lock[i]->Release();
+					}
+				}
+				for(int i = 0; i < CLERKS_COUNT; i++){
+					if(phar_clerk_line[i] > 0 && phar_clerk_state[i] == 2){
+						printf("###Manager###:: wake up clerk #%d\n", i);
+						phar_clerk_break_Lock[i]->Acquire();
+						phar_clerk_break_CV[i]->Signal(phar_clerk_break_Lock[i]);
+						phar_clerk_break_Lock[i]->Release();
+					}
+				}
+			}
+			printf("###Manager### : Casher_income: %d\n", totalIncome);
+			printf("###Manager### : Phar_income: %d\n", phar_income);
+		
 		}
 	}
 }
@@ -1063,7 +1118,6 @@ void TestSuite() {
         t->Fork((VoidFunctionPtr)receptionist,i);
     }
     
-    /*
     for(i = 0; i < DOORBOYS_COUNT; i++){
         name = new char[20];
         sprintf(name, "Door_Boy Function #%d", i);
@@ -1091,13 +1145,16 @@ void TestSuite() {
         t = new Thread(name);
         t->Fork((VoidFunctionPtr)clerk,i);
     }   
-    */
-
-    mutex->Acquire();
+   
+		name = new char[20];
+        sprintf(name, "Manager Function #%d", i);
+        t = new Thread(name);
+        t->Fork((VoidFunctionPtr)manager,i);
+/*     mutex->Acquire();
     while (initialized_receptionists > 0) {
         init_monitor->Wait(mutex);          // wait has an implied release
     }
-    mutex->Release();
+    mutex->Release(); */
     
     for(i = 0; i < PATIENTS_COUNT; i++){
         name = new char[20];
