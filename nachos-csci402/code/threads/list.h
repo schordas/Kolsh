@@ -53,7 +53,7 @@ class List {
 					// on the list
     bool IsEmpty();		// is the list empty? 
     
-
+	void* get_first_element(){ return first->item;}
     // Routines to put/get items on/off list in order (sorted by key)
     void SortedInsert(void *item, int64_t sortKey);	// Put item into list
     void *SortedRemove(int64_t *keyPtr); 	  	// Remove first item from list

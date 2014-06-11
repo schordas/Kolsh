@@ -198,6 +198,7 @@ void Condition::Wait(Lock* conditionLock) {
     ,conditionLock->getName());
     waitQueue->Append((void *)currentThread);
     conditionLock->Release();
+	printf("\t Next Thread going to run is %s\n", scheduler->get_first_thread()->getName());
     currentThread->Sleep();
     //aquire lock so that another thread doesn't enter a critical section where wait is called
     conditionLock->Acquire();

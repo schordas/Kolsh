@@ -69,7 +69,7 @@ void ThreadTest() {
 #include <deque>
 using namespace std;
 
-#define PATIENTS_COUNT 10
+#define PATIENTS_COUNT 20
 #define RECEPTIONISTS_COUNT 2
 #define DOCTORS_COUNT 5
 #define DOORBOYS_COUNT 5
