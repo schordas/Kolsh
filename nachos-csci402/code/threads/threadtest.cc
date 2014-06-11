@@ -64,247 +64,6 @@ void ThreadTest() {
 // --------------------------------------------------
 
 
-// --------------------------------------------------
-// Test 1 - see TestSuite() for details
-// --------------------------------------------------
-Semaphore t1_s1("t1_s1",0);       // To make sure t1_t1 acquires the lock before t1_t2
-Semaphore t1_s2("t1_s2",0);       // To make sure t1_t2 Is waiting on the lock before t1_t3 releases it
-Semaphore t1_s3("t1_s3",0);       // To make sure t1_t1 does not release the lock before t1_t3 tries to acquire it
-Semaphore t1_done("t1_done",0);   // So that TestSuite knows when Test 1 is done
-Lock t1_l1("t1_l1");              // the lock tested in Test 1
-
-// --------------------------------------------------
-// t1_t1() -- test1 thread 1
-//     This is the rightful lock owner
-// --------------------------------------------------
-void t1_t1() {
-    t1_l1.Acquire();
-    t1_s1.V();  // Allow t1_t2 to try to Acquire Lock
- 
-    printf ("%s: Acquired Lock %s, waiting for t3\n",currentThread->getName(),
-        t1_l1.getName());
-    t1_s3.P();
-    printf ("%s: working in CS\n",currentThread->getName());
-    for (int i = 0; i < 1000000; i++) ;
-    printf ("%s: Releasing Lock %s\n",currentThread->getName(),
-        t1_l1.getName());
-    t1_l1.Release();
-    t1_done.V();
-}
-
-// --------------------------------------------------
-// t1_t2() -- test1 thread 2
-//     This thread will wait on the held lock.
-// --------------------------------------------------
-void t1_t2() {
-
-    t1_s1.P();  // Wait until t1 has the lock
-    t1_s2.V();  // Let t3 try to acquire the lock
-
-    printf("%s: trying to acquire lock %s\n",currentThread->getName(),
-        t1_l1.getName());
-    t1_l1.Acquire();
-
-    printf ("%s: Acquired Lock %s, working in CS\n",currentThread->getName(),
-        t1_l1.getName());
-    for (int i = 0; i < 10; i++)
-    ;
-    printf ("%s: Releasing Lock %s\n",currentThread->getName(),
-        t1_l1.getName());
-    t1_l1.Release();
-    t1_done.V();
-}
-
-// --------------------------------------------------
-// t1_t3() -- test1 thread 3
-//     This thread will try to release the lock illegally
-// --------------------------------------------------
-void t1_t3() {
-
-    t1_s2.P();  // Wait until t2 is ready to try to acquire the lock
-
-    t1_s3.V();  // Let t1 do it's stuff
-    for ( int i = 0; i < 3; i++ ) {
-    printf("%s: Trying to release Lock %s\n",currentThread->getName(),
-           t1_l1.getName());
-    t1_l1.Release();
-    }
-}
-
-// --------------------------------------------------
-// Test 2 - see TestSuite() for details
-// --------------------------------------------------
-Lock t2_l1("t2_l1");        // For mutual exclusion
-Condition t2_c1("t2_c1");   // The condition variable to test
-Semaphore t2_s1("t2_s1",0); // To ensure the Signal comes before the wait
-Semaphore t2_done("t2_done",0);     // So that TestSuite knows when Test 2 is
-                                  // done
-
-// --------------------------------------------------
-// t2_t1() -- test 2 thread 1
-//     This thread will signal a variable with nothing waiting
-// --------------------------------------------------
-void t2_t1() {
-    t2_l1.Acquire();
-    printf("%s: Lock %s acquired, signalling %s\n",currentThread->getName(),
-       t2_l1.getName(), t2_c1.getName());
-    t2_c1.Signal(&t2_l1);
-    printf("%s: Releasing Lock %s\n",currentThread->getName(),
-       t2_l1.getName());
-    t2_l1.Release();
-    t2_s1.V();  // release t2_t2
-    t2_done.V();
-}
-
-// --------------------------------------------------
-// t2_t2() -- test 2 thread 2
-//     This thread will wait on a pre-signalled variable
-// --------------------------------------------------
-void t2_t2() {
-    t2_s1.P();  // Wait for t2_t1 to be done with the lock
-    t2_l1.Acquire();
-    printf("%s: Lock %s acquired, waiting on %s\n",currentThread->getName(),
-       t2_l1.getName(), t2_c1.getName());
-    t2_c1.Wait(&t2_l1);
-    printf("%s: Releasing Lock %s\n",currentThread->getName(),
-       t2_l1.getName());
-    t2_l1.Release();
-}
-// --------------------------------------------------
-// Test 3 - see TestSuite() for details
-// --------------------------------------------------
-Lock t3_l1("t3_l1");        // For mutual exclusion
-Condition t3_c1("t3_c1");   // The condition variable to test
-Semaphore t3_s1("t3_s1",0); // To ensure the Signal comes before the wait
-Semaphore t3_done("t3_done",0); // So that TestSuite knows when Test 3 is
-                                // done
-
-// --------------------------------------------------
-// t3_waiter()
-//     These threads will wait on the t3_c1 condition variable.  Only
-//     one t3_waiter will be released
-// --------------------------------------------------
-void t3_waiter() {
-    t3_l1.Acquire();
-    t3_s1.V();      // Let the signaller know we're ready to wait
-    printf("%s: Lock %s acquired, waiting on %s\n",currentThread->getName(),
-       t3_l1.getName(), t3_c1.getName());
-    t3_c1.Wait(&t3_l1);
-    printf("%s: freed from %s\n",currentThread->getName(), t3_c1.getName());
-    t3_l1.Release();
-    t3_done.V();
-}
-
-
-// --------------------------------------------------
-// t3_signaller()
-//     This threads will signal the t3_c1 condition variable.  Only
-//     one t3_signaller will be released
-// --------------------------------------------------
-void t3_signaller() {
-
-    // Don't signal until someone's waiting
-    
-    for ( int i = 0; i < 5 ; i++ ) 
-    t3_s1.P();
-    t3_l1.Acquire();
-    printf("%s: Lock %s acquired, signalling %s\n",currentThread->getName(),
-       t3_l1.getName(), t3_c1.getName());
-    t3_c1.Signal(&t3_l1);
-    printf("%s: Releasing %s\n",currentThread->getName(), t3_l1.getName());
-    t3_l1.Release();
-    t3_done.V();
-}
- 
-// --------------------------------------------------
-// Test 4 - see TestSuite() for details
-// --------------------------------------------------
-Lock t4_l1("t4_l1");        // For mutual exclusion
-Condition t4_c1("t4_c1");   // The condition variable to test
-Semaphore t4_s1("t4_s1",0); // To ensure the Signal comes before the wait
-Semaphore t4_done("t4_done",0); // So that TestSuite knows when Test 4 is
-                                // done
-
-// --------------------------------------------------
-// t4_waiter()
-//     These threads will wait on the t4_c1 condition variable.  All
-//     t4_waiters will be released
-// --------------------------------------------------
-void t4_waiter() {
-    t4_l1.Acquire();
-    t4_s1.V();      // Let the signaller know we're ready to wait
-    printf("%s: Lock %s acquired, waiting on %s\n",currentThread->getName(),
-       t4_l1.getName(), t4_c1.getName());
-    t4_c1.Wait(&t4_l1);
-    printf("%s: freed from %s\n",currentThread->getName(), t4_c1.getName());
-    t4_l1.Release();
-    t4_done.V();
-}
-
-
-// --------------------------------------------------
-// t2_signaller()
-//     This thread will broadcast to the t4_c1 condition variable.
-//     All t4_waiters will be released
-// --------------------------------------------------
-void t4_signaller() {
-
-    // Don't broadcast until someone's waiting
-    
-    for ( int i = 0; i < 5 ; i++ ) 
-    t4_s1.P();
-    t4_l1.Acquire();
-    printf("%s: Lock %s acquired, broadcasting %s\n",currentThread->getName(),
-       t4_l1.getName(), t4_c1.getName());
-    t4_c1.Broadcast(&t4_l1);
-    printf("%s: Releasing %s\n",currentThread->getName(), t4_l1.getName());
-    t4_l1.Release();
-    t4_done.V();
-}
-// --------------------------------------------------
-// Test 5 - see TestSuite() for details
-// --------------------------------------------------
-Lock t5_l1("t5_l1");        // For mutual exclusion
-Lock t5_l2("t5_l2");        // Second lock for the bad behavior
-Condition t5_c1("t5_c1");   // The condition variable to test
-Semaphore t5_s1("t5_s1",0); // To make sure t5_t2 acquires the lock after
-                                // t5_t1
-
-// --------------------------------------------------
-// t5_t1() -- test 5 thread 1
-//     This thread will wait on a condition under t5_l1
-// --------------------------------------------------
-void t5_t1() {
-    t5_l1.Acquire();
-    t5_s1.V();  // release t5_t2
-    printf("%s: Lock %s acquired, waiting on %s\n",currentThread->getName(),
-       t5_l1.getName(), t5_c1.getName());
-    t5_c1.Wait(&t5_l1);
-    printf("%s: Releasing Lock %s\n",currentThread->getName(),
-       t5_l1.getName());
-    t5_l1.Release();
-}
-
-// --------------------------------------------------
-// t5_t1() -- test 5 thread 1
-//     This thread will wait on a t5_c1 condition under t5_l2, which is
-//     a Fatal error
-// --------------------------------------------------
-void t5_t2() {
-    t5_s1.P();  // Wait for t5_t1 to get into the monitor
-    t5_l1.Acquire();
-    t5_l2.Acquire();
-    printf("%s: Lock %s acquired, signalling %s\n",currentThread->getName(),
-       t5_l2.getName(), t5_c1.getName());
-    t5_c1.Signal(&t5_l2);
-    printf("%s: Releasing Lock %s\n",currentThread->getName(),
-       t5_l2.getName());
-    t5_l2.Release();
-    printf("%s: Releasing Lock %s\n",currentThread->getName(),
-       t5_l1.getName());
-    t5_l1.Release();
-}
-
 #include "synch.h"
 #include <iostream>
 #include <deque>
@@ -340,24 +99,21 @@ int doctor_to_visit[DOORBOYS_COUNT];
 int patient_illness[PATIENTS_COUNT];
 char* patient_medicine[PATIENTS_COUNT];
 int door_boy_line_number;
+bool patient_left_hospital[PATIENTS_COUNT];
 int patient_phar_bill[PATIENTS_COUNT];
 int patient_money_spent_at_cashier[PATIENTS_COUNT];
 
 //DoorBoy
 Lock* doorboyLock[DOORBOYS_COUNT];
 Condition* doorboyCV[DOORBOYS_COUNT];
-
 Lock door_boy_WaitLine_Lock("door_boy_WaitLine_Lock");
-
 Condition* door_boy_signal_patient_CV[DOORBOYS_COUNT];
 Lock* door_boy_signal_patient_Lock[DOORBOYS_COUNT];
-
 Condition* doorboy_doctorWaitLine[DOORBOYS_COUNT];
 Condition* door_boy_ready_for_patient_CV[DOORBOYS_COUNT];
 Lock doorboy_doctorWaitLock("doorboy_doctorWaitLock");
 Lock* door_boy_break_lock[DOORBOYS_COUNT];
 Condition* door_boy_break_CV[DOORBOYS_COUNT];
-
 Lock* doorboy_patient_lock[DOORBOYS_COUNT];
 int doorboyLineCount[DOORBOYS_COUNT];
 int doorboyLineCount_called;
@@ -371,7 +127,6 @@ Lock* doctorToDoorboyLock[DOCTORS_COUNT];
 Condition* doctorToDoorboyCV[DOCTORS_COUNT];
 Lock* doctor_line_lock[DOCTORS_COUNT];
 Condition* doctor_line_CV[DOCTORS_COUNT];
-
 Lock doctorWaitLock("doctorWaitLock");
 int doctor_line[DOCTORS_COUNT];
 int patientFee[PATIENTS_COUNT];
@@ -411,7 +166,8 @@ int phar_income;
 void patient(int index){
     char debug_name[20];
     sprintf(debug_name, "Patient line lock # %d", index);
-    
+	//Patient enter hospital
+    patient_left_hospital[index] = false;
     //Acquire Lock for waiting in line
     recLineLock.Acquire();
     printf("Patient [%u]: Acquired %s\n" ,index, recLineLock.getName() );
@@ -602,6 +358,7 @@ void patient(int index){
 	phar_clerk_CV[line_index]->Signal(phar_clerk_Lock[line_index]);
 	phar_clerk_Lock[line_index]->Release();
 	//Leave hospital
+	patient_left_hospital[index] = true;
 }
 
 
@@ -1042,41 +799,55 @@ void clerk(int index) {
 
 void manager(int index){
 	int random_interval;
-
+	bool all_patient_left;
 	while(true){
-		for(int a = 0; a < 5; a++){
+		for(int a = 0; a < 10; a++){
 			currentThread->Yield();
-			random_interval = rand()%100;
-			printf("###manager### Random value: %d\n", random_interval);
-			if(random_interval > 10){
-				for(int i = 0; i < DOORBOYS_COUNT; i++){
-					if(doorboyLineCount[i] > 0 && doorboyState[i] == 2){
-						door_boy_break_lock[i]->Acquire();
-						printf("###Manager###:: wake up door_boy #%d\n", i);
-						door_boy_break_CV[i]->Signal(door_boy_break_lock[i]);
-						door_boy_break_lock[i]->Release();
-					}
-				}
-				for(int i = 0; i < CASHIERS_COUNT; i++){
-					if(cashier_line[i] > 0 && cashier_state[i] == 2){
-						printf("###Manager###:: wake up cashier #%d\n", i);
-						cashier_break_lock[i]->Acquire();
-						cashier_break_CV[i]->Signal(cashier_break_lock[i]);
-						cashier_break_lock[i]->Release();
-					}
-				}
-				for(int i = 0; i < CLERKS_COUNT; i++){
-					if(phar_clerk_line[i] > 0 && phar_clerk_state[i] == 2){
-						printf("###Manager###:: wake up clerk #%d\n", i);
-						phar_clerk_break_Lock[i]->Acquire();
-						phar_clerk_break_CV[i]->Signal(phar_clerk_break_Lock[i]);
-						phar_clerk_break_Lock[i]->Release();
-					}
+		}
+		random_interval = rand()%100;
+		printf("###manager### Random value: %d\n", random_interval);
+		if(random_interval > 10){
+			for(int i = 0; i < DOORBOYS_COUNT; i++){
+				if(doorboyLineCount[i] > 0 && doorboyState[i] == 2){
+					door_boy_break_lock[i]->Acquire();
+					printf("###Manager###:: wake up door_boy #%d\n", i);
+					door_boy_break_CV[i]->Signal(door_boy_break_lock[i]);
+					door_boy_break_lock[i]->Release();
 				}
 			}
-			printf("###Manager### : Casher_income: %d\n", totalIncome);
-			printf("###Manager### : Phar_income: %d\n", phar_income);
-		
+			for(int i = 0; i < CASHIERS_COUNT; i++){
+				if(cashier_line[i] > 0 && cashier_state[i] == 2){
+					printf("###Manager###:: wake up cashier #%d\n", i);
+					cashier_break_lock[i]->Acquire();
+					cashier_break_CV[i]->Signal(cashier_break_lock[i]);
+					cashier_break_lock[i]->Release();
+				}
+			}
+			for(int i = 0; i < CLERKS_COUNT; i++){
+				if(phar_clerk_line[i] > 0 && phar_clerk_state[i] == 2){
+					printf("###Manager###:: wake up clerk #%d\n", i);
+					phar_clerk_break_Lock[i]->Acquire();
+					phar_clerk_break_CV[i]->Signal(phar_clerk_break_Lock[i]);
+					phar_clerk_break_Lock[i]->Release();
+				}
+			}
+		}
+		printf("###Manager### : Casher_income: %d\n", totalIncome);
+		printf("###Manager### : Phar_income: %d\n", phar_income);
+		all_patient_left = false;
+		for(int i = 0; i < PATIENTS_COUNT; i++){
+			if(patient_left_hospital[i] == false){
+				all_patient_left = false;
+				break;
+			}
+			else{
+				//this patient left hospital
+					printf("###Manager: Patient #%d left hospital\n", i);
+				all_patient_left = true;
+			}
+		}
+		if(all_patient_left){
+			break;
 		}
 	}
 }
