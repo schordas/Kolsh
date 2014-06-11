@@ -194,11 +194,11 @@ void Condition::Wait(Lock* conditionLock) {
         (void) interrupt->SetLevel(oldLevel);
         return;
     }
-    printf("\tCurrent thread: %s is waiting on condition[%s] and lock[%s]\n\n", currentThread->getName(), this->getName()
+    printf("\tCurrent thread: %s is waiting on condition[%s] and lock[%s]\n", currentThread->getName(), this->getName()
     ,conditionLock->getName());
     waitQueue->Append((void *)currentThread);
     conditionLock->Release();
-	printf("\t Next Thread going to run is %s\n", scheduler->get_first_thread()->getName());
+	printf("\t Next Thread going to run is %s\n\n", scheduler->get_first_thread()->getName());
     currentThread->Sleep();
     //aquire lock so that another thread doesn't enter a critical section where wait is called
     conditionLock->Acquire();
