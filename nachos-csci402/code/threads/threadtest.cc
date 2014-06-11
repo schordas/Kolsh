@@ -104,6 +104,7 @@ int patient_phar_bill[PATIENTS_COUNT];
 int patient_money_spent_at_cashier[PATIENTS_COUNT];
 Lock patient_picking_doctor_lock("patient_picking_doctor_lock");
 Lock patient_getting_clerk_bill_lock("patient_getting_clerk_bill_lock");
+Lock patient_with_doctor_lock("patient_with_doctor_lock");
 
 //DoorBoy
 Lock* doorboyLock[DOORBOYS_COUNT];
@@ -253,22 +254,25 @@ void patient(int index){
 	}
 		printf("Patient [%u]: Door Boy index: %d\n" ,index, doorboy_index);
 	door_boy_WaitLine_Lock.Release();
-	doorboyLock[doorboy_index]->Acquire();
 	patient_picking_doctor_lock.Acquire();
-	doorboy_patient_lock[doorboy_index]->Acquire();
+	doorboyLock[doorboy_index]->Acquire();
+	//doorboy_patient_lock[doorboy_index]->Acquire();
 		printf("Patient [%u]: Released %s, acquired %s\n" ,index, door_boy_WaitLine_Lock.getName(),doorboyLock[doorboy_index]->getName() );
 	door_boy_ready_for_patient_CV[doorboy_index]->Signal(doorboyLock[doorboy_index]);
 		printf("Patient [%u]: Signalled %s\n" ,index, door_boy_ready_for_patient_CV[doorboy_index]->getName());
-	doorboyLock[doorboy_index]->Release();
 	//Pick a random doctor
 	int random_doctor_index;
 	random_doctor_index = rand()%DOCTORS_COUNT;
 		printf("Patient [%d]: Random Doctor index: %u\n", index, random_doctor_index);
 	doctor_to_visit[doorboy_index] = random_doctor_index;
-	patient_picking_doctor_lock.Release();
-	doorboyCV[doorboy_index]->Wait(doorboy_patient_lock[doorboy_index]);
+	//Done with random number generation
+	door_boy_ready_for_patient_CV[doorboy_index]->Wait(doorboyLock[doorboy_index]);
+	//doorboyCV[doorboy_index]->Wait(doorboy_patient_lock[doorboy_index]);
 	doctorLock[random_doctor_index]->Acquire();
-	doorboy_patient_lock[doorboy_index]->Release();
+	//doorboy_patient_lock[doorboy_index]->Release();
+	patient_with_doctor_lock.Acquire();
+	patient_picking_doctor_lock.Release();
+	doorboyLock[doorboy_index]->Release();
 	//doorboy to signalled, then go straight to doctor
 
 
@@ -279,6 +283,7 @@ void patient(int index){
 	//patient's index for the doctor
 	current_patient_index[random_doctor_index] = index;
 	doctor_patient_CV[random_doctor_index]->Wait(doctor_patient_lock[random_doctor_index]);
+	patient_with_doctor_lock.Release();
 		//Doctor finished examining, get a prescription
 	patient_illness[index] = doctor_prescription[random_doctor_index];
 		printf("Patient [%u]: My prescription is %u\n" ,index ,patient_illness[index]);
@@ -287,7 +292,6 @@ void patient(int index){
 		printf("Patient [%u]: Leaving doctor, going to cashier\n" ,index);
 	doctor_patient_lock[random_doctor_index]->Release();
 	//doctorLock[random_doctor_index]->Release();
-
 	//go to the cashier, find the shortest line
 	cashier_Line_Lock.Acquire();
 	shortest = cashier_line[0];
@@ -500,7 +504,6 @@ void DoorBoy(int index) {
 		doorboyLock[index]->Acquire();
 		door_boy_WaitLine_Lock.Release();
 		door_boy_ready_for_patient_CV[index]->Wait(doorboyLock[index]);
-		doorboyLock[index]->Release();
 			printf("Door_Boy [%u]: Patient had signalled\n", index);
 		//A patient has come to door boy, door boy wait for doctor line
 		doctor_index = doctor_to_visit[index];
@@ -532,11 +535,13 @@ void DoorBoy(int index) {
 		doctorToDoorboyLock[doctor_index]->Release();
 		door_boy_signal_patient_CV[index]->Wait(door_boy_signal_patient_Lock[index]);
 			printf("Door_Boy [%u]: Going to signal the patient\n", index);
-		doorboy_patient_lock[index]->Acquire();
+		//doorboy_patient_lock[index]->Acquire();
 		door_boy_signal_patient_Lock[index]->Release();
 		//Wait for Doctor to signal, and then send the patient
-		doorboyCV[index]->Signal(doorboy_patient_lock[index]);
-		doorboy_patient_lock[index]->Release();
+		door_boy_ready_for_patient_CV[index]->Signal(doorboyLock[index]);
+		doorboyLock[index]->Release();
+		//doorboyCV[index]->Signal(doorboy_patient_lock[index]);
+		//doorboy_patient_lock[index]->Release();
 		//Done, if no people waiting go to break
 		if(doorboyLineCount[index] == 0){
 			door_boy_break_lock[index]->Acquire();
@@ -842,7 +847,7 @@ void manager(){
 	int random_interval;
 	bool all_patient_left;
 	while(true){
-		for(int a = 0; a < 10; a++){
+		for(int a = 0; a < 5; a++){
 			currentThread->Yield();
 		}
 		manager_lock.Acquire();
