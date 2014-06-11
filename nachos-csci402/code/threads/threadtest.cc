@@ -125,6 +125,8 @@ deque<int> doorboy_index_for_doctor;
 //Doctor
 Lock* doctorLock[DOCTORS_COUNT];
 Condition* doctorCV[DOCTORS_COUNT];
+Lock* doctor_patient_lock[DOCTORS_COUNT];
+Condition* doctor_patient_CV[DOCTORS_COUNT];
 Lock* doctorToDoorboyLock[DOCTORS_COUNT];
 Condition* doctorToDoorboyCV[DOCTORS_COUNT];
 Lock* doctor_line_lock[DOCTORS_COUNT];
@@ -223,7 +225,7 @@ void patient(int index){
     //Now patient acquired a unique token number [myToken], going to stand in line to meet doctor
     
 	//Doorboy
-		printf("Patient [%u]: Going to get %s\n" ,index, door_boy_WaitLine_Lock.getName());
+		printf("Patient [%u]: Going to Doorboy waitline %s\n" ,index, door_boy_WaitLine_Lock.getName());
 	door_boy_WaitLine_Lock.Acquire();
 	shortest = doorboyLineCount[0];
 	int doorboy_index;
@@ -252,40 +254,39 @@ void patient(int index){
 		printf("Patient [%u]: Door Boy index: %d\n" ,index, doorboy_index);
 	door_boy_WaitLine_Lock.Release();
 	doorboyLock[doorboy_index]->Acquire();
+	patient_picking_doctor_lock.Acquire();
+	doorboy_patient_lock[doorboy_index]->Acquire();
 		printf("Patient [%u]: Released %s, acquired %s\n" ,index, door_boy_WaitLine_Lock.getName(),doorboyLock[doorboy_index]->getName() );
 	door_boy_ready_for_patient_CV[doorboy_index]->Signal(doorboyLock[doorboy_index]);
 		printf("Patient [%u]: Signalled %s\n" ,index, door_boy_ready_for_patient_CV[doorboy_index]->getName());
 	doorboyLock[doorboy_index]->Release();
 	//Pick a random doctor
-	patient_picking_doctor_lock.Acquire();
 	int random_doctor_index;
 	random_doctor_index = rand()%DOCTORS_COUNT;
 		printf("Patient [%d]: Random Doctor index: %u\n", index, random_doctor_index);
 	doctor_to_visit[doorboy_index] = random_doctor_index;
 	patient_picking_doctor_lock.Release();
-	doorboy_patient_lock[doorboy_index]->Acquire();
 	doorboyCV[doorboy_index]->Wait(doorboy_patient_lock[doorboy_index]);
+	doctorLock[random_doctor_index]->Acquire();
 	doorboy_patient_lock[doorboy_index]->Release();
 	//doorboy to signalled, then go straight to doctor
 
 
-	doctorLock[random_doctor_index]->Acquire();
 		printf("Patient [%u]: signal %s\n" ,index, doctorCV[random_doctor_index]->getName() );
 	doctorCV[random_doctor_index]->Signal(doctorLock[random_doctor_index]);
-
+	doctorLock[random_doctor_index]->Release();
+	doctor_patient_lock[random_doctor_index]->Acquire();
 	//patient's index for the doctor
 	current_patient_index[random_doctor_index] = index;
-	doctorCV[random_doctor_index]->Wait(doctorLock[random_doctor_index]);
-		printf("Patient [%u]: Got signalled by %s\n" ,index, doctorCV[random_doctor_index]->getName() );
-
+	doctor_patient_CV[random_doctor_index]->Wait(doctor_patient_lock[random_doctor_index]);
 		//Doctor finished examining, get a prescription
 	patient_illness[index] = doctor_prescription[random_doctor_index];
 		printf("Patient [%u]: My prescription is %u\n" ,index ,patient_illness[index]);
 	//Signal the doctor so he know I am leaving
-		printf("Patient [%u]: signal %s\n" ,index, doctorCV[random_doctor_index]->getName() );
-	doctorCV[random_doctor_index]->Signal(doctorLock[random_doctor_index]);
+	doctor_patient_CV[random_doctor_index]->Signal(doctor_patient_lock[random_doctor_index]);
 		printf("Patient [%u]: Leaving doctor, going to cashier\n" ,index);
-	doctorLock[random_doctor_index]->Release();
+	doctor_patient_lock[random_doctor_index]->Release();
+	//doctorLock[random_doctor_index]->Release();
 
 	//go to the cashier, find the shortest line
 	cashier_Line_Lock.Acquire();
@@ -402,7 +403,7 @@ void receptionist(int index) {
     mutex->Release(); */
 
     while(true){
-        printf("\nReceptionistxxx [%u]\n", index);
+        printf("\nReceptionist [%u]\n", index);
         recLineLock.Acquire();
         printf("receptionist [%u]: Acquired %s\n" ,index, recLineLock.getName() );
         recState[index] = 0;
@@ -499,6 +500,7 @@ void DoorBoy(int index) {
 		doorboyLock[index]->Acquire();
 		door_boy_WaitLine_Lock.Release();
 		door_boy_ready_for_patient_CV[index]->Wait(doorboyLock[index]);
+		doorboyLock[index]->Release();
 			printf("Door_Boy [%u]: Patient had signalled\n", index);
 		//A patient has come to door boy, door boy wait for doctor line
 		doctor_index = doctor_to_visit[index];
@@ -576,6 +578,14 @@ void Doctor(int index) {
 	debug_name = new char[20];
 	sprintf(debug_name, "doctor_line_lock #%d", index);
 	doctor_line_lock[index] = new Lock(debug_name);
+	
+	debug_name = new char[20];
+	sprintf(debug_name, "doctor_patient_CV #%d", index);
+	doctor_patient_CV[index] = new Condition(debug_name);
+
+	debug_name = new char[20];
+	sprintf(debug_name, "doctor_patient_lock #%d", index);
+	doctor_patient_lock[index] = new Lock(debug_name);	
 
 	int door_boy_index;
 	while(true){
@@ -607,7 +617,7 @@ void Doctor(int index) {
 			printf("Doctor [%d]: Waitinf for patient at %s\n", index, doctorCV[index]->getName());
 		doctorCV[index]->Wait(doctorLock[index]);
 			printf("Doctor [%d]: Patient signalled with %s\n", index, doctorCV[index]->getName());
-
+		doctor_patient_lock[index]->Acquire();
 		//Patient now in the room
 		doctor_give_prescription.Acquire();
 		int sickChances = rand()%100;
@@ -641,12 +651,15 @@ void Doctor(int index) {
 			patientFee[myToken[current_patient_index[index]]]  = 700;
 			doctor_prescription[index] = 4;
 		}
+		doctor_give_prescription.Release();
 		//Signal patient for the prescription, and leave
 			printf("Doctor [%d]: Patient [%d] is diagnosed with illness #%d\n", index, current_patient_index[index], doctor_prescription[index] );
 			printf("Doctor [%u]: Cost for this patient is %d\n", index, patientFee[myToken[current_patient_index[index]]]);
-		doctorCV[index]->Signal(doctorLock[index]);
-		doctor_give_prescription.Release();
-		doctorCV[index]->Wait(doctorLock[index]);
+		doctor_patient_CV[index]->Signal(doctor_patient_lock[index]);
+		//doctorCV[index]->Signal(doctorLock[index]);
+		doctor_patient_CV[index]->Wait(doctor_patient_lock[index]);
+		//Done with patient
+		doctor_patient_lock[index]->Release();
 			printf("Doctor [%u]: Let the Patient Leave\n", index);
 		doctorLock[index]->Release();
 		//Doctor decide if he want to break
