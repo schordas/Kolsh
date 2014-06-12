@@ -251,7 +251,7 @@ void receptionist(const int receptionist_index) {
         
         // someone is waiting in our line. Let's tell them we're ready
         receptionist_state[receptionist_index] = 1;
-        printf("Receptionist [%d] told someone to come up.\n", receptionist_index);
+        printf("Receptionist [%d] has signaled a Patient.\n", receptionist_index);
         receptionist_line_full_cv[receptionist_index]->Signal(receptionist_line_lock);
         receptionist_line_lock->Release();
         
@@ -318,7 +318,7 @@ void patient(const int patient_index) {
     // this enforces our service policy that a service requesting thread must
     // always wait on a service producing thread.
     receptionist_line_length[my_receptionist_index] ++;
-    printf("Patient [%d] in line for receptionist [%d].\n", patient_index, my_receptionist_index);
+    printf("Patient [%d] is waiting for Receptionist [%d].\n", patient_index, my_receptionist_index);
     
     // According to our logic, the receptionist could be busy
     // with another patient or could be waiting for a patient.
@@ -355,19 +355,22 @@ void patient(const int patient_index) {
 
     receptionist_lock[my_receptionist_index]->Release();
 
-    printf("Patient [%d] got token [%d] from receptionist [%d]\n", 
-        patient_index, my_patient_token, my_receptionist_index);
+    printf("Receptionist [%d] gives Token [%d] to a Patient.\n", 
+        my_receptionist_index, my_patient_token);
     
     // now we are going to get in line with the door-boy
     // always waiting in doctor's offices aren't we?
     doorboy_line_lock->Acquire();
     number_of_patients_in_doorboy_line++;
+    printf("Patient [%d] is waiting on a DoorBoy\n", my_patient_token);
     doorboy_line_full_cv->Signal(doorboy_line_lock);
-    printf("Patient [%d] waiting to see doctor.\n", patient_index);
-    doorboy_line_empty_cv->Wait(doorboy_line_lock);
+    
 
     // now we need to read which doctor the door boy has assigned us
     my_doctor_index = next_available_doctor;
+   // printf("Patient [%d] is waiting to be examined by the doctor in Examining Room [%d].\n", patient_index, my_doctor_index);
+    doorboy_line_empty_cv->Wait(doorboy_line_lock);
+    printf("Patient [%d] was signaled by Door Boy\n", my_patient_token);
     next_available_doctor = -2;
     
     // inform the door boy we've read the value and it's OK to move on.
@@ -704,6 +707,7 @@ void cashier(const int cashier_index){
 
         cashier_state[cashier_index] = 0;
         cashier_available_count++;
+        printf("Cashier [%d] has signaled a Patient", cashier_index);
         cashier_line_empty_cv->Signal(cashier_line_lock);
 
         // transition to the next critical
@@ -717,11 +721,12 @@ void cashier(const int cashier_index){
         // let's gather the patient data
         my_patient_token = patient_cashier_bucket[cashier_index];
         assert(my_patient_token != -2);
-        printf("Cashier [%d] received token from patient [%d].\n", cashier_index, my_patient_token);
+        printf("Cashier [%d] gets Token [%d] from a Patient.\n", cashier_index, my_patient_token);
         
         // let's send this data back to the patient
         int total_consultation_fee = patient_consultancy_fee[my_patient_token];
         patient_cashier_bucket[cashier_index] = total_consultation_fee;
+        printf("Cashier [%d] tells Patient with Token [%d] they owe $%d\n", cashier_index, my_patient_token, total_consultation_fee);
         cashier_cv[cashier_index]->Signal(cashier_lock[cashier_index]);
 
         // to ensure the patient saw the amount, we are going
@@ -735,6 +740,7 @@ void cashier(const int cashier_index){
 
         cashier_payment_lock->Acquire();
         total_cashier_fee += total_consultation_fee;
+        printf("Cashier [%d] receives fees from Patient with Token [%d] from a Patient.\n", cashier_index, my_patient_token);
         cashier_payment_lock->Release();
 
         // we're now done with this customer        
@@ -913,6 +919,12 @@ void hospital_manager(const int hospital_manager_index) {
 
 void TestSuite() {
     initialize();
+    printf("Number of Receptionists = [%d]\n", NUMBER_OF_RECEPTIONISTS);
+    printf("Number of Doctors = [%d]\n", DOCTORS_COUNT);
+    printf("Number of DoorBoys = [%d]\n", DOORBOYS_COUNT);
+    printf("Number of Cashiers = [%d]\n", CASHIERS_COUNT);
+    printf("Number of PharmacyClerks = [%d]\n", NUMBER_OF_PHARMACISTS);
+    printf("Number of Patients = [%d]\n", NUMBER_OF_PATIENTS);
 
     // all shared data has been initialized at this point
     // the initialize function solves the issue of threads
