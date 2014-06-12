@@ -351,16 +351,13 @@ void patient(const int patient_index) {
     cashier_line_lock->Acquire();
     number_of_patients_in_cashier_line++;
     cashier_line_populated_cv->Signal(cashier_line_lock);
-    printf("****Waking up Cashier****\n");
     cashier_line_empty->Wait(cashier_line_lock);
-    printf("*******SUMMONED to Counter\n");
     number_of_patients_in_cashier_line--;
     printf("***Patient [%d] will visit cashier [%d]\n", my_patient_token, cashier_line_bucket);
     my_cashier_index = cashier_line_bucket;
     cashier_line_bucket = -2;
 
     assert(my_cashier_index != -2);
-    printf("#####################\n");
     cashier_line_lock->Release();
     
 
@@ -549,15 +546,11 @@ void cashier(const int cashier_index){
         cashier_line_bucket = cashier_index;
         printf("Cashier [%d] told someone to come to counter.\n", cashier_index);
         cashier_line_empty->Signal(cashier_line_lock);
-        printf("////////////////////////\n");
         //need to wait for responce from patient but we don't want to miss
         cashier_lock[cashier_index]->Acquire();
-        printf("#####cashier lock acquired#####\n");
         cashier_line_lock->Release();
-        printf("#####line lock released#####\n");
 
         cashier_cv[cashier_index]->Wait(cashier_lock[cashier_index]);
-        printf("???????????????????????????\n");
 
         int patient_token = patient_cashier_bucket[cashier_index];
         int total_consultation_fee = patient_consultancy_fee[patient_token];
