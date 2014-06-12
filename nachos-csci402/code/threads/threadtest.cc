@@ -135,6 +135,8 @@ Condition* doctor_line_CV[DOCTORS_COUNT];
 Lock doctorWaitLock("doctorWaitLock");
 Lock doctor_send_door_boy_lock("doctor_send_door_boy_lock");
 Lock doctor_give_prescription("doctor_give_prescription");
+Lock doctor_lock_for_door_boy("doctor_give_prescription");
+
 int doctor_line[DOCTORS_COUNT];
 int patientFee[PATIENTS_COUNT];
 int current_patient_index[DOCTORS_COUNT];
@@ -270,11 +272,11 @@ void patient(int index){
 	//doorboyCV[doorboy_index]->Wait(doorboy_patient_lock[doorboy_index]);
 	doctorLock[random_doctor_index]->Acquire();
 	//doorboy_patient_lock[doorboy_index]->Release();
-	patient_with_doctor_lock.Acquire();
 	patient_picking_doctor_lock.Release();
 	doorboyLock[doorboy_index]->Release();
 	//doorboy to signalled, then go straight to doctor
 
+	patient_with_doctor_lock.Acquire();
 
 		printf("Patient [%u]: signal %s\n" ,index, doctorCV[random_doctor_index]->getName() );
 	doctorCV[random_doctor_index]->Signal(doctorLock[random_doctor_index]);
@@ -283,7 +285,6 @@ void patient(int index){
 	//patient's index for the doctor
 	current_patient_index[random_doctor_index] = index;
 	doctor_patient_CV[random_doctor_index]->Wait(doctor_patient_lock[random_doctor_index]);
-	patient_with_doctor_lock.Release();
 		//Doctor finished examining, get a prescription
 	patient_illness[index] = doctor_prescription[random_doctor_index];
 		printf("Patient [%u]: My prescription is %u\n" ,index ,patient_illness[index]);
@@ -291,6 +292,7 @@ void patient(int index){
 	doctor_patient_CV[random_doctor_index]->Signal(doctor_patient_lock[random_doctor_index]);
 		printf("Patient [%u]: Leaving doctor, going to cashier\n" ,index);
 	doctor_patient_lock[random_doctor_index]->Release();
+	patient_with_doctor_lock.Release();
 	//doctorLock[random_doctor_index]->Release();
 	//go to the cashier, find the shortest line
 	cashier_Line_Lock.Acquire();
@@ -407,7 +409,7 @@ void receptionist(int index) {
     mutex->Release(); */
 
     while(true){
-        printf("\nReceptionist [%u]\n", index);
+        printf("\nreceptionist [%u]\n", index);
         recLineLock.Acquire();
         printf("receptionist [%u]: Acquired %s\n" ,index, recLineLock.getName() );
         recState[index] = 0;
@@ -489,7 +491,7 @@ void DoorBoy(int index) {
 	debug_name = new char[30];
 	sprintf(debug_name, "doorboy_doctorWaitLine #%d", index);
 	doorboy_doctorWaitLine[index] = new Condition(debug_name);
-
+	doorboyLineCount[index] = 0;
 	int doctor_index;
 	bool needToWait;
 	while(true){
@@ -591,7 +593,7 @@ void Doctor(int index) {
 	debug_name = new char[20];
 	sprintf(debug_name, "doctor_patient_lock #%d", index);
 	doctor_patient_lock[index] = new Lock(debug_name);	
-
+	doctor_line[index] = 0;
 	int door_boy_index;
 	while(true){
 		printf("Doctor [%u]: --top--\n", index);
@@ -656,13 +658,13 @@ void Doctor(int index) {
 			patientFee[myToken[current_patient_index[index]]]  = 700;
 			doctor_prescription[index] = 4;
 		}
-		doctor_give_prescription.Release();
 		//Signal patient for the prescription, and leave
 			printf("Doctor [%d]: Patient [%d] is diagnosed with illness #%d\n", index, current_patient_index[index], doctor_prescription[index] );
 			printf("Doctor [%u]: Cost for this patient is %d\n", index, patientFee[myToken[current_patient_index[index]]]);
 		doctor_patient_CV[index]->Signal(doctor_patient_lock[index]);
 		//doctorCV[index]->Signal(doctorLock[index]);
 		doctor_patient_CV[index]->Wait(doctor_patient_lock[index]);
+		doctor_give_prescription.Release();
 		//Done with patient
 		doctor_patient_lock[index]->Release();
 			printf("Doctor [%u]: Let the Patient Leave\n", index);
@@ -703,7 +705,7 @@ void Cashier(int index) {
 	debug_name = new char[20];
 	sprintf(debug_name, "cashier_break_lock #%d", index);
 	cashier_break_lock[index] = new Lock(debug_name);
-
+	cashier_line[index] = 0;
 	while(true){
 		printf("Cashier [%u]: --top--\n", index);
 		cashier_Line_Lock.Acquire();
@@ -778,6 +780,7 @@ void clerk(int index) {
 	sprintf(debug_name2, "phar_clerk_break_Lock #%d", index);
 	phar_clerk_break_Lock[index] = new Lock(debug_name2);
 	int patient_condition;
+	phar_clerk_line[index] = 0;
 	while(true) {
 		printf("Clerk [%u]: --top--\n", index);
 		phar_clerk_line_Lock.Acquire();
@@ -897,19 +900,21 @@ void manager(){
 			}
 			else{
 				//this patient left hospital
-					printf("###Manager: Patient #%d left hospital\n", i);
+					printf("###Manager: Patient [%d] left hospital\n", i);
 				all_patient_left = true;
 			}
 		}
-		if(all_patient_left){
+		if(all_patient_left == true){
 			manager_lock.Release();
 			break;
 		}
 		if(scheduler->get_first_thread()->getName() == currentThread->getName()){
+			printf("\t Next Thread going to run is %s\n\n", scheduler->get_first_thread()->getName());
 			manager_lock.Release();
 			break;
 		}
 		manager_lock.Release();
+		printf("\t Next Thread going to run is %s\n\n", scheduler->get_first_thread()->getName());
 	}
 }
 
@@ -945,35 +950,35 @@ void TestSuite() {
 
     for(i = 0; i < RECEPTIONISTS_COUNT; i++) {
         name = new char[20];
-        sprintf(name, "Receptionist Function #%d", i);
+        sprintf(name, "receptionist [%u]", i);
         t = new Thread(name);
         t->Fork((VoidFunctionPtr)receptionist,i);
     }
     
     for(i = 0; i < DOORBOYS_COUNT; i++){
         name = new char[20];
-        sprintf(name, "Door_Boy Function #%d", i);
+        sprintf(name, "Door_Boy [%u]", i);
         t = new Thread(name);
         t->Fork((VoidFunctionPtr)DoorBoy,i);
     }   
     
     for(i = 0; i < DOCTORS_COUNT; i++){
         name = new char[20];
-        sprintf(name, "Doctor Function #%d", i);
+        sprintf(name, "Doctor [%u]", i);
         t = new Thread(name);
         t->Fork((VoidFunctionPtr)Doctor,i);
     }
     
     for(i = 0; i < CASHIERS_COUNT; i++){
         name = new char[20];
-        sprintf(name, "Cashier Function #%d", i);
+        sprintf(name, "Cashier [%d]", i);
         t = new Thread(name);
         t->Fork((VoidFunctionPtr)Cashier,i);
     }
     
     for(i = 0; i < CLERKS_COUNT; i++){
         name = new char[20];
-        sprintf(name, "Clerk Function #%d", i);
+        sprintf(name, "Clerk [%u]", i);
         t = new Thread(name);
         t->Fork((VoidFunctionPtr)clerk,i);
     }   
@@ -990,7 +995,7 @@ void TestSuite() {
     
     for(i = 0; i < PATIENTS_COUNT; i++){
         name = new char[20];
-        sprintf(name, "Patient Function #%d", i);
+        sprintf(name, "Patient [%d]", i);
         t = new Thread(name);
         t->Fork((VoidFunctionPtr)patient,i);
     }   
