@@ -81,7 +81,7 @@ class Thread {
     int machineState[MachineStateSize];  // all registers except for stackTop
 
   public:
-    Thread(char* debugName);		// initialize a Thread 
+    Thread(char *threadName_input);		// initialize a Thread 
     ~Thread(); 				// deallocate a Thread
 					// NOTE -- thread being deleted
 					// must not be running when delete 
@@ -99,8 +99,8 @@ class Thread {
     void CheckOverflow();   			// Check if thread has 
 						// overflowed its stack
     void setStatus(ThreadStatus st) { status = st; }
-    char* getName() { return (name); }
-    void Print() { printf("%s, ", name); }
+    char *getName() { return threadName; }
+    void Print() { printf("%s, ", threadName); }
 
   private:
     // some of the private data for this class is listed above
@@ -109,7 +109,7 @@ class Thread {
 					// NULL if this is the main thread
 					// (If NULL, don't deallocate stack)
     ThreadStatus status;		// ready, running or blocked
-    char* name;
+    char *threadName;
 
     void StackAllocate(VoidFunctionPtr func, int arg);
     					// Allocate a stack for thread.
