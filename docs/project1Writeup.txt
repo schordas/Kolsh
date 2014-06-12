@@ -1,0 +1,96 @@
+Title: Writeup for Project 1, Summer 2014
+Date: 06/06/2014
+Group: Name			Email				StudentID
+	Sam Chordas		chordas@usc.edu			2652701844
+	Richard Chan		chanrich@usc.edu		4260581367
+	Nikhil Handyal		handyal@usc.edu			9150083772
+
+	I.   Requirements:
+	Part 1:
+		Part 1 of project 1 is devoted to building the operating system itself. In this project we are required to implement synchronization among threads. 
+		Threads must be able to acquire and release locks one at a time. No more than one thread can hold a particular lock (and thus only the thread that holds that lock can release it). Only the thread that holds a lock can release the lock. 
+		We must also implement the condition variables: Wait, Signal, and Broadcast. Wait must ensure that if a lock has been acquired by a thread, any other thread trying to obtain that lock is put to sleep until the current thread holding the lock releases the lock and it is the waiting threads turn to obtain the lock. Signal is used by the thread that currently holds the lock in order to wake up a sleeping thread that is waiting to obtain the lock. Broadcast signals all threads to wake up. 
+		In order for any of the condition variables to be called by a thread, that thread must have acquired the lock. The thread that is calling Signal or Broadcast must have acquired that lock associated with that condition. 
+		All interrupts must be disabled before any further commands in the Acquire, Release, Wait, Signal functions to ensure that the code executes without being switched out of the CPU prematurely in regard to our desired functionality.
+		Any behavior of a program that attempts to violate the above requirements should result in a debug or print message that presents the nature of the error and the program will terminate. 
+		No assertion failures are allowed.  
+	Part 2:
+		The requirements of part 2 as per the assignment requirements listed in the assignment 1 specifications found in the link below:
+http://www-scf.usc.edu/~csci402/assignment1/assignment1_su2014.html
+		We had to make sure to avoid race conditions, clobbering of data, and dead lock so that the simulation ran according to the assignment specifications.
+
+	II. Assumptions:
+		We assume that all lines for hospital lines are single lines.
+
+	III.  Design:
+		We split each employee into individual functions. The patient function handles all interactions between a patient and all other employees.
+		The employee functions handle the interactions they have with the patient and other employees if necessary. All employee functions handle interaction with the manager.
+		Any lines to employees are set up as a single line. 
+		Values and patients will exchange data via “buckets” where the patient and employee listen for a value exchange and then signal that they have received the value;
+
+	IV. Implementation:
+		Files Modified:
+			synch.h, synch.cc, threadtest.cc, main.cc
+		Files Added:
+			hmSimulation.cc
+		Data Structures Added:
+			Queues: wait queues added to both Lock and Condition classes in synch.cc/synch.h.
+		Data Structures Modified:
+			N/A
+		Functions Added:
+			In threadtest.cc:
+				void t1_t1();
+				void t1_t2();
+				void t1_t3();
+				void t2_t1();
+				void t2_t2();
+				void t3_waiter();
+				void t3_signaller();
+				void t4_waiter();
+				void t4_signaller();
+				void t5_t1();
+				void t5_t2();
+				void cashier(const int cashier_index);
+				void doctor(const int doctor_index);
+				void doorboy(const int doorboy_index);
+				void patient(const int patient_index);
+				void receptionist(const int receptionist_index);
+				void log(char *output_message);
+				void initialize();
+				void fill_array(int *array, int number_of_elements, int 					fill_value);
+			In synch.cc/synch.h:
+				void Lock::Acquire();
+				void Lock::Release();
+				void Condition::Wait(Lock *conditionLock);
+				void Condition::Signal(Lock *conditionLock);
+				void Condition::Broadcast(Lock *conditionLock);
+		Functions Modified:
+			In treadtest.cc:
+				void TestSuite();
+			In main.cc:
+				int main(int arg, char**argv);
+			In synch.cc/synch.h:
+				bool Lock::isHeldByCurrentThread();
+				
+			
+	V.  Testing:
+		How to Test:
+			To test, make the file, then run the command:
+‘nachos -rs <number value> -T’ where you place a desired integer value in place of <number value>.
+	This will run all tests for the Lock and Condition Variable functionality as well as the hospital simulation.
+		Test Output:
+			The first several lines of the print will display the output of the***
+	Following this will be the output of the hospital simulation wherein the prints correspond to the posted output guidelines.
+
+	VI.   Discussion:
+		Experiment Expectation:
+			We are hoping that our Lock and Condition Variable functionality works appropriately. Further more, we hope that all hospital simulation functionality works correctly and that no clobbering, dead lock, or race conditions occur.
+
+		Experiment Result:
+			Our hospital simulation does not take in user values, we globally define the employee numbers as constant variables at the beginning of threadtest.cc
+
+		Explanation:
+			We were unaware that the number of employees needed to be declared by user input until it was too late to implement the correct functionality due to lack of time.
+			
+	VII.  Miscellaneous:
+		Our hospital simulation does not take in user values, we globally define the employee numbers as constant variables at the beginning of threadtest.cc
