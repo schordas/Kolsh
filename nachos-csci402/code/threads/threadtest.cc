@@ -786,7 +786,7 @@ void patient(const int patient_index) {
     // that's it
     // we are now free to leave the hospital!!
 
-    printf("Patient [%d] is leaving the Hospital", patient_index);
+    printf("Patient [%d] is leaving the Hospital.\n", patient_index);
 
     patient_count_mutex->Acquire();
     patients_in_system--;

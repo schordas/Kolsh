@@ -20,7 +20,7 @@ http://www-scf.usc.edu/~csci402/assignment1/assignment1_su2014.html
 		We had to make sure to avoid race conditions, clobbering of data, and dead lock so that the simulation ran according to the assignment specifications.
 
 	II. Assumptions:
-		We assume that all lines for hospital lines are single lines.
+		We assume that all lines except for the receptionist lines are single lines. 
 
 	III.  Design:
 		We split each employee into individual functions. The patient function handles all interactions between a patient and all other employees.
@@ -32,7 +32,7 @@ http://www-scf.usc.edu/~csci402/assignment1/assignment1_su2014.html
 		Files Modified:
 			synch.h, synch.cc, threadtest.cc, main.cc
 		Files Added:
-			hmSimulation.cc
+			N/A
 		Data Structures Added:
 			Queues: wait queues added to both Lock and Condition classes in synch.cc/synch.h.
 		Data Structures Modified:
@@ -75,9 +75,10 @@ http://www-scf.usc.edu/~csci402/assignment1/assignment1_su2014.html
 			
 	V.  Testing:
 		How to Test:
-			To test, make the file, then run the command:
-‘nachos -rs <number value> -T’ where you place a desired integer value in place of <number value>.
-	This will run all tests for the Lock and Condition Variable functionality as well as the hospital simulation.
+			First fun gmake from the code/threads directory.
+			To run the synchronization tests run nachos -rs <seed value> -T
+				This runs all tests for the synchronization class (locks and conditions).
+			To run the hospital simulation tests run nachos -rs <seed value> -P2
 		Test Output:
 			The first several lines of the print will display the output of the***
 	Following this will be the output of the hospital simulation wherein the prints correspond to the posted output guidelines.

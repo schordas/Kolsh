@@ -96,7 +96,7 @@ main(int argc, char **argv)
             printf (copyright);
          if (!strcmp(*argv, "-T"))               // run the test Suite
            	TestSuite();
-        if (!strcmp(*argv, "-H"))               // run the test Suite
+        if (!strcmp(*argv, "-P2"))               // run assignment 2
             HmSimulation();
 #ifdef USER_PROGRAM
         if (!strcmp(*argv, "-x")) {        	// run a user program
