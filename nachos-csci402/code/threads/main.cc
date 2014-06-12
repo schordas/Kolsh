@@ -56,11 +56,12 @@
 
 // External functions used by this file
 
-extern void ThreadTest(void), Copy(char *unixFile, char *nachosFile);
+//extern void ThreadTest(void), Copy(char *unixFile, char *nachosFile);
 extern void Print(char *file), PerformanceTest(void);
 extern void StartProcess(char *file), ConsoleTest(char *in, char *out);
 extern void MailTest(int networkID);
 extern void TestSuite();
+extern void HmSimulation();
 
 //----------------------------------------------------------------------
 // main
@@ -85,7 +86,7 @@ main(int argc, char **argv)
     (void) Initialize(argc, argv);
 
 #ifdef THREADS
-    ThreadTest();
+    //ThreadTest();
 #endif
 
 
@@ -95,6 +96,8 @@ main(int argc, char **argv)
             printf (copyright);
          if (!strcmp(*argv, "-T"))               // run the test Suite
            	TestSuite();
+        if (!strcmp(*argv, "-H"))               // run the test Suite
+            HmSimulation();
 #ifdef USER_PROGRAM
         if (!strcmp(*argv, "-x")) {        	// run a user program
 	    ASSERT(argc > 1);

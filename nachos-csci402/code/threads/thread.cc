@@ -32,9 +32,8 @@
 //  "threadName" is an arbitrary string, useful for debugging.
 //----------------------------------------------------------------------
 
-Thread::Thread(char* threadName)
-{
-    name = threadName;
+Thread::Thread(char *threadName_input) {
+    threadName = threadName_input;
     stackTop = NULL;
     stack = NULL;
     status = JUST_CREATED;
@@ -57,7 +56,7 @@ Thread::Thread(char* threadName)
 
 Thread::~Thread()
 {
-    DEBUG('t', "Deleting thread \"%s\"\n", name);
+    DEBUG('t', "Deleting thread \"%s\"\n", threadName);
 
     ASSERT(this != currentThread);
     if (stack != NULL)
@@ -88,7 +87,7 @@ void
 Thread::Fork(VoidFunctionPtr func, int arg)
 {
     DEBUG('t', "Forking thread \"%s\" with func = 0x%x, arg = %d\n",
-      name, (int) func, arg);
+      threadName, (int) func, arg);
     
     StackAllocate(func, arg);
 
