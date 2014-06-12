@@ -66,9 +66,11 @@ Condition *doorboy_line_full_cv = new Condition("Door-boy line full CV");
 Condition *doctor_available_cv = new Condition("Doctor available CV");
 Condition *doctor_cv[DOCTORS_COUNT];
 
+
 // Patient doctor data
 int patient_doctor_bucket[DOCTORS_COUNT];
 Lock *doctor_lock[DOCTORS_COUNT];
+
 
 // Patient doctor cashier data
 int patient_consultancy_fee[NUMBER_OF_PATIENTS];    // so why does this shared data structure need not be protected
@@ -77,10 +79,30 @@ int patient_consultancy_fee[NUMBER_OF_PATIENTS];    // so why does this shared d
                                                     // operations, we know only one thread will ever be accessing
                                                     // an entry at any given time.
 
+// cashier data
+int total_cashier_fee = 0;
+
+Lock *cashier_payment_lock = new Lock("Cashier payment lock");
+
+
+// patient cashier data
+int cashier_available_count = 0;
+int number_of_patients_in_cashier_line = 0;
+int cashier_state[CASHIERS_COUNT];
+int patient_cashier_bucket[CASHIERS_COUNT];
+
+Lock *cashier_line_lock = new Lock("Cashier line lock");
+Lock *cashier_lock[CASHIERS_COUNT];
+
+Condition *cashier_line_empty_cv = new Condition("Cashier line empty CV");
+Condition *cashier_cv[CASHIERS_COUNT];
+
+
 // pharmacist data
 int total_pharmacsit_money_collected = 0;
 
 Lock *pharmacist_payment_lock = new Lock("Pharmacist payment lock");
+
 
 // Patient pharmacist data
 int pharmacist_available_count = 0;
@@ -93,11 +115,11 @@ int to_patient_medicine_bill_bucket[NUMBER_OF_PHARMACISTS];
 int to_pharmacist_medicine_payment_bucket[NUMBER_OF_PHARMACISTS];
 
 Condition *pharmacist_line_empty_cv = new Condition("Pharmacist line empty CV");
-Condition *pharmacist_line_full_cv = new Condition("Pharmacist line full CV");
 Condition *pharmacist_cv[NUMBER_OF_PHARMACISTS];
 
 Lock *pharmacist_line_lock = new Lock("Pharmacist line lock");
 Lock *pharmacist_lock[NUMBER_OF_PHARMACISTS];
+
 
 // Disease data
 const char *diseases[5] = {"is not sick", "is sick with measles", "is sick with chickenpox", "is sick with typhoid", "is sick with gangrene"};
@@ -156,6 +178,20 @@ void initialize() {
     // initialize shared patient doctor data
     fill_array(patient_doctor_bucket, DOCTORS_COUNT, -2);
     fill_array(patient_consultancy_fee, NUMBER_OF_PATIENTS, -2);
+
+    //initialize shared cashier patient data
+    fill_array(cashier_state, CASHIERS_COUNT, 1);
+    fill_array(patient_cashier_bucket, CASHIERS_COUNT, -2);
+    for(int i = 0; i < CASHIERS_COUNT; i++){
+        char cashier_lock_name[32];
+        char cashier_cv_name[32];
+
+        sprintf(cashier_lock_name, "Cashier lock %d", i);
+        sprintf(cashier_cv_name, "Cashier CV %d", i);
+
+        cashier_lock[i] = new Lock(cashier_lock_name);
+        cashier_cv[i] = new Condition(cashier_cv_name);
+    }
 
     // initialize patient pharmacist data
     fill_array(pharmacist_status, NUMBER_OF_PHARMACISTS, 1);
@@ -240,6 +276,7 @@ void patient(const int patient_index) {
     int my_doctor_index = -2;
     int my_patient_token = -2;
     int my_pharmacist_index = -2;
+    int my_cashier_index = -2;
 
     printf("Patient [%d] has arrived at the hospital.\n", patient_index);
 
@@ -347,6 +384,59 @@ void patient(const int patient_index) {
     // inform the doctor we are leaving
     doctor_cv[my_doctor_index]->Signal(doctor_lock[my_doctor_index]);
     doctor_lock[my_doctor_index]->Release();
+
+
+    // we're off to see the wizard!
+    // the wonderful Wizard of OZZ :)
+
+    // LOL, no, off to see the cashier
+
+    cashier_line_lock->Acquire();
+
+    number_of_patients_in_cashier_line++;
+    printf("Patient [%d] is in line at the cashier.\n", patient_index);
+
+    // let's see if there is an available cashier
+    // if there is, we'll find him, else we'll have to wait.
+    if(cashier_available_count == 0) {
+        while(cashier_available_count == 0) {
+            cashier_line_empty_cv->Wait(cashier_line_lock);
+        }
+    }
+
+    number_of_patients_in_cashier_line--;
+
+    // let's go find our free cashier
+    for(int i = 0; i < CASHIERS_COUNT; i++) {
+        if(cashier_state[i] == 0) {
+            my_cashier_index = i;
+            cashier_state[i] = 1;
+            cashier_available_count--;
+            break;
+        }
+    }
+
+    assert(my_cashier_index != -2);
+
+    printf("Patient [%d] is going to cashier. [%d]\n", patient_index, my_cashier_index);
+
+    cashier_line_lock->Release();
+    
+    // let's go talk to our cashier
+    cashier_lock[my_cashier_index]->Acquire();
+    cashier_cv[my_cashier_index]->Signal(cashier_lock[my_cashier_index]);
+
+    // let's give the cashier our data and wait
+    patient_cashier_bucket[my_cashier_index] = my_patient_token;
+    cashier_cv[my_cashier_index]->Wait(cashier_lock[my_cashier_index]);
+    
+    const int my_consultation_fee = patient_cashier_bucket[my_cashier_index];
+    patient_cashier_bucket[my_cashier_index] = -2;
+
+    cashier_cv[my_cashier_index]->Signal(cashier_lock[my_cashier_index]);
+    cashier_lock[my_cashier_index]->Release();
+
+
 
     // let's go off to the pharmacy
     pharmacist_line_lock->Acquire();
@@ -569,6 +659,63 @@ void doctor(const int doctor_index) {
 }
 
 
+void cashier(const int cashier_index){
+    printf("Cashier [%d] is ready to work.\n", cashier_index);
+    while(true){
+
+        int my_patient_token = -2;
+
+        // the cashier line mechanism is the same as the
+        // pharmacists. Consult the comments for the 
+        // pharmacist for more details.
+        cashier_line_lock->Acquire();
+
+        if(number_of_patients_in_cashier_line == 0) {
+            // provision to handle breaks.
+        }
+
+        cashier_state[cashier_index] = 0;
+        cashier_available_count++;
+        cashier_line_empty_cv->Signal(cashier_line_lock);
+
+        // transition to the next critical
+        // section before moving out of this one.
+        cashier_lock[cashier_index]->Acquire();
+        cashier_line_lock->Release();
+
+        // now we wait for a customer
+        cashier_cv[cashier_index]->Wait(cashier_lock[cashier_index]);
+
+        // let's gather the patient data
+        my_patient_token = patient_cashier_bucket[cashier_index];
+        assert(my_patient_token != -2);
+        printf("Cashier [%d] received token from patient [%d].\n", cashier_index, my_patient_token);
+        
+        // let's send this data back to the patient
+        int total_consultation_fee = patient_consultancy_fee[my_patient_token];
+        patient_cashier_bucket[cashier_index] = total_consultation_fee;
+        cashier_cv[cashier_index]->Signal(cashier_lock[cashier_index]);
+
+        // to ensure the patient saw the amount, we are going
+        // to wait until they clear the patient_cashier_bucket.
+        // Their viewing of the payment amount is consent for us
+        // to charge their card that we have on file. Therefore
+        // we don't need another interaction with the payment.
+        while(patient_cashier_bucket[cashier_index] != -2){
+            cashier_cv[cashier_index]->Wait(cashier_lock[cashier_index]);
+        }
+
+        cashier_payment_lock->Acquire();
+        total_cashier_fee += total_consultation_fee;
+        cashier_payment_lock->Release();
+
+        // we're now done with this customer        
+        cashier_lock[cashier_index]->Release();
+
+    }
+}
+
+
 void pharmacist(const int pharmacist_index) {
     printf("Pharmacist [%d] is ready to work.\n", pharmacist_index);
     while(true) {
@@ -673,6 +820,12 @@ void TestSuite() {
         char thread_name[32];
         sprintf(thread_name, "Doctor function %d", i);
         (new Thread(thread_name))->Fork((VoidFunctionPtr)doctor, i);
+    }
+
+    for(int i = 0; i < CASHIERS_COUNT; i++){
+        char thread_name[32];
+        sprintf(thread_name, "Cashier function %d", i);
+        (new Thread(thread_name))->Fork((VoidFunctionPtr)cashier, i);
     }
 
     for(int i = 0; i < NUMBER_OF_PHARMACISTS; i++) {
