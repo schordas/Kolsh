@@ -35,6 +35,8 @@ Lock *random_number_lock = new Lock("Random number lock");
 Lock *patient_count_mutex = new Lock("patient count mutex");
 int patients_in_system = NUMBER_OF_PATIENTS;
 
+// receptionist data
+Condition *receptionist_break_cv = new Condition("Receptionist break CV");
 
 // Patient Receptionist Data
 int next_receptionist_token = 0;
@@ -50,6 +52,8 @@ Lock *receptionist_line_lock = new Lock("receptionist line lock");
 Lock *receptionist_lock[NUMBER_OF_RECEPTIONISTS];
 Lock *receptionist_token_access_lock = new Lock("receptionist token access lock");
 
+// door-boy data
+Condition *doorboy_break_cv = new Condition("Door-boy break CV");
 
 // Patient Door-boy Doctor Data
 int doctor_state[DOCTORS_COUNT];
@@ -82,6 +86,8 @@ int patient_consultancy_fee[NUMBER_OF_PATIENTS];    // so why does this shared d
 // cashier data
 int total_cashier_fee = 0;
 
+Condition *cashier_break_cv = new Condition("Cashier break CV");
+
 Lock *cashier_payment_lock = new Lock("Cashier payment lock");
 
 
@@ -100,6 +106,8 @@ Condition *cashier_cv[CASHIERS_COUNT];
 
 // pharmacist data
 int total_pharmacsit_money_collected = 0;
+
+Condition *pharmacist_break_cv = new Condition("Pharmacist break CV");
 
 Lock *pharmacist_payment_lock = new Lock("Pharmacist payment lock");
 
@@ -268,6 +276,15 @@ void receptionist(const int receptionist_index) {
         }
 
         receptionist_lock[receptionist_index]->Release();
+
+        receptionist_line_lock->Acquire();
+        // let's check if we can go on break
+        if(receptionist_line_length == 0) {
+            receptionist_state[receptionist_index] = 2;
+            receptionist_break_cv->Wait(receptionist_line_lock);
+            receptionist_state[receptionist_index] = 1;
+        }
+        receptionist_line_lock->Release();
     }
 }
 
@@ -543,6 +560,7 @@ void doorboy(const int doorboy_index) {
     printf("Door-boy [%d] is ready to work.\n", doorboy_index);
     while(true) {
         doorboy_line_lock->Acquire();
+
         while(number_of_patients_in_doorboy_line == 0) {
             printf("Door-boy [%d] waiting for a patient to arrive.\n", doorboy_index);
             doorboy_line_full_cv->Wait(doorboy_line_lock);
@@ -588,8 +606,16 @@ void doorboy(const int doorboy_index) {
         // at this point we have confirmation that the patient has read
         // the next_available doctor and we can release our locks and wait
         // for the next patient
-        doorboy_line_lock->Release();
         doctor_doorboy_lock->Release();
+
+        // we will hold off for just a second
+        // to release our line lock to see if,
+        // we can go on break.
+        if(number_of_patients_in_doorboy_line == 0) {
+            // let's go on break
+            doorboy_break_cv->Wait(doorboy_line_lock);
+        }
+        doorboy_line_lock->Release();
     }
 }
 
@@ -671,7 +697,9 @@ void cashier(const int cashier_index){
         cashier_line_lock->Acquire();
 
         if(number_of_patients_in_cashier_line == 0) {
-            // provision to handle breaks.
+            // let's go on break
+            cashier_state[cashier_index] = 2;
+            cashier_break_cv->Wait(cashier_line_lock);
         }
 
         cashier_state[cashier_index] = 0;
@@ -730,7 +758,9 @@ void pharmacist(const int pharmacist_index) {
         pharmacist_line_lock->Acquire();
 
         if(pharmacist_line_length == 0) {
-            // provision to handle going on break.
+            // we're going on break
+            pharmacist_status[pharmacist_index] = 2;
+            pharmacist_break_cv->Wait(pharmacist_line_lock);
         }
 
         pharmacist_status[pharmacist_index] = 0;
@@ -776,7 +806,7 @@ void pharmacist(const int pharmacist_index) {
         pharmacist_cv[pharmacist_index]->Signal(pharmacist_lock[pharmacist_index]);
         pharmacist_cv[pharmacist_index]->Wait(pharmacist_lock[pharmacist_index]);
 
-        printf("Pharmacist [%d] received a response from patient [%d[",
+        printf("Pharmacist [%d] received a response from patient [%d].\n",
             pharmacist_index, my_patient_token);
         
         // we now have a response from the patient with their payment
@@ -792,6 +822,91 @@ void pharmacist(const int pharmacist_index) {
         pharmacist_payment_lock->Release();
 
         pharmacist_lock[pharmacist_index]->Release();
+    }
+}
+
+void hospital_manager(const int hospital_manager_index) {
+    bool continue_running = true;
+    while(true) {
+
+        // pick a random amount of time to wait
+        random_number_lock->Acquire();
+        const int wait_time = (rand() % 75) + 25;
+        const bool request_total_cashier_sales = ((rand() % 2) == 0);
+        const bool request_total_pharmacy_sales = ((rand() % 2) == 0);
+        random_number_lock->Release();
+        
+        for(int i = 0; i < wait_time; i++) {
+            currentThread->Yield();
+        }
+
+        // first let's check if our simulation is done
+        patient_count_mutex->Acquire();
+        if(patients_in_system == 0) {
+            // we can't return here to terminate the thread.
+            // Why? Because if we do, we will leak the lock.
+            // The thread the currently owns it (this) will terminate
+            // without ever calling release. So everyone else waiting
+            // to acquire this lock is screwed.
+            continue_running = false;
+        }
+        patient_count_mutex->Release();
+
+        if(!continue_running) {
+            return;
+        }
+
+        // now we hop in randomly to cause some ruckus
+
+        if(request_total_pharmacy_sales) {
+            pharmacist_payment_lock->Acquire();
+            printf("HospitalManager reports total sales in pharmacy are [%d].\n", total_pharmacsit_money_collected);
+            pharmacist_payment_lock->Release();
+        }
+
+        if(request_total_cashier_sales) {
+            cashier_payment_lock->Acquire();
+            printf("Hospital manager reports total consultancy fees are [%d].\n.", total_cashier_fee);
+            cashier_payment_lock->Release();
+        }
+
+        // let's check if there is someone waiting in line for the receptionist
+        receptionist_line_lock->Acquire();
+        for(int i = 0; i < NUMBER_OF_RECEPTIONISTS; i++) {
+            if(receptionist_line_length[i] > 2) {
+                // signal all the receptionists to come off break
+                receptionist_break_cv->Signal(receptionist_line_lock);
+                printf("HospitalManager signaled a Receptionist to come off break.\n");
+            }
+        }
+        receptionist_line_lock->Release();
+
+        // let's check if there is someone waiting for the door-boy
+        doorboy_line_lock->Acquire();
+        if(number_of_patients_in_doorboy_line != 0) {
+            // signal all the door-boys to off break
+            doorboy_break_cv->Signal(doorboy_line_lock);
+            printf("HospitalManager signaled a DoorBoy to come off break.\n");
+        }
+        doorboy_line_lock->Release();
+
+        // let's check if there is someone waiting in line for the cashier
+        cashier_line_lock->Acquire();
+        if(number_of_patients_in_cashier_line != 0) {
+            // signal all the cashiers to come off break
+            cashier_break_cv->Signal(cashier_line_lock);
+            printf("HospitalManager signaled a Cashier to come off break.\n");
+        }
+        cashier_line_lock->Release();
+
+        // let's check if there is someone waiting for the pharmacist
+        pharmacist_line_lock->Acquire();
+        if(pharmacist_line_length != 0) {
+            // signal all the pharmacists to come off break
+            pharmacist_break_cv->Signal(pharmacist_line_lock);
+            printf("HospitalManager signaled a PharmacyClerk to come off break.\n");
+        }
+        pharmacist_line_lock->Release();
     }
 }
 
@@ -833,6 +948,10 @@ void TestSuite() {
         sprintf(thread_name, "Pharmacist function %d", i);
         (new Thread(thread_name))->Fork((VoidFunctionPtr)pharmacist, i);
     }
+
+    char hm_name[32];
+    sprintf(hm_name, "HospitalManager function");
+    (new Thread(hm_name))->Fork((VoidFunctionPtr)hospital_manager, 0);
 
     for(int i = 0; i < NUMBER_OF_PATIENTS; i++) {
         char thread_name[32];
