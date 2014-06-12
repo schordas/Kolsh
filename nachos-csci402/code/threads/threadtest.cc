@@ -16,6 +16,257 @@
 #define NUMBER_OF_PHARMACISTS 3
 
 
+
+
+// --------------------------------------------------
+// Test Suite
+// --------------------------------------------------
+
+
+// --------------------------------------------------
+// Test 1 - see TestSuite() for details
+// --------------------------------------------------
+Semaphore t1_s1("t1_s1",0);       // To make sure t1_t1 acquires the lock before t1_t2
+Semaphore t1_s2("t1_s2",0);       // To make sure t1_t2 Is waiting on the lock before t1_t3 releases it
+Semaphore t1_s3("t1_s3",0);       // To make sure t1_t1 does not release the lock before t1_t3 tries to acquire it
+Semaphore t1_done("t1_done",0);   // So that TestSuite knows when Test 1 is done
+Lock t1_l1("t1_l1");              // the lock tested in Test 1
+
+// --------------------------------------------------
+// t1_t1() -- test1 thread 1
+//     This is the rightful lock owner
+// --------------------------------------------------
+void t1_t1() {
+    t1_l1.Acquire();
+    t1_s1.V();  // Allow t1_t2 to try to Acquire Lock
+ 
+    printf ("%s: Acquired Lock %s, waiting for t3\n",currentThread->getName(),
+        t1_l1.getName());
+    t1_s3.P();
+    printf ("%s: working in CS\n",currentThread->getName());
+    for (int i = 0; i < 1000000; i++) ;
+    printf ("%s: Releasing Lock %s\n",currentThread->getName(),
+        t1_l1.getName());
+    t1_l1.Release();
+    t1_done.V();
+}
+
+// --------------------------------------------------
+// t1_t2() -- test1 thread 2
+//     This thread will wait on the held lock.
+// --------------------------------------------------
+void t1_t2() {
+
+    t1_s1.P();  // Wait until t1 has the lock
+    t1_s2.V();  // Let t3 try to acquire the lock
+
+    printf("%s: trying to acquire lock %s\n",currentThread->getName(),
+        t1_l1.getName());
+    t1_l1.Acquire();
+
+    printf ("%s: Acquired Lock %s, working in CS\n",currentThread->getName(),
+        t1_l1.getName());
+    for (int i = 0; i < 10; i++)
+    ;
+    printf ("%s: Releasing Lock %s\n",currentThread->getName(),
+        t1_l1.getName());
+    t1_l1.Release();
+    t1_done.V();
+}
+
+// --------------------------------------------------
+// t1_t3() -- test1 thread 3
+//     This thread will try to release the lock illegally
+// --------------------------------------------------
+void t1_t3() {
+
+    t1_s2.P();  // Wait until t2 is ready to try to acquire the lock
+
+    t1_s3.V();  // Let t1 do it's stuff
+    for ( int i = 0; i < 3; i++ ) {
+    printf("%s: Trying to release Lock %s\n",currentThread->getName(),
+           t1_l1.getName());
+    t1_l1.Release();
+    }
+}
+
+// --------------------------------------------------
+// Test 2 - see TestSuite() for details
+// --------------------------------------------------
+Lock t2_l1("t2_l1");        // For mutual exclusion
+Condition t2_c1("t2_c1");   // The condition variable to test
+Semaphore t2_s1("t2_s1",0); // To ensure the Signal comes before the wait
+Semaphore t2_done("t2_done",0);     // So that TestSuite knows when Test 2 is
+                                  // done
+
+// --------------------------------------------------
+// t2_t1() -- test 2 thread 1
+//     This thread will signal a variable with nothing waiting
+// --------------------------------------------------
+void t2_t1() {
+    t2_l1.Acquire();
+    printf("%s: Lock %s acquired, signalling %s\n",currentThread->getName(),
+       t2_l1.getName(), t2_c1.getName());
+    t2_c1.Signal(&t2_l1);
+    printf("%s: Releasing Lock %s\n",currentThread->getName(),
+       t2_l1.getName());
+    t2_l1.Release();
+    t2_s1.V();  // release t2_t2
+    t2_done.V();
+}
+
+// --------------------------------------------------
+// t2_t2() -- test 2 thread 2
+//     This thread will wait on a pre-signalled variable
+// --------------------------------------------------
+void t2_t2() {
+    t2_s1.P();  // Wait for t2_t1 to be done with the lock
+    t2_l1.Acquire();
+    printf("%s: Lock %s acquired, waiting on %s\n",currentThread->getName(),
+       t2_l1.getName(), t2_c1.getName());
+    t2_c1.Wait(&t2_l1);
+    printf("%s: Releasing Lock %s\n",currentThread->getName(),
+       t2_l1.getName());
+    t2_l1.Release();
+}
+// --------------------------------------------------
+// Test 3 - see TestSuite() for details
+// --------------------------------------------------
+Lock t3_l1("t3_l1");        // For mutual exclusion
+Condition t3_c1("t3_c1");   // The condition variable to test
+Semaphore t3_s1("t3_s1",0); // To ensure the Signal comes before the wait
+Semaphore t3_done("t3_done",0); // So that TestSuite knows when Test 3 is
+                                // done
+
+// --------------------------------------------------
+// t3_waiter()
+//     These threads will wait on the t3_c1 condition variable.  Only
+//     one t3_waiter will be released
+// --------------------------------------------------
+void t3_waiter() {
+    t3_l1.Acquire();
+    t3_s1.V();      // Let the signaller know we're ready to wait
+    printf("%s: Lock %s acquired, waiting on %s\n",currentThread->getName(),
+       t3_l1.getName(), t3_c1.getName());
+    t3_c1.Wait(&t3_l1);
+    printf("%s: freed from %s\n",currentThread->getName(), t3_c1.getName());
+    t3_l1.Release();
+    t3_done.V();
+}
+
+
+// --------------------------------------------------
+// t3_signaller()
+//     This threads will signal the t3_c1 condition variable.  Only
+//     one t3_signaller will be released
+// --------------------------------------------------
+void t3_signaller() {
+
+    // Don't signal until someone's waiting
+    
+    for ( int i = 0; i < 5 ; i++ ) 
+    t3_s1.P();
+    t3_l1.Acquire();
+    printf("%s: Lock %s acquired, signalling %s\n",currentThread->getName(),
+       t3_l1.getName(), t3_c1.getName());
+    t3_c1.Signal(&t3_l1);
+    printf("%s: Releasing %s\n",currentThread->getName(), t3_l1.getName());
+    t3_l1.Release();
+    t3_done.V();
+}
+ 
+// --------------------------------------------------
+// Test 4 - see TestSuite() for details
+// --------------------------------------------------
+Lock t4_l1("t4_l1");        // For mutual exclusion
+Condition t4_c1("t4_c1");   // The condition variable to test
+Semaphore t4_s1("t4_s1",0); // To ensure the Signal comes before the wait
+Semaphore t4_done("t4_done",0); // So that TestSuite knows when Test 4 is
+                                // done
+
+// --------------------------------------------------
+// t4_waiter()
+//     These threads will wait on the t4_c1 condition variable.  All
+//     t4_waiters will be released
+// --------------------------------------------------
+void t4_waiter() {
+    t4_l1.Acquire();
+    t4_s1.V();      // Let the signaller know we're ready to wait
+    printf("%s: Lock %s acquired, waiting on %s\n",currentThread->getName(),
+       t4_l1.getName(), t4_c1.getName());
+    t4_c1.Wait(&t4_l1);
+    printf("%s: freed from %s\n",currentThread->getName(), t4_c1.getName());
+    t4_l1.Release();
+    t4_done.V();
+}
+
+
+// --------------------------------------------------
+// t2_signaller()
+//     This thread will broadcast to the t4_c1 condition variable.
+//     All t4_waiters will be released
+// --------------------------------------------------
+void t4_signaller() {
+
+    // Don't broadcast until someone's waiting
+    
+    for ( int i = 0; i < 5 ; i++ ) 
+    t4_s1.P();
+    t4_l1.Acquire();
+    printf("%s: Lock %s acquired, broadcasting %s\n",currentThread->getName(),
+       t4_l1.getName(), t4_c1.getName());
+    t4_c1.Broadcast(&t4_l1);
+    printf("%s: Releasing %s\n",currentThread->getName(), t4_l1.getName());
+    t4_l1.Release();
+    t4_done.V();
+}
+// --------------------------------------------------
+// Test 5 - see TestSuite() for details
+// --------------------------------------------------
+Lock t5_l1("t5_l1");        // For mutual exclusion
+Lock t5_l2("t5_l2");        // Second lock for the bad behavior
+Condition t5_c1("t5_c1");   // The condition variable to test
+Semaphore t5_s1("t5_s1",0); // To make sure t5_t2 acquires the lock after
+                                // t5_t1
+
+// --------------------------------------------------
+// t5_t1() -- test 5 thread 1
+//     This thread will wait on a condition under t5_l1
+// --------------------------------------------------
+void t5_t1() {
+    t5_l1.Acquire();
+    t5_s1.V();  // release t5_t2
+    printf("%s: Lock %s acquired, waiting on %s\n",currentThread->getName(),
+       t5_l1.getName(), t5_c1.getName());
+    t5_c1.Wait(&t5_l1);
+    printf("%s: Releasing Lock %s\n",currentThread->getName(),
+       t5_l1.getName());
+    t5_l1.Release();
+}
+
+// --------------------------------------------------
+// t5_t1() -- test 5 thread 1
+//     This thread will wait on a t5_c1 condition under t5_l2, which is
+//     a Fatal error
+// --------------------------------------------------
+void t5_t2() {
+    t5_s1.P();  // Wait for t5_t1 to get into the monitor
+    t5_l1.Acquire();
+    t5_l2.Acquire();
+    printf("%s: Lock %s acquired, signalling %s\n",currentThread->getName(),
+       t5_l2.getName(), t5_c1.getName());
+    t5_c1.Signal(&t5_l2);
+    printf("%s: Releasing Lock %s\n",currentThread->getName(),
+       t5_l2.getName());
+    t5_l2.Release();
+    printf("%s: Releasing Lock %s\n",currentThread->getName(),
+       t5_l1.getName());
+    t5_l1.Release();
+}
+
+
+
+
 /**
  * For any status variables, the following codes will be used
  *  0: available
@@ -281,8 +532,10 @@ void receptionist(const int receptionist_index) {
         // let's check if we can go on break
         if(receptionist_line_length == 0) {
             receptionist_state[receptionist_index] = 2;
+            printf("Receptionist [%d] is going on break.\n", receptionist_index);
             receptionist_break_cv->Wait(receptionist_line_lock);
             receptionist_state[receptionist_index] = 1;
+            printf("Receptionist [%d] is coming off break.\n", receptionist_index);
         }
         receptionist_line_lock->Release();
     }
@@ -335,14 +588,12 @@ void patient(const int patient_index) {
     receptionist_line_length[my_receptionist_index]--;
     receptionist_line_lock->Release();
 
-    printf("Patient [%d] is going to receptionist [%d]\n", patient_index, my_receptionist_index);
-
     receptionist_lock[my_receptionist_index]->Acquire();
     // let's check if the receptionist has produced a token. If he hasn't we will wait till he does.
     // we will wait while the token we are looking for is -1. As soon as it's not, we know the receptionist
     // delivered a token to us.
     while(receptionist_token_bucket[my_receptionist_index] == -1) {
-        printf("Patient [%d] waiting for receptionist [%d] token\n", patient_index, my_receptionist_index);
+        printf("Patient [%d] is waiting on receptionist [%d]\n", patient_index, my_receptionist_index);
         receptionist_cv[my_receptionist_index]->Wait(receptionist_lock[my_receptionist_index]);
     }
 
@@ -355,8 +606,8 @@ void patient(const int patient_index) {
 
     receptionist_lock[my_receptionist_index]->Release();
 
-    printf("Receptionist [%d] gives Token [%d] to a Patient.\n", 
-        my_receptionist_index, my_patient_token);
+    printf("Patient [%d] has received Token [%d] from receptionist [%d].\n", 
+        patient_index, my_patient_token, my_receptionist_index);
     
     // now we are going to get in line with the door-boy
     // always waiting in doctor's offices aren't we?
@@ -365,12 +616,11 @@ void patient(const int patient_index) {
     printf("Patient [%d] is waiting on a DoorBoy\n", my_patient_token);
     doorboy_line_full_cv->Signal(doorboy_line_lock);
     
+    doorboy_line_empty_cv->Wait(doorboy_line_lock);
 
     // now we need to read which doctor the door boy has assigned us
     my_doctor_index = next_available_doctor;
-   // printf("Patient [%d] is waiting to be examined by the doctor in Examining Room [%d].\n", patient_index, my_doctor_index);
-    doorboy_line_empty_cv->Wait(doorboy_line_lock);
-    printf("Patient [%d] was signaled by Door Boy\n", my_patient_token);
+
     next_available_doctor = -2;
     
     // inform the door boy we've read the value and it's OK to move on.
@@ -379,11 +629,14 @@ void patient(const int patient_index) {
 
     // we should never get to this point and my_doctor_index be == -2
     assert(my_doctor_index != -2);
+    printf("Patient [%d] has been told by Door Boy to go to examining room [%d].\n", 
+        my_patient_token, my_doctor_index);
+    
 
     // let's tell our doctor we're coming to him.
-    printf("Patient [%d] acquiring doctor_lock[%d].\n", patient_index, my_doctor_index);
     doctor_lock[my_doctor_index]->Acquire();
-    printf("Patient [%d] going to see doctor [%d].\n", patient_index, my_doctor_index);
+    printf("Patient [%d] is going to examining room [%d].\n", 
+        my_patient_token, my_doctor_index);
     doctor_cv[my_doctor_index]->Signal(doctor_lock[my_doctor_index]);
 
     // we are now with the doctor. let's give him
@@ -391,6 +644,8 @@ void patient(const int patient_index) {
     // since we hold the doctor_lock right now, we know the
     // doctor will always see our token in the bucket.
     patient_doctor_bucket[my_doctor_index] = my_patient_token;
+    printf("Patient [%d] is waiting to be examined by the doctor in Examining Room [%d].\n", 
+        patient_index, my_doctor_index);
     doctor_cv[my_doctor_index]->Wait(doctor_lock[my_doctor_index]);
 
     printf("Patient [%d] is done with a consultation.\n", patient_index);
@@ -399,12 +654,15 @@ void patient(const int patient_index) {
     // let's pick our diagnosis and then go pay the cashier
     // for the consultation
     my_patient_diagnosis = patient_doctor_bucket[my_doctor_index];
+    printf("Patient [%d] [%s] in examining room [%d]",
+        patient_index, diseases[my_patient_diagnosis], my_doctor_index);
     patient_doctor_bucket[my_doctor_index] = -2;
     
     // inform the doctor we are leaving
     doctor_cv[my_doctor_index]->Signal(doctor_lock[my_doctor_index]);
     doctor_lock[my_doctor_index]->Release();
 
+    printf("Patient [%d] is leaving examining room [%d]", patient_index, my_doctor_index);
 
     // we're off to see the wizard!
     // the wonderful Wizard of OZZ :)
@@ -414,7 +672,6 @@ void patient(const int patient_index) {
     cashier_line_lock->Acquire();
 
     number_of_patients_in_cashier_line++;
-    printf("Patient [%d] is in line at the cashier.\n", patient_index);
 
     // let's see if there is an available cashier
     // if there is, we'll find him, else we'll have to wait.
@@ -438,7 +695,7 @@ void patient(const int patient_index) {
 
     assert(my_cashier_index != -2);
 
-    printf("Patient [%d] is going to cashier. [%d]\n", patient_index, my_cashier_index);
+    printf("Patient [%d] is waiting to see cashier. [%d]\n", patient_index, my_cashier_index);
 
     cashier_line_lock->Release();
     
@@ -453,9 +710,15 @@ void patient(const int patient_index) {
     const int my_consultation_fee = patient_cashier_bucket[my_cashier_index];
     patient_cashier_bucket[my_cashier_index] = -2;
 
+    printf("Patient [%d] is paying their consultancy fees of [%d]",
+        patient_index, my_consultation_fee);
+
     cashier_cv[my_cashier_index]->Signal(cashier_lock[my_cashier_index]);
     cashier_lock[my_cashier_index]->Release();
 
+
+    printf("Patient [%d] is leaving Cashier [%d]",
+        patient_index, my_cashier_index);
 
 
     // let's go off to the pharmacy
@@ -479,13 +742,15 @@ void patient(const int patient_index) {
         if(pharmacist_status[i] == 0) {
             my_pharmacist_index = i;
             pharmacist_status[i] = 1;
+            pharmacist_available_count--;
             break;
         }
     }
 
     assert(my_pharmacist_index != -2);
 
-    printf("Patient [%d] is going to pharmacist. [%d]\n", patient_index, my_pharmacist_index);
+    printf("Patient [%d] is waiting to see pharmacy clerk. [%d]\n", 
+        patient_index, my_pharmacist_index);
 
     pharmacist_line_lock->Release();
 
@@ -501,8 +766,8 @@ void patient(const int patient_index) {
     const int my_medicine = to_patient_medicine_bucket[my_pharmacist_index];
     const int my_medicine_cost = to_patient_medicine_bill_bucket[my_pharmacist_index];
 
-    printf("Patient [%d] was prescribed [%s] at a cost of [%d].\n", 
-        patient_index, medicines[my_medicine], my_medicine_cost);
+    printf("Patient [%d] is paying their prescription fees of [%d].\n", 
+        patient_index, my_medicine_cost);
     
     // clear the buckets
     to_patient_medicine_bucket[my_pharmacist_index] = NULL;
@@ -513,13 +778,15 @@ void patient(const int patient_index) {
 
     pharmacist_cv[my_pharmacist_index]->Signal(pharmacist_lock[my_pharmacist_index]);
 
-    printf("Patient [%d] paid pharmacist [%d] for medicine.\n", 
-        patient_index, my_medicine_cost);
+    printf("Patient [%d] is leaving pharmacy clerk [%d].\n", 
+        patient_index, my_pharmacist_index);
     
     pharmacist_lock[my_pharmacist_index]->Release();
 
     // that's it
     // we are now free to leave the hospital!!
+
+    printf("Patient [%d] is leaving the Hospital", patient_index);
 
     patient_count_mutex->Acquire();
     patients_in_system--;
@@ -593,14 +860,13 @@ void doorboy(const int doorboy_index) {
         assert(available_doctor != -2);
         printf("Door-boy [%d] acquired doctor [%d].\n", doorboy_index, available_doctor);
 
-        next_available_doctor = available_doctor;
-
         // now we need a guarantee that no other door-boy will alter the
         // value of next_available_doctor while we wait for the next patient
         // to read that value. As such we will hold onto the doctor_doorboy_lock
         // so no one else can enter this critical section until after we have
         // confirmation of a read from the patient.
         doorboy_line_lock->Acquire();
+        next_available_doctor = available_doctor;
         doorboy_line_empty_cv->Signal(doorboy_line_lock);
         patient_read_next_available_doctor_cv->Wait(doorboy_line_lock);
 
@@ -680,9 +946,6 @@ void doctor(const int doctor_index) {
             doctor_cv[doctor_index]->Wait(doctor_lock[doctor_index]);
         }
         
-        // doctor break stuff
-
-
         doctor_lock[doctor_index]->Release();
     }
 }
@@ -918,6 +1181,94 @@ void hospital_manager(const int hospital_manager_index) {
 
 
 void TestSuite() {
+    Thread *t;
+    char *name;
+    int i;
+
+    // Test 1
+    printf("Starting Test 1\n");
+
+    t = new Thread("t1_t1");
+    t->Fork((VoidFunctionPtr)t1_t1,0);
+
+    printf("Thread t1_t1 allocated\n");
+
+    t = new Thread("t1_t2");
+    t->Fork((VoidFunctionPtr)t1_t2,0);
+
+    t = new Thread("t1_t3");
+    t->Fork((VoidFunctionPtr)t1_t3,0);
+
+
+    // Wait for Test 1 to complete
+    for (  i = 0; i < 2; i++ ) {
+        t1_done.P();
+    }
+
+    // Test 2
+
+    printf("Starting Test 2.  Note that it is an error if thread t2_t2\n");
+    printf("completes\n");
+
+    t = new Thread("t2_t1");
+    t->Fork((VoidFunctionPtr)t2_t1,0);
+
+    t = new Thread("t2_t2");
+    t->Fork((VoidFunctionPtr)t2_t2,0);
+
+    // Wait for Test 2 to complete
+    t2_done.P();
+
+    // Test 3
+
+    printf("Starting Test 3\n");
+
+    for (  i = 0 ; i < 5 ; i++ ) {
+        name = new char [20];
+        sprintf(name,"t3_waiter%d",i);
+        t = new Thread(name);
+        t->Fork((VoidFunctionPtr)t3_waiter,0);
+    }
+    t = new Thread("t3_signaller");
+    t->Fork((VoidFunctionPtr)t3_signaller,0);
+
+    // Wait for Test 3 to complete
+    for (  i = 0; i < 2; i++ ) {
+        t3_done.P();
+    }
+
+    // Test 4
+
+    printf("Starting Test 4\n");
+
+    for (  i = 0 ; i < 5 ; i++ ) {
+        name = new char [20];
+        sprintf(name,"t4_waiter%d",i);
+        t = new Thread(name);
+        t->Fork((VoidFunctionPtr)t4_waiter,0);
+    }
+    t = new Thread("t4_signaller");
+    t->Fork((VoidFunctionPtr)t4_signaller,0);
+
+    // Wait for Test 4 to complete
+    for (  i = 0; i < 6; i++ ) {
+        t4_done.P();
+    }
+
+    // Test 5
+
+    printf("Starting Test 5.  Note that it is an error if thread t5_t1\n");
+    printf("completes\n");
+
+    t = new Thread("t5_t1");
+    t->Fork((VoidFunctionPtr)t5_t1,0);
+
+    t = new Thread("t5_t2");
+    t->Fork((VoidFunctionPtr)t5_t2,0);
+}
+
+
+void HmSimulation() {
     initialize();
     printf("Number of Receptionists = [%d]\n", NUMBER_OF_RECEPTIONISTS);
     printf("Number of Doctors = [%d]\n", DOCTORS_COUNT);
