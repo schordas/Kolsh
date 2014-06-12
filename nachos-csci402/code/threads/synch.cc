@@ -33,8 +33,7 @@
 //	"initialValue" is the initial value of the semaphore.
 //----------------------------------------------------------------------
 
-Semaphore::Semaphore(char* debugName, int initialValue)
-{
+Semaphore::Semaphore(char* debugName, int initialValue) {
     name = debugName;
     value = initialValue;
     queue = new List;
@@ -46,8 +45,7 @@ Semaphore::Semaphore(char* debugName, int initialValue)
 //	is still waiting on the semaphore!
 //----------------------------------------------------------------------
 
-Semaphore::~Semaphore()
-{
+Semaphore::~Semaphore() {
     delete queue;
 }
 
@@ -61,9 +59,7 @@ Semaphore::~Semaphore()
 //	when it is called.
 //----------------------------------------------------------------------
 
-void
-Semaphore::P()
-{
+void Semaphore::P() {
     IntStatus oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
     
     while (value == 0) { 			// semaphore not available
@@ -84,9 +80,7 @@ Semaphore::P()
 //	are disabled when it is called.
 //----------------------------------------------------------------------
 
-void
-Semaphore::V()
-{
+void Semaphore::V() {
     Thread *thread;
     IntStatus oldLevel = interrupt->SetLevel(IntOff);
 
@@ -106,12 +100,18 @@ Lock::Lock(char* debugName) {
 	isBusy = false;
 	waitQueue = new List;
 }
+
+
 Lock::~Lock() {
 	delete waitQueue;
 }
-bool Lock::isHeldByCurrentThread(){
+
+
+bool Lock::isHeldByCurrentThread() {
 	return this->ownerThread == currentThread;
 }
+
+
 void Lock::Acquire() {
 	IntStatus oldLevel = interrupt->SetLevel(IntOff);
 	//if the current thread holds the lock we do not need ot continue
@@ -131,6 +131,7 @@ void Lock::Acquire() {
 	}
 	(void) interrupt->SetLevel(oldLevel);
 }
+
 
 void Lock::Release() {
 	Thread *thread;
@@ -162,63 +163,72 @@ void Lock::Release() {
 	(void) interrupt->SetLevel(oldLevel);
 }
 
+
 Condition::Condition(char* debugName) {
 	name = debugName;
 	waitQueue = new List;
 	waitLock = NULL;
 }
+
+
 Condition::~Condition() { 
 	delete waitQueue;
 }
+
+
 void Condition::Wait(Lock* conditionLock) { 
-	//disable interrupts
-	IntStatus oldLevel = interrupt->SetLevel(IntOff);
-	if(conditionLock == NULL){
-		//conditionLock is NULL, cannot later reference a NULL lock
-		printf("%s\n", "Error: Lock is NULL, cannot reference an NULL pointer");
-		//restore interrupts
-		(void) interrupt->SetLevel(oldLevel);
-		return;
-	}
+    //disable interrupts
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
+    if(conditionLock == NULL){
+        //conditionLock is NULL, cannot later reference a NULL lock
+        printf("%s\n", "Error: Lock is NULL, cannot reference an NULL pointer");
+        //restore interrupts
+        (void) interrupt->SetLevel(oldLevel);
+        return;
+    }
 
-	if(waitLock == NULL){
-		waitLock = conditionLock;
-	}
+    if(waitLock == NULL) {
+        waitLock = conditionLock;
+    }
 
-	if(waitLock != conditionLock){
-		printf("%s\n", "Error: The Waiting Lock and the Condition Lock do not match.");
-		(void) interrupt->SetLevel(oldLevel);
-		return;
-	}
-	waitQueue->Append((void *)currentThread);
-	conditionLock->Release();
-	currentThread->Sleep();
-	//aquire lock so that another thread doesn't enter a critical section where wait is called
-	conditionLock->Acquire();
-	(void) interrupt->SetLevel(oldLevel);
-	//ASSERT(FALSE); 
+    if(waitLock != conditionLock) {
+        printf("%s\n", "Error: The Waiting Lock and the Condition Lock do not match.");
+        (void) interrupt->SetLevel(oldLevel);
+        return;
+    }
+    
+    waitQueue->Append((void *)currentThread);
+    conditionLock->Release();
+    currentThread->Sleep();
+    
+    // acquire lock so that another thread doesn't enter a critical section where wait is called
+    conditionLock->Acquire();
+    (void) interrupt->SetLevel(oldLevel);
 }
+
+
 void Condition::Signal(Lock* conditionLock) { 
-	Thread *thread;
-	IntStatus oldLevel = interrupt->SetLevel(IntOff);
-	if(waitQueue->IsEmpty()){
-		(void) interrupt->SetLevel(oldLevel);
-		return;
-	}
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
+    if(waitQueue->IsEmpty()) {
+        (void) interrupt->SetLevel(oldLevel);
+        return;
+    }
 
-	if(waitLock != conditionLock){
-		printf("%s\n", "Error: The Waiting Lock and the Condition Lock do not match.");
-		(void) interrupt->SetLevel(oldLevel);
-		return;
-	}
-	thread = (Thread*)waitQueue->Remove();
-	scheduler->ReadyToRun(thread);
-	
-	if(waitQueue->IsEmpty()){
-		waitLock = NULL;
-	}
-	(void) interrupt->SetLevel(oldLevel);
+    if(waitLock != conditionLock) {
+        printf("%s\n", "Error: The Waiting Lock and the Condition Lock do not match.");
+        (void) interrupt->SetLevel(oldLevel);
+        return;
+    }
+    
+    Thread *thread = (Thread*)waitQueue->Remove();
+    scheduler->ReadyToRun(thread);
+    
+    if(waitQueue->IsEmpty()) {
+        waitLock = NULL;
+    }
+    (void) interrupt->SetLevel(oldLevel);
 }
+
 void Condition::Broadcast(Lock* conditionLock) { 
 	while(!waitQueue->IsEmpty()){
 		Condition::Signal(conditionLock);
