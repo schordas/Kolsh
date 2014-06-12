@@ -59,7 +59,6 @@ int next_available_doctor = -2;
 
 Lock *doctor_doorboy_lock = new Lock("Doctor door-boy lock");
 Lock *doorboy_line_lock = new Lock("Door-boy line lock");
-Lock *doctor_availability_lock = new Lock("Doctor availability lock");
 
 Condition *patient_read_next_available_doctor_cv = new Condition("Patient read next available doctor CV");
 Condition *doorboy_line_empty_cv = new Condition("Door-boy line empty CV");
@@ -287,7 +286,6 @@ void patient(const int patient_index) {
     
     // inform the door boy we've read the value and it's OK to move on.
     patient_read_next_available_doctor_cv->Signal(doorboy_line_lock);
-
     doorboy_line_lock->Release();
 
     // we should never get to this point and my_doctor_index be == -2
@@ -418,18 +416,15 @@ void doctor(const int doctor_index) {
     while(true) {
         // first we need to set the doctor state without 
         // other threads getting in the way
-        doctor_state_lock->Acquire();
+        doctor_doorboy_lock->Acquire();
         doctor_state[doctor_index] = 0;
-        doctor_state_lock->Release();
-        
-        // 
-        doctor_availability_lock->Acquire();
+
         number_of_available_doctors++;
-        doctor_available_cv->Signal(doctor_availability_lock);
+        doctor_available_cv->Signal(doctor_doorboy_lock);
         
         printf("Doctor [%d] acquiring doctor_lock.\n", doctor_index);
         doctor_lock[doctor_index]->Acquire();       // we need to ensure that this doctor
-        doctor_availability_lock->Release();        // will actually be waiting for their patient
+        doctor_doorboy_lock->Release();        // will actually be waiting for their patient
         
         printf("Doctor [%d] waiting for a patient.\n", doctor_index);
         doctor_cv[doctor_index]->Wait(doctor_lock[doctor_index]);
