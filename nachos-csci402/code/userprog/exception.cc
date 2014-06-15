@@ -231,6 +231,11 @@ void Close_Syscall(int fd) {
     }
 }
 
+void Yield_Syscall(){
+  printf("Yielding the current thread\n");
+  currentThread->Yield();
+}
+
 void ExceptionHandler(ExceptionType which) {
     int type = machine->ReadRegister(2); // Which syscall?
     int rv=0; 	// the return value from a syscall
@@ -267,6 +272,10 @@ void ExceptionHandler(ExceptionType which) {
 		DEBUG('a', "Close syscall.\n");
 		Close_Syscall(machine->ReadRegister(4));
 		break;
+      case SC_Yield:
+    DEBUG('a', "Yield Syscall.\n");
+    Yield_Syscall();
+    break;
 	}
 
 	// Put in the return value and increment the PC
