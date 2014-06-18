@@ -1,12 +1,14 @@
 #include "lock_lut.h"
 #include "system.h"
 
+
 LockLut::LockLut() {
     table_lock = new Lock("Lock lookup table lock");
     next_available_lock_index = 0;
     allocated_locks = 0;
     name = "Lock lookup table";
 }
+
 
 // In theory this function should only be called when the system is shutting down
 // so we don't really care about properly cleaning up, but let's do it anyway.
@@ -24,6 +26,7 @@ LockLut::~LockLut() {
     }
 
 }
+
 
 /**
  * Allocate a new lock and store a reference to it in the lookup table.
@@ -99,4 +102,69 @@ LockLut::release_lock(int index){
 		return -1;
 	}
 	return 0;
+int LockLut::acquire_lock(int kernel_lock_index){
+    // bounds check on kernel_lock_index
+    if((kernel_lock_index < 0)||(kernel_lock_index >= MAX_SYSTEM_LOCKS)){
+        // kernel lock index is out of array bounds
+        return -1;
+    }
+
+    KernelLock *kernel_lock_to_acquire;
+    // ensure that the the thread has permission to acquire this lock
+    if(kernel_lock_to_acquire->address_space != currentThread->space) {
+        // currentThread does not have permission to acquire this lock
+        return -1;
+    }
+
+    // get kernel lock at index kernel_lock_index
+    KernelLock *kernel_lock_to_acquire = lock_lookup_table[lock_index];
+
+    if(kernel_lock_to_acquire == NULL){
+        // kernel_lock_to_acquire is null, cannot be acquired
+        return -1;
+    }
+    // mark the kernal_lock_to_acquire as busy
+    kernel_lock_to_acquire->in_use = true;
+    // acquire the kernal_lock_to_aquire's lock
+    kernel_lock_to_acquire->lock->Acquire();
+
+    return 0;
+}
+
+
+/**
+ * De-allocate a lock. If the lock is currently in use,
+ * the lock is marked for deletion at a future date.
+ *
+ * @return int: -2 Calling thread does not have permission to delete this lock
+ *              -1 Supplied lock index is invalid
+ *              0  The lock has been deleted or marked for deletion. No other guarantees are made.
+ */
+int LockLut::free_lock(int lock_index) {
+    KernelLock *kernel_lock;
+
+    // bounds check the input index
+    if(lock_index < 0 || lock_index >= MAX_SYSTEM_LOCKS) {
+        return -1
+    }
+
+    kernel_lock = lock_lookup_table[lock_index];
+
+    // ensure this thread has permissions to delete this lock
+    if(kernel_lock->address_space != currentThread->space) {
+        return -2;
+    }
+
+    // confirm the lock can be deleted. If it can't,
+    // mark it for deletion.
+    if(kernel_lock->in_use) {
+        kernel_lock->marked_for_destroy = true;
+        return 0;
+    } else {
+        delete kernel_lock->lock;
+        delete kernel_lock;
+        lock_lookup_table[lock_index] = NULL;
+        allocated_locks --;
+        return 0;
+    }
 }

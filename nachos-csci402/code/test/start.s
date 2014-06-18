@@ -146,6 +146,22 @@ Lock_Release:
 	j	$31
 	.end Lock_Release
 	
+	.globl Lock_Acquire
+	.ent Lock_Acquire
+Lock_Acquire:
+	addiu $2,$0,SC_LOCK_ACQUIRE
+	syscall
+	j	$31
+	.end Lock_Acquire
+
+	.globl Lock_Free
+	.ent	Lock_Free
+Lock_Free:
+	addiu $2,$0,SC_LOCK_FREE
+	syscall
+	j	$31
+	.end Lock_Free
+
 /* dummy function to keep gcc happy */
         .globl  __main
         .ent    __main
