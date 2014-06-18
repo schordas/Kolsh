@@ -138,6 +138,14 @@ Lock_Allocate:
 	j	$31
 	.end Lock_Allocate
 
+	.globl Lock_Free
+	.ent	Lock_Free
+Lock_Free:
+	addiu $2,$0,SC_LOCK_FREE
+	syscall
+	j	$31
+	.end Lock_Free
+
 
 /* dummy function to keep gcc happy */
         .globl  __main

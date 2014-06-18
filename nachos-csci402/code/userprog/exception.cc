@@ -256,6 +256,7 @@ void Yield_Syscall(){
 }
 
 // Lock system calls
+// Input validation is done in LockLut functions
 int allocate_lock_syscall(unsigned int vaddr, int length) {
     char* lock_name = read_into_buffer(vaddr, length);
     if(lock_name == NULL) {
@@ -263,6 +264,10 @@ int allocate_lock_syscall(unsigned int vaddr, int length) {
     }
 
     return lock_lut->allocate_lock(lock_name);
+}
+
+int free_lock_syscall(int lock_index) {
+    return lock_lut->free_lock(lock_index);
 }
 
 
@@ -304,13 +309,17 @@ void ExceptionHandler(ExceptionType which) {
             Close_Syscall(machine->ReadRegister(4));
             break;
         case SC_Yield:
-          DEBUG('a', "Yield Syscall.\n");
-          Yield_Syscall();
-          break;
+            DEBUG('a', "Yield Syscall.\n");
+            Yield_Syscall();
+            break;
         case SC_LOCK_ALLOCATE:
             DEBUG('a', "Lock allocate Syscall.\n");
             rv = allocate_lock_syscall(machine->ReadRegister(4),
                                     machine->ReadRegister(5));
+            break;
+        case SC_LOCK_FREE:
+            DEBUG('a', "Lock free Syscall.\n");
+            rv = free_lock_syscall(machine->ReadRegister(4));
             break;
     }
 

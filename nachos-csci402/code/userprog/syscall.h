@@ -31,7 +31,8 @@
 #define SC_Yield	10
 
 // For lock system calls
-#define SC_LOCK_ALLOCATE 11
+#define SC_LOCK_ALLOCATE    11
+#define SC_LOCK_FREE        14
 
 #define MAXFILENAME 256
 

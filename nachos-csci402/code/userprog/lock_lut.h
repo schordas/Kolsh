@@ -20,6 +20,7 @@ public:
     ~LockLut();
 
     int allocate_lock(char*);
+    int free_lock(int lock_index);
 
 private:
     KernelLock *lock_lookup_table[MAX_SYSTEM_LOCKS];

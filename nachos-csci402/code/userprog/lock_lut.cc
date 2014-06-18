@@ -82,3 +82,39 @@ int LockLut::allocate_lock(char *lock_name) {
     return allocated_lock_index;
 }
 
+/**
+ * De-allocate a lock. If the lock is currently in use,
+ * the lock is marked for deletion at a future date.
+ *
+ * @return int: -2 Calling thread does not have permission to delete this lock
+ *              -1 Supplied lock index is invalid
+ *              0  The lock has been deleted or marked for deletion. No other guarantees are made.
+ */
+int LockLut::free_lock(int lock_index) {
+    KernelLock *kernel_lock;
+
+    // bounds check the input index
+    if(lock_index < 0 || lock_index >= MAX_SYSTEM_LOCKS) {
+        return -1
+    }
+
+    kernel_lock = lock_lookup_table[lock_index];
+
+    // ensure this thread has permissions to delete this lock
+    if(kernel_lock->address_space != currentThread->space) {
+        return -2;
+    }
+
+    // confirm the lock can be deleted. If it can't,
+    // mark it for deletion.
+    if(kernel_lock->in_use) {
+        kernel_lock->marked_for_destroy = true;
+        return 0;
+    } else {
+        delete kernel_lock->lock;
+        delete kernel_lock;
+        lock_lookup_table[lock_index] = NULL;
+        allocated_locks --;
+        return 0;
+    }
+}
