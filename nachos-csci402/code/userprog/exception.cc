@@ -266,6 +266,11 @@ int allocate_lock_syscall(unsigned int vaddr, int length) {
     return lock_lut->allocate_lock(lock_name);
 }
 
+int release_lock_syscall(unsigned int vaddr, int length) {
+	int index = read_into_buffer(vaddr, length);
+	return lock_lut->release_lock(index);
+}
+
 int aquire_lock_syscall(int kernel_lock_index){
   // call acquire_lock(int), validations done in function
   return lock_lut->acquire_lock(kernel_lock_index);
@@ -319,7 +324,11 @@ void ExceptionHandler(ExceptionType which) {
         case SC_LOCK_ALLOCATE:
             DEBUG('a', "Lock allocate Syscall.\n");
             rv = allocate_lock_syscall(machine->ReadRegister(4),
-                                    machine->ReadRegister(5));
+            machine->ReadRegister(5));
+			break;		
+		case SC_LOCK_RELEASE:
+			DEBUG('a', "Lock Release.\n");
+			rv = release_lock_syscall(machine->ReadRegister(4));
             break;
         case SC_LOCK_ACQUIRE:
             DEBUG('a', "Lock acquire Syscall.\n");
