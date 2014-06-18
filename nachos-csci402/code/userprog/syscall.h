@@ -130,7 +130,9 @@ void Fork(void (*func)());
 /* Yield the CPU to another runnable thread, whether in this address space 
  * or not. 
  */
-void Yield();		
+void Yield();
+
+void Lock_Acquire(int lock_index);	
 
 #endif /* IN_ASM */
 
