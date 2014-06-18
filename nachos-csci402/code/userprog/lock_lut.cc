@@ -87,13 +87,14 @@ int LockLut::allocate_lock(char *lock_name) {
 
 
 int LockLut::acquire_lock(int kernel_lock_index){
+    KernelLock *kernel_lock_to_acquire;
+
     // bounds check on kernel_lock_index
     if((kernel_lock_index < 0)||(kernel_lock_index >= MAX_SYSTEM_LOCKS)){
         // kernel lock index is out of array bounds
         return -1;
     }
 
-    KernelLock *kernel_lock_to_acquire;
     // ensure that the the thread has permission to acquire this lock
     if(kernel_lock_to_acquire->address_space != currentThread->space) {
         // currentThread does not have permission to acquire this lock
@@ -101,7 +102,7 @@ int LockLut::acquire_lock(int kernel_lock_index){
     }
 
     // get kernel lock at index kernel_lock_index
-    KernelLock *kernel_lock_to_acquire = lock_lookup_table[lock_index];
+    kernel_lock_to_acquire = lock_lookup_table[kernel_lock_index];
 
     if(kernel_lock_to_acquire == NULL){
         // kernel_lock_to_acquire is null, cannot be acquired
@@ -129,7 +130,7 @@ int LockLut::free_lock(int lock_index) {
 
     // bounds check the input index
     if(lock_index < 0 || lock_index >= MAX_SYSTEM_LOCKS) {
-        return -1
+        return -1;
     }
 
     kernel_lock = lock_lookup_table[lock_index];
