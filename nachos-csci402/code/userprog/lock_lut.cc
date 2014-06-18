@@ -86,6 +86,22 @@ int LockLut::allocate_lock(char *lock_name) {
 }
 
 
+LockLut::release_lock(int index){
+	//Check if the index is within boundary
+	if(index >= 0 && index < MAX_SYSTEM_LOCKS){
+		if(lock_lookup_table[index]->address_space == currentThread->Space){
+			lock_lookup_table[index]->lock->Release();
+		}
+		else{
+			printf("Lock Release Error: current Address Space does not equal to Lock's Address Space\n");
+			return -1;	
+		}
+	}
+	else{
+		printf("Lock Release Error: Lock index is out of bounds\n");
+		return -1;
+	}
+	return 0;
 int LockLut::acquire_lock(int kernel_lock_index){
     KernelLock *kernel_lock_to_acquire;
 
