@@ -20,7 +20,7 @@ public:
     ~LockLut();
 
     int allocate_lock(char*);
-
+	int release_lock();	//Return 0 if successful, -1 if there is an error
 private:
     KernelLock *lock_lookup_table[MAX_SYSTEM_LOCKS];
     Lock *table_lock;

@@ -32,7 +32,7 @@
 
 // For lock system calls
 #define SC_LOCK_ALLOCATE 11
-
+#define SC_LOCK_RELEASE 13
 #define MAXFILENAME 256
 
 #ifndef IN_ASM
