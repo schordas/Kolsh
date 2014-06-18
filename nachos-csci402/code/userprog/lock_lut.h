@@ -20,6 +20,7 @@ public:
     ~LockLut();
 
     int allocate_lock(char*);
+    int acquire_lock(int);
     int free_lock(int lock_index);
 
 private:

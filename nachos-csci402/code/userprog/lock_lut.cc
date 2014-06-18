@@ -1,12 +1,14 @@
 #include "lock_lut.h"
 #include "system.h"
 
+
 LockLut::LockLut() {
     table_lock = new Lock("Lock lookup table lock");
     next_available_lock_index = 0;
     allocated_locks = 0;
     name = "Lock lookup table";
 }
+
 
 // In theory this function should only be called when the system is shutting down
 // so we don't really care about properly cleaning up, but let's do it anyway.
@@ -24,6 +26,7 @@ LockLut::~LockLut() {
     }
 
 }
+
 
 /**
  * Allocate a new lock and store a reference to it in the lookup table.
@@ -81,6 +84,37 @@ int LockLut::allocate_lock(char *lock_name) {
 
     return allocated_lock_index;
 }
+
+
+int LockLut::acquire_lock(int kernel_lock_index){
+    // bounds check on kernel_lock_index
+    if((kernel_lock_index < 0)||(kernel_lock_index >= MAX_SYSTEM_LOCKS)){
+        // kernel lock index is out of array bounds
+        return -1;
+    }
+
+    KernelLock *kernel_lock_to_acquire;
+    // ensure that the the thread has permission to acquire this lock
+    if(kernel_lock_to_acquire->address_space != currentThread->space) {
+        // currentThread does not have permission to acquire this lock
+        return -1;
+    }
+
+    // get kernel lock at index kernel_lock_index
+    KernelLock *kernel_lock_to_acquire = lock_lookup_table[lock_index];
+
+    if(kernel_lock_to_acquire == NULL){
+        // kernel_lock_to_acquire is null, cannot be acquired
+        return -1;
+    }
+    // mark the kernal_lock_to_acquire as busy
+    kernel_lock_to_acquire->in_use = true;
+    // acquire the kernal_lock_to_aquire's lock
+    kernel_lock_to_acquire->lock->Acquire();
+
+    return 0;
+}
+
 
 /**
  * De-allocate a lock. If the lock is currently in use,
