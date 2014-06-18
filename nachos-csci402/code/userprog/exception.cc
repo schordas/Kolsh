@@ -317,7 +317,7 @@ void ExceptionHandler(ExceptionType which) {
             rv = allocate_lock_syscall(machine->ReadRegister(4),
                                     machine->ReadRegister(5));
             break;
-        case SC_LOCK_ACQUIRE;
+        case SC_LOCK_ACQUIRE:
             DEBUG('a', "Lock acquire Syscall.\n");
             rv = aquire_lock_syscall(machine->ReadRegister(4));
 
