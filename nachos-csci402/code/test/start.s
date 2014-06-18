@@ -138,6 +138,15 @@ Lock_Allocate:
 	j	$31
 	.end Lock_Allocate
 
+	.globl Lock_Acquire
+	.ent Lock_Acquire
+
+Lock_Acquire:
+	addiu $2,$0,SC_LOCK_ACQUIRE
+	syscall
+	j	$31
+	.end Lock_Acquire
+
 
 /* dummy function to keep gcc happy */
         .globl  __main

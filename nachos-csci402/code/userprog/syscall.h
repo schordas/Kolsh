@@ -32,6 +32,7 @@
 
 // For lock system calls
 #define SC_LOCK_ALLOCATE 11
+#define SC_LOCK_ACQUIRE 12
 
 #define MAXFILENAME 256
 
