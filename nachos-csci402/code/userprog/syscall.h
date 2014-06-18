@@ -30,6 +30,9 @@
 #define SC_Fork		9
 #define SC_Yield	10
 
+// For lock system calls
+#define SC_LOCK_ALLOCATE 11
+
 #define MAXFILENAME 256
 
 #ifndef IN_ASM

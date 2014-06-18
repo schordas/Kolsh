@@ -130,6 +130,15 @@ Yield:
 	j	$31
 	.end Yield
 
+	.globl Lock_Allocate
+	.ent	Lock_Allocate
+Lock_Allocate:
+	addiu $2,$0,SC_LOCK_ALLOCATE
+	syscall
+	j	$31
+	.end Lock_Allocate
+
+
 /* dummy function to keep gcc happy */
         .globl  __main
         .ent    __main
