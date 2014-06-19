@@ -33,6 +33,7 @@ using namespace std;
 #define PageSize 	SectorSize 	// set the page size equal to
 					// the disk sector size, for
 					// simplicity
+					//SectorSize is 128 bytes
 
 #define NumPhysPages    512
 #define MemorySize 	(NumPhysPages * PageSize)
