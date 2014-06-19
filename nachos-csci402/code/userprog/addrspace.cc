@@ -120,11 +120,15 @@ SwapHeader (NoffHeader *noffH)
 AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     NoffHeader noffH;
     unsigned int i, size;
-
+	//### Declare virtual, physical page number to read file
+	unsigned int vpn, ppn;
+	//###Lock for bit map
+	Lock bitmap_lock;
     // Don't allocate the input or output to disk files
     fileTable.Put(0);
     fileTable.Put(0);
 
+	
     executable->ReadAt((char *)&noffH, sizeof(noffH), 0);
     if ((noffH.noffMagic != NOFFMAGIC) && 
 		(WordToHost(noffH.noffMagic) == NOFFMAGIC))
@@ -162,17 +166,42 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     bzero(machine->mainMemory, size);
 
 // then, copy in the code and data segments into memory
+
     if (noffH.code.size > 0) {
+		//### Save the size of the code
+		size = noffH.code.size;
+		//### Determine how many virtual pages will fit
+		vpn = divRoundUp(size, PageSize);
+
         DEBUG('a', "Initializing code segment, at 0x%x, size %d\n", 
 			noffH.code.virtualAddr, noffH.code.size);
-        executable->ReadAt(&(machine->mainMemory[noffH.code.virtualAddr]),
-			noffH.code.size, noffH.code.inFileAddr);
+		for(int i = 0; i < vpn; i++){
+			//### Find a Page Number
+			ppn = memory_map->Find(); 
+			if(ppn == -1){
+				//Error, all memory occupied
+			}
+			executable->ReadAt(&(machine->mainMemory[ppn*PageSize]),
+				PageSize, noffH.code.inFileAddr + 40 + i*PageSize);
+		}
     }
     if (noffH.initData.size > 0) {
+		//### Save the size of the code
+		size = noffH.initData.size;
+		//### Determine how many virtual pages will fit
+		vpn = divRoundUp(size, PageSize);	
         DEBUG('a', "Initializing data segment, at 0x%x, size %d\n", 
 			noffH.initData.virtualAddr, noffH.initData.size);
-        executable->ReadAt(&(machine->mainMemory[noffH.initData.virtualAddr]),
-			noffH.initData.size, noffH.initData.inFileAddr);
+		for(int i = 0; i < vpn; i++){
+			//### Find a Page Number
+			ppn = memory_map->Find(); 
+			if(ppn == -1){
+				//Error, all memory occupied
+			}
+			executable->ReadAt(&(machine->mainMemory[ppn*PageSize]),
+				PageSize, noffH.initData.inFileAddr + 40 + i*PageSize);
+		}
+
     }
 
 }

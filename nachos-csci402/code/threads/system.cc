@@ -151,6 +151,7 @@ Initialize(int argc, char **argv)
 #ifdef USER_PROGRAM
     machine = new Machine(debugUserProg);   // this must come first
     lock_lut = new LockLut();
+	memory_map = new BitMap(NumPhysPages);
 #endif
 
 #ifdef FILESYS

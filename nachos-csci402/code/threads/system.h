@@ -32,8 +32,10 @@ extern Timer *timer;                // the hardware alarm clock
 #ifdef USER_PROGRAM
 #include "machine.h"
 #include "lock_lut.h"
+#include "bitmap.h"
 extern Machine* machine;            // user program memory and registers
 extern LockLut *lock_lut;           // user program synchronization lock lookup table
+extern memory_map *BitMap;
 #endif
 
 #ifdef FILESYS_NEEDED       // FILESYS or FILESYS_STUB 
