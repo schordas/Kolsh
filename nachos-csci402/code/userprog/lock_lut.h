@@ -19,10 +19,12 @@ public:
     LockLut();
     ~LockLut();
 
-    int allocate_lock(char*);
-	int release_lock();	//Return 0 if successful, -1 if there is an error
-    int acquire_lock(int);
-    int free_lock(int lock_index);
+    // For all functions
+    // return   0 : on success
+    int lock_create(char*);
+    int lock_acquire(int);
+	int lock_release(int);
+    int lock_delete(int);
 
 private:
     KernelLock *lock_lookup_table[MAX_SYSTEM_LOCKS];

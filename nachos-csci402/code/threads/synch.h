@@ -73,7 +73,7 @@ class Lock {
     char* getName() { return name; }    // debugging assist
 
     void Acquire(); // these are the only operations on a lock
-    void Release(); // they are both *atomic*
+    bool Release(); // they are both *atomic*
 
     bool isHeldByCurrentThread();   // true if the current thread
                     // holds this lock.  Useful for

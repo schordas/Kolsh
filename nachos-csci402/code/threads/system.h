@@ -18,22 +18,22 @@
 
 // Initialization and cleanup routines
 extern void Initialize(int argc, char **argv);  // Initialization,
-                        // called before anything else
-extern void Cleanup();              // Cleanup, called when
-                        // Nachos is done.
+                                                // called before anything else
+extern void Cleanup();                          // Cleanup, called when
+                                                // Nachos is done.
 
-extern Thread *currentThread;           // the thread holding the CPU
+extern Thread *currentThread;               // the thread holding the CPU
 extern Thread *threadToBeDestroyed;         // the thread that just finished
-extern Scheduler *scheduler;            // the ready list
-extern Interrupt *interrupt;            // interrupt status
-extern Statistics *stats;           // performance metrics
-extern Timer *timer;                // the hardware alarm clock
+extern Scheduler *scheduler;                // the ready list
+extern Interrupt *interrupt;                // interrupt status
+extern Statistics *stats;                   // performance metrics
+extern Timer *timer;                        // the hardware alarm clock
 
 #ifdef USER_PROGRAM
 #include "machine.h"
-#include "lock_lut.h"
-extern Machine* machine;            // user program memory and registers
-extern LockLut *lock_lut;           // user program synchronization lock lookup table
+#include "synchronization_lut.h"
+extern Machine* machine;                                    // user program memory and registers
+extern SynchronizationLut *synchronization_lut;             // user program synchronization lock lookup table
 #endif
 
 #ifdef FILESYS_NEEDED       // FILESYS or FILESYS_STUB 

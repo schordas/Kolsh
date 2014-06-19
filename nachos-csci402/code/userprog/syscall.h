@@ -1,9 +1,9 @@
 /* syscalls.h 
- * 	Nachos system call interface.  These are Nachos kernel operations
- * 	that can be invoked from user programs, by trapping to the kernel
- *	via the "syscall" instruction.
+ *  Nachos system call interface.  These are Nachos kernel operations
+ *  that can be invoked from user programs, by trapping to the kernel
+ *  via the "syscall" instruction.
  *
- *	This file is included by user programs and by the Nachos kernel. 
+ *  This file is included by user programs and by the Nachos kernel. 
  *
  * Copyright (c) 1992-1993 The Regents of the University of California.
  * All rights reserved.  See copyright.h for copyright notice and limitation 
@@ -18,24 +18,31 @@
 /* system call codes -- used by the stubs to tell the kernel which system call
  * is being asked for
  */
-#define SC_Halt		0
-#define SC_Exit		1
-#define SC_Exec		2
-#define SC_Join		3
-#define SC_Create	4
-#define SC_Open		5
-#define SC_Read		6
-#define SC_Write	7
-#define SC_Close	8
-#define SC_Fork		9
-#define SC_Yield	10
+#define SC_Halt     0
+#define SC_Exit     1
+#define SC_Exec     2
+#define SC_Join     3
+#define SC_Create   4
+#define SC_Open     5
+#define SC_Read     6
+#define SC_Write    7
+#define SC_Close    8
+#define SC_Fork     9
+#define SC_Yield    10
 
-// For lock system calls
+/* Lock system calls */
+#define SC_LOCK_CREATE          11
+#define SC_LOCK_ACQUIRE         12
+#define SC_LOCK_RELEASE         13
+#define SC_LOCK_DELETE          14
 
-#define SC_LOCK_ALLOCATE    11
-#define SC_LOCK_ACQUIRE     12
-#define SC_LOCK_RELEASE		13
-#define SC_LOCK_FREE        14
+/* Condition system calls */
+#define SC_CONDITION_CREATE     15
+#define SC_CONDITION_WAIT       16
+#define SC_CONDITION_SIGNAL     17
+#define SC_CONDITION_BROADCAST  18
+#define SC_CONDITION_DELETE     19
+
 #define MAXFILENAME 256
 
 #ifndef IN_ASM
@@ -51,16 +58,16 @@
  */
 
 /* Stop Nachos, and print out performance stats */
-void Halt();		
+void Halt();        
  
 
 /* Address space control operations: Exit, Exec, and Join */
 
 /* This user program is done (status = 0 means exited normally). */
-void Exit(int status);	
+void Exit(int status);  
 
 /* A unique identifier for an executing user program (address space) */
-typedef int SpaceId;	
+typedef int SpaceId;    
  
 /* Run the executable, stored in the Nachos file "name", and return the 
  * address space identifier
@@ -70,7 +77,7 @@ SpaceId Exec(char *name);
 /* Only return once the the user program "id" has finished.  
  * Return the exit status.
  */
-int Join(SpaceId id); 	
+int Join(SpaceId id);   
  
 
 /* File system operations: Create, Open, Read, Write, Close
@@ -83,7 +90,7 @@ int Join(SpaceId id);
  */
  
 /* A unique identifier for an open Nachos file. */
-typedef int OpenFileId;	
+typedef int OpenFileId; 
 
 /* when an address space starts up, it has two open files, representing 
  * keyboard input and display output (in UNIX terms, stdin and stdout).
@@ -91,8 +98,8 @@ typedef int OpenFileId;
  * the console device.
  */
 
-#define ConsoleInput	0  
-#define ConsoleOutput	1  
+#define ConsoleInput    0  
+#define ConsoleOutput   1  
  
 /* Create a Nachos file, with "name" */
 void Create(char *name, int size);
@@ -132,7 +139,107 @@ void Fork(void (*func)());
  */
 void Yield();
 
-void Lock_Acquire(int lock_index);	
+
+/* **************************************************************************************
+ *  LOCK INTERFACE
+ *  User-level lock operations: Create, Acquire, Release, Delete.
+ */
+
+/**
+ * Create a new lock. If the system is unable to allocate a new lock, this
+ * function will return -1. On success it will return an index to the newly created lock.
+ *
+ * @param char* - name of the lock
+ * @param int - size of name array
+ *
+ * @return int - index of lock or -1 on failure
+ */
+int Lock_Create(char*, int);
+
+/**
+ * Acquire a lock
+ *
+ * @param int - index of lock
+ *
+ * @return int - 0 on success -1 otherwise
+ */
+int Lock_Acquire(int);
+
+/**
+ * Acquire a lock
+ *
+ * @param int - index of lock
+ *
+ * @return int - 0 on success -1 otherwise
+ */
+int Lock_Release(int);
+
+/**
+ * Delete a lock. If the lock is in use, marks the lock to be deleted at a
+ * later time. Returns 0 if the lock has been deleted or scheduled for delete.
+ *
+ * @param int - index of lock
+ *
+ * @return int - 0 on success -1 otherwise
+ */
+int Lock_Delete(int);
+
+
+/* **************************************************************************************
+ *  CONDITION INTERFACE
+ *  User-level condition operations: Create, Wait, Signal, Broadcast, Delete.
+ */
+
+/**
+ * Allocate a new condition. If the system is unable to allocate a new condition, this
+ * function will return -1. On success it will return an index to the newly created condition.
+ *
+ * @param char* - name of the condition
+ * @param int - size of name array
+ *
+ * @return int - index of condition or -1 on failure
+ */
+int Condition_Create(char*, int);
+
+/**
+ * Wait on a condition.
+ *
+ * @param_1 int - index of condition
+ * @param_2 int - index of lock
+ *
+ * @return int - 0 on success -1 otherwise
+ */
+int Condition_Wait(int, int);
+
+/**
+ * Signal on a condition.
+ *
+ * @param_1 int - index of condition
+ * @param_2 int - index of lock
+ *
+ * @return int - 0 on success -1 otherwise
+ */
+int Condition_Signal(int);
+
+/**
+ * Broadcast on a condition.
+ *
+ * @param_1 int - index of condition
+ * @param_2 int - index of lock
+ *
+ * @return int - 0 on success -1 otherwise
+ */
+int Condition_Broadcast(int);
+
+/**
+ * Delete a condition. If the lock is in use, marks the condition to be deleted at a
+ * later time. Returns 0 if the condition has been deleted or scheduled for delete.
+ *
+ * @param int - index of condition
+ *
+ * @return int - 0 on success -1 otherwise
+ */
+int Condition_Delete(int);
 
 #endif /* IN_ASM */
 

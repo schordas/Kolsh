@@ -35,7 +35,7 @@ LockLut::~LockLut() {
  * @return int: If allocation is successful, an int representing the
  *              index of the lock. Otherwise -1 to represent an error.
  */
-int LockLut::allocate_lock(char *lock_name) {
+int LockLut::lock_create(char *lock_name) {
     int allocated_lock_index = next_available_lock_index;
     int watchdog_counter = 0;
 
@@ -50,7 +50,7 @@ int LockLut::allocate_lock(char *lock_name) {
     KernelLock *loop_kernel_lock = lock_lookup_table[next_available_lock_index];
 
     // this will turn into an infinite loop if allocated_locks isn't maintained properly
-    // that is why we have the watchdog counter
+    // the watchdog counter will prevent an infinite and fail with -1.
     while(loop_kernel_lock != NULL && watchdog_counter != MAX_SYSTEM_LOCKS) {
         next_available_lock_index ++;
 
@@ -61,6 +61,13 @@ int LockLut::allocate_lock(char *lock_name) {
 
         loop_kernel_lock = lock_lookup_table[next_available_lock_index];
         watchdog_counter ++;
+    }
+
+    if(watchdog_counter == MAX_SYSTEM_LOCKS) {
+        // something has gone horribly wrong
+        // in theory, this should never execute.
+        DEBUG('e', "Quit loop on watchdog_counter LockLut::lock_create");
+        return -1;
     }
 
     // we have our next available lock index in the table
@@ -86,23 +93,7 @@ int LockLut::allocate_lock(char *lock_name) {
 }
 
 
-LockLut::release_lock(int index){
-	//Check if the index is within boundary
-	if(index >= 0 && index < MAX_SYSTEM_LOCKS){
-		if(lock_lookup_table[index]->address_space == currentThread->Space){
-			lock_lookup_table[index]->lock->Release();
-		}
-		else{
-			printf("Lock Release Error: current Address Space does not equal to Lock's Address Space\n");
-			return -1;	
-		}
-	}
-	else{
-		printf("Lock Release Error: Lock index is out of bounds\n");
-		return -1;
-	}
-	return 0;
-int LockLut::acquire_lock(int kernel_lock_index){
+int LockLut::lock_acquire(int kernel_lock_index){
     KernelLock *kernel_lock_to_acquire;
 
     // bounds check on kernel_lock_index
@@ -133,6 +124,25 @@ int LockLut::acquire_lock(int kernel_lock_index){
 }
 
 
+int LockLut::lock_release(int index){
+    //Check if the index is within boundary
+    if(index >= 0 && index < MAX_SYSTEM_LOCKS){
+        if(lock_lookup_table[index]->address_space == currentThread->space){
+            lock_lookup_table[index]->lock->Release();
+        }
+        else{
+            printf("Lock Release Error: current Address Space does not equal to Lock's Address Space\n");
+            return -1;  
+        }
+    }
+    else{
+        printf("Lock Release Error: Lock index is out of bounds\n");
+        return -1;
+    }
+    return 0;
+}
+
+
 /**
  * De-allocate a lock. If the lock is currently in use,
  * the lock is marked for deletion at a future date.
@@ -141,7 +151,7 @@ int LockLut::acquire_lock(int kernel_lock_index){
  *              -1 Supplied lock index is invalid
  *              0  The lock has been deleted or marked for deletion. No other guarantees are made.
  */
-int LockLut::free_lock(int lock_index) {
+int LockLut::lock_delete(int lock_index) {
     KernelLock *kernel_lock;
 
     // bounds check the input index
