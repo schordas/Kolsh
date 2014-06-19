@@ -266,8 +266,7 @@ int allocate_lock_syscall(unsigned int vaddr, int length) {
     return lock_lut->allocate_lock(lock_name);
 }
 
-int release_lock_syscall(unsigned int vaddr, int length) {
-	int index = read_into_buffer(vaddr, length);
+int release_lock_syscall(int index) {
 	return lock_lut->release_lock(index);
 }
 
