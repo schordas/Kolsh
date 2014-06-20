@@ -2480,7 +2480,7 @@ filesys.o: ../filesys/filesys.cc ../threads/copyright.h ../machine/disk.h \
   ../threads/copyright.h ../threads/utility.h ../filesys/openfile.h \
   ../threads/utility.h ../filesys/directory.h ../filesys/openfile.h \
   ../filesys/filehdr.h ../filesys/filesys.h
-fstest.o: ../filesys/fstest.cc ../threads/copyright.h \
+fstest.o: ../filesys/fstest.cc ../threads/main.cc ../threads/copyright.h \
   ../threads/utility.h ../threads/copyright.h ../threads/bool.h \
   ../machine/sysdep.h ../threads/copyright.h \
   /usr/sfw/lib/gcc/sparc-sun-solaris2.10/3.4.3/include/stdio.h \
