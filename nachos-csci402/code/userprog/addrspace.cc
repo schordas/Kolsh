@@ -122,6 +122,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     unsigned int i, size;
 	//### Declare virtual, physical page number to read file
 	int vpn, ppn;
+	int vpn_initData;
 	//###Lock for bit map
 	Lock bitmap_lock("bitmap_lock");
     // Don't allocate the input or output to disk files
@@ -196,7 +197,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     }
     if (noffH.initData.size > 0) {
 			printf("\n");
-		int vpn_initData = vpn;
+		vpn_initData = vpn;
 		//### Save the size of the initData
 		size = noffH.initData.size;	
 		//### Determine how many virtual pages will fit
@@ -225,6 +226,26 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
 		}
 
     }
+	int stack_starting_page;
+	printf("Allocating pageTable for stack\n");
+	//Allocate Stack Pages
+	size = noffH.code.size + noffH.initData.size;
+	stack_starting_page = divRoundUp(size,PageSize);
+	numPages = divRoundUp(size,PageSize) + divRoundUp(UserStackSize,PageSize);
+	for(int counter = stack_starting_page; counter < numPages; counter++){
+		ppn = memory_map->Find(); 
+					printf("ppn : %d\n", ppn);
+			if(ppn == -1){
+				//Error, all memory occupied
+			}
+		printf("\tSaving to pageTable[%d]\n", counter);
+		pageTable[counter].virtualPage = counter;
+		pageTable[counter].physicalPage = ppn;
+		pageTable[counter].valid = TRUE;
+		pageTable[counter].use = FALSE;
+		pageTable[counter].dirty = FALSE;
+		pageTable[counter].readOnly = FALSE;
+	}
 
 }
 
