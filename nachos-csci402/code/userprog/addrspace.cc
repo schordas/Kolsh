@@ -180,13 +180,13 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
 		for(int counter = 0; counter < vpn; counter++){
 			//### Find a Page Number
 			ppn = memory_map->Find(); 
-					printf("ppn : %d\n", ppn);
 			if(ppn == -1){
 				//Error, all memory occupied
 			}
 			executable->ReadAt(&(machine->mainMemory[ppn*PageSize]),
 				PageSize, noffH.code.inFileAddr + counter*PageSize);
 				printf("\tSaving to pageTable[%d]\n", counter);
+				printf("\tPageTable.physicalPage : %d\n", ppn);
 			pageTable[counter].virtualPage = counter;
 			pageTable[counter].physicalPage = ppn;
 			pageTable[counter].valid = TRUE;
@@ -210,13 +210,13 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
 			//### Find a Page Number
 					printf("Inside for loop: %d\n", counter);
 			ppn = memory_map->Find(); 
-					printf("ppn : %d\n", ppn);
 			if(ppn == -1){
 				//Error, all memory occupied
 			}
 			executable->ReadAt(&(machine->mainMemory[ppn*PageSize]),
 				PageSize, noffH.initData.inFileAddr + counter*PageSize);
 				printf("\tSaving to pageTable[%d]\n", counter + vpn_initData);
+				printf("\tPageTable.physicalPage : %d\n", ppn);
 			pageTable[counter + vpn_initData].virtualPage = counter + vpn_initData;
 			pageTable[counter + vpn_initData].physicalPage = ppn;
 			pageTable[counter + vpn_initData].valid = TRUE;
@@ -239,6 +239,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
 				//Error, all memory occupied
 			}
 		printf("\tSaving to pageTable[%d]\n", counter);
+		printf("\tPageTable.physicalPage : %d\n", ppn);
 		pageTable[counter].virtualPage = counter;
 		pageTable[counter].physicalPage = ppn;
 		pageTable[counter].valid = TRUE;
@@ -314,6 +315,7 @@ void AddrSpace::SaveState()
 
 void AddrSpace::RestoreState() 
 {
-    machine->pageTable = pageTable;
+    machine->
+	= pageTable;
     machine->pageTableSize = numPages;
 }
