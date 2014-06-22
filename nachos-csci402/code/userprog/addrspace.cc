@@ -168,6 +168,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
 
 // then, copy in the code and data segments into memory
 					printf("\nGoing to read into physical memory\n");
+	bitmap_lock.Acquire();
     if (noffH.code.size > 0) {
 		//### Save the size of the code
 		size = noffH.code.size;
@@ -181,6 +182,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
 			//### Find a Page Number
 			ppn = memory_map->Find(); 
 			if(ppn == -1){
+				printf("Error, all memory occupied\n");
 				//Error, all memory occupied
 			}
 			executable->ReadAt(&(machine->mainMemory[ppn*PageSize]),
@@ -211,6 +213,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
 					printf("Inside for loop: %d\n", counter);
 			ppn = memory_map->Find(); 
 			if(ppn == -1){
+				printf("Error, all memory occupied\n");
 				//Error, all memory occupied
 			}
 			executable->ReadAt(&(machine->mainMemory[ppn*PageSize]),
@@ -226,16 +229,19 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
 		}
 
     }
+	//
+	//Allocate Stack Pages
+	//
 	int stack_starting_page;
 	printf("Allocating pageTable for stack\n");
-	//Allocate Stack Pages
 	size = noffH.code.size + noffH.initData.size;
 	stack_starting_page = divRoundUp(size,PageSize);
 	numPages = divRoundUp(size,PageSize) + divRoundUp(UserStackSize,PageSize);
-	for(int counter = stack_starting_page; counter < numPages; counter++){
+	for(unsigned int counter = stack_starting_page; counter < numPages; counter++){
 		ppn = memory_map->Find(); 
 					printf("ppn : %d\n", ppn);
 			if(ppn == -1){
+				printf("Error, all memory occupied\n");
 				//Error, all memory occupied
 			}
 		printf("\tSaving to pageTable[%d]\n", counter);
@@ -247,6 +253,56 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
 		pageTable[counter].dirty = FALSE;
 		pageTable[counter].readOnly = FALSE;
 	}
+	bitmap_lock.Release();
+
+}
+
+//------------------------
+//Update the pageTable to include new stack pages
+//------------------------
+
+void AddrSpace::newStack(){
+	//Update numPages to include 8 new pages of stack
+	Lock newStackLock("NewStackLock");
+	newStackLock.Acquire();
+	int ppn;
+	unsigned int newNumPages = numPages + 8;
+	TranslationEntry *NewPageTable = new TranslationEntry[newNumPages];
+	//Copy the old page table to the new one
+	for(unsigned int i = 0; i < numPages; i++){
+		NewPageTable[i].virtualPage = pageTable[i].virtualPage;
+		NewPageTable[i].physicalPage = pageTable[i].physicalPage;
+		NewPageTable[i].valid = pageTable[i].valid;
+		NewPageTable[i].use = pageTable[i].use;
+		NewPageTable[i].dirty = pageTable[i].dirty;
+		NewPageTable[i].readOnly = pageTable[i].readOnly;
+					printf("Copying pageTable[%d] to NewPageTable\n", i);
+	}
+	//Remove the old table to free up resources
+	delete pageTable;
+	//Assign new stack to the new table
+	for(unsigned int i = numPages; i < newNumPages; i++){
+		printf("Assigning new Stack Pages %d\n", i);
+		ppn = memory_map->Find(); 
+		printf("\tPageTable.physicalPage : %d\n", ppn);
+		if(ppn == -1){
+			printf("Error, all memory occupied\n");
+			//Error, all memory occupied
+		}
+		NewPageTable[i].virtualPage = i;
+		NewPageTable[i].physicalPage = ppn;
+		NewPageTable[i].valid = pageTable[i].valid;
+		NewPageTable[i].use = pageTable[i].use;
+		NewPageTable[i].dirty = pageTable[i].dirty;
+		NewPageTable[i].readOnly = pageTable[i].readOnly;
+	}
+	//update numPages and pageTable
+	numPages = newNumPages;
+	pageTable = NewPageTable;
+	newStackLock.Release();
+	
+
+
 
 }
 
@@ -315,7 +371,6 @@ void AddrSpace::SaveState()
 
 void AddrSpace::RestoreState() 
 {
-    machine->
-	= pageTable;
+    machine->pageTable = pageTable;
     machine->pageTableSize = numPages;
 }
