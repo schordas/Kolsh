@@ -36,8 +36,8 @@ StartProcess(char *filename)
     space = new AddrSpace(executable);
 
     currentThread->space = space;
+
 	
-	currentThread->space->newStack();
 
     delete executable;			// close file
 

@@ -261,7 +261,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
 //Update the pageTable to include new stack pages
 //------------------------
 
-void AddrSpace::newStack(){
+int AddrSpace::newStack(){
 	//Update numPages to include 8 new pages of stack
 	Lock newStackLock("NewStackLock");
 	newStackLock.Acquire();
@@ -296,10 +296,11 @@ void AddrSpace::newStack(){
 		NewPageTable[i].dirty = pageTable[i].dirty;
 		NewPageTable[i].readOnly = pageTable[i].readOnly;
 	}
-	//update numPages and pageTable
+	//update numPages and pageTable and store the starting position of stack
 	numPages = newNumPages;
 	pageTable = NewPageTable;
 	newStackLock.Release();
+	return numPages*PageSize;
 	
 
 

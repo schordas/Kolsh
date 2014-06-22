@@ -37,7 +37,7 @@ class AddrSpace {
     Table fileTable;			// Table of openfiles
 	
 	
-	void newStack(); //Allocate new stack pages for Fork syscall
+	int newStack(); //Allocate new stack pages for Fork syscall
 
  private:
     TranslationEntry *pageTable;	// Assume linear page table translation
