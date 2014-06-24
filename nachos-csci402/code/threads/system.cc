@@ -30,6 +30,7 @@ SynchDisk   *synchDisk;
 #ifdef USER_PROGRAM     // requires either FILESYS or FILESYS_STUB
 Machine *machine;       // user program memory and registers
 LockLut *lock_lut;      // user program synchronization lock lookup table
+BitMap *memory_map;
 #endif
 
 #ifdef NETWORK
@@ -149,8 +150,8 @@ void Initialize(int argc, char **argv) {
     
 #ifdef USER_PROGRAM
     machine = new Machine(debugUserProg);   // this must come first
-    lock_lut = new LockLut();
 	memory_map = new BitMap(NumPhysPages);
+    lock_lut = new LockLut();
 #endif
 
 #ifdef FILESYS

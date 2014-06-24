@@ -67,9 +67,7 @@ static void WriteDone(int arg) { writeDone->V(); }
 //  the output.  Stop when the user types a 'q'.
 //----------------------------------------------------------------------
 
-void 
-ConsoleTest (char *in, char *out)
-{
+void ConsoleTest (char *in, char *out) {
     char ch;
 
     console = new Console(in, out, ReadAvail, WriteDone, 0);

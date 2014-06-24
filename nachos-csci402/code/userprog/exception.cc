@@ -279,6 +279,44 @@ int free_lock_syscall(int lock_index) {
     return lock_lut->free_lock(lock_index);
 }
 
+class func_info_class {
+	public:
+		void (*func);
+		char *name;
+};
+
+
+void kernel_thread(int value){
+	//translate the pseudo int to a valid pointer to a class that stores function and name
+	func_info_class *my_info = (func_info_class*) value;
+	int start_point = currentThread->space->newStack(); //Allocate new stack for this addrSpace
+	machine->WriteRegister(PCReg, (int) my_info->func);
+	machine->WriteRegister(NextPCReg, (int) my_info->func + 4);
+	currentThread->RestoreUserState();
+	//write to the stack register , the starting postion of the stack for this thread.
+	machine->WriteRegister(StackReg, start_point);
+	machine->Run();
+
+}
+
+
+int Fork_Syscall(void (*func), char* name){
+	if(func == NULL){
+		return -1;
+	}
+	func_info_class *info_ptr = new func_info_class();
+	info_ptr->func = func;
+	info_ptr->name = name;
+	Thread *t = new Thread("Kernel_thread");
+	t->space = currentThread->space; //Forked thread have the same addrSpace as currentThread
+	t->Fork( (VoidFunctionPtr) kernel_thread, (int)info_ptr);
+	machine->Run();
+	return 0;
+
+}
+
+
+
 void ExceptionHandler(ExceptionType which) {
     int type = machine->ReadRegister(2); // Which syscall?
     int rv=0;   // the return value from a syscall
@@ -337,6 +375,10 @@ void ExceptionHandler(ExceptionType which) {
             DEBUG('a', "Lock free Syscall.\n");
             rv = free_lock_syscall(machine->ReadRegister(4));
             break;
+        case SC_Fork:
+            DEBUG('a', "Lock free Syscall.\n");
+            rv = Fork_Syscall( (void*) (machine->ReadRegister(4)), (char*) machine->ReadRegister(5));
+            break;			
     }
 
     // Put in the return value and increment the PC

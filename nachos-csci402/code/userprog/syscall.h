@@ -125,13 +125,14 @@ void Close(OpenFileId id);
 /* Fork a thread to run a procedure ("func") in the *same* address space 
  * as the current thread.
  */
-void Fork(void (*func)());
+void Fork(void (*func));
 
 /* Yield the CPU to another runnable thread, whether in this address space 
  * or not. 
  */
 void Yield();
 
+//Lock Acquire
 void Lock_Acquire(int lock_index);	
 
 #endif /* IN_ASM */
