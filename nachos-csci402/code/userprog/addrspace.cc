@@ -118,13 +118,14 @@ SwapHeader (NoffHeader *noffH)
 //----------------------------------------------------------------------
 
 AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
-    NoffHeader noffH;
+	Lock bitmap_lock("bitmap_lock");
+ 	bitmap_lock.Acquire();
+	NoffHeader noffH;
     unsigned int i, size;
 	//### Declare virtual, physical page number to read file
 	int vpn, ppn;
-	int vpn_initData;
+	int NotStackPages;
 	//###Lock for bit map
-	Lock bitmap_lock("bitmap_lock");
     // Don't allocate the input or output to disk files
     fileTable.Put(0);
     fileTable.Put(0);
@@ -135,9 +136,11 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
 		(WordToHost(noffH.noffMagic) == NOFFMAGIC))
     	SwapHeader(&noffH);
     ASSERT(noffH.noffMagic == NOFFMAGIC);
-
+printf("Code: %d bytes, initData: %d bytes, uninitData: %d bytes.\n", 
+	noffH.code.size, noffH.initData.size, noffH.uninitData.size) ;
     size = noffH.code.size + noffH.initData.size + noffH.uninitData.size ;
     numPages = divRoundUp(size, PageSize) + divRoundUp(UserStackSize,PageSize);
+	NotStackPages = divRoundUp(size, PageSize);
                                                 // we need to increase the size
 						// to leave room for the stack
     size = numPages * PageSize;
@@ -149,112 +152,41 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
 
     DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
 					numPages, size);
-// first, set up the translation 
+					
+					
+// zero out the entire address space, to zero the unitialized data segment 
+// and the stack segment
+    bzero(machine->mainMemory, size);// first, set up the translation 
+	
+	
     pageTable = new TranslationEntry[numPages];
-/*     for (i = 0; i < numPages; i++) {
+    for (i = 0; i < numPages; i++) {
+		//Find an available physical page
+		ppn = memory_map->Find(); 
+		if(ppn == -1){
+			printf("Error, all memory occupied\n");
+			//Error, all memory occupied
+		}
+		
 		pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
-		pageTable[i].physicalPage = i;
+		pageTable[i].physicalPage = ppn;
 		pageTable[i].valid = TRUE;
 		pageTable[i].use = FALSE;
 		pageTable[i].dirty = FALSE;
 		pageTable[i].readOnly = FALSE;  // if the code segment was entirely on 
 						// a separate page, we could set its 
 						// pages to be read-only
-    } */
-    
-// zero out the entire address space, to zero the unitialized data segment 
-// and the stack segment
-    bzero(machine->mainMemory, size);
-
-// then, copy in the code and data segments into memory
-					printf("\nGoing to read into physical memory\n");
-	bitmap_lock.Acquire();
-    if (noffH.code.size > 0) {
-		//### Save the size of the code
-		size = noffH.code.size;
-					printf("nnoffH.code.size : %d\n", noffH.code.size);
-		//### Determine how many virtual pages will fit
-		vpn = divRoundUp(size, PageSize);
-					printf("vpn : %d, PageSize: %d\n", vpn, PageSize);
-					printf("noffH.code.inFileAddr : %d\n", noffH.code.inFileAddr);
-					printf("Initializing code segment, at 0x%x, size %d\n", noffH.code.virtualAddr, noffH.code.size);
-		for(int counter = 0; counter < vpn; counter++){
-			//### Find a Page Number
-			ppn = memory_map->Find(); 
-			if(ppn == -1){
-				printf("Error, all memory occupied\n");
-				//Error, all memory occupied
-			}
+		if(i < NotStackPages){
+			printf("PageTable[%d]\n", i);
+			printf("\tPageTable.physicalPage : %d\n", ppn);
+			printf("\tReading from file address : %d\n", noffH.code.inFileAddr + i*PageSize);
 			executable->ReadAt(&(machine->mainMemory[ppn*PageSize]),
-				PageSize, noffH.code.inFileAddr + counter*PageSize);
-				printf("\tSaving to pageTable[%d]\n", counter);
-				printf("\tPageTable.physicalPage : %d\n", ppn);
-			pageTable[counter].virtualPage = counter;
-			pageTable[counter].physicalPage = ppn;
-			pageTable[counter].valid = TRUE;
-			pageTable[counter].use = FALSE;
-			pageTable[counter].dirty = FALSE;
-			pageTable[counter].readOnly = FALSE;
-		}
+				PageSize, noffH.code.inFileAddr + i*PageSize);}
     }
-    if (noffH.initData.size > 0) {
-			printf("\n");
-		vpn_initData = vpn;
-		//### Save the size of the initData
-		size = noffH.initData.size;	
-		//### Determine how many virtual pages will fit
-		vpn = divRoundUp(size, PageSize);	
-					printf("vpn : %d\n", vpn);
-					printf("noffH.initData.inFileAddr : %d\n", noffH.initData.inFileAddr);
-					printf("Initializing data segment, at 0x%x, size %d\n",
-						noffH.initData.virtualAddr, noffH.initData.size);
-		for(int counter = 0; counter < vpn; counter++){
-			//### Find a Page Number
-					printf("Inside for loop: %d\n", counter);
-			ppn = memory_map->Find(); 
-			if(ppn == -1){
-				printf("Error, all memory occupied\n");
-				//Error, all memory occupied
-			}
-			executable->ReadAt(&(machine->mainMemory[ppn*PageSize]),
-				PageSize, noffH.initData.inFileAddr + counter*PageSize);
-				printf("\tSaving to pageTable[%d]\n", counter + vpn_initData);
-				printf("\tPageTable.physicalPage : %d\n", ppn);
-			pageTable[counter + vpn_initData].virtualPage = counter + vpn_initData;
-			pageTable[counter + vpn_initData].physicalPage = ppn;
-			pageTable[counter + vpn_initData].valid = TRUE;
-			pageTable[counter + vpn_initData].use = FALSE;
-			pageTable[counter + vpn_initData].dirty = FALSE;
-			pageTable[counter + vpn_initData].readOnly = FALSE;
-		}
 
-    }
-	//
-	//Allocate Stack Pages
-	//
-	int stack_starting_page;
-	printf("Allocating pageTable for stack\n");
-	size = noffH.code.size + noffH.initData.size;
-	stack_starting_page = divRoundUp(size,PageSize);
-	numPages = divRoundUp(size,PageSize) + divRoundUp(UserStackSize,PageSize);
-	for(unsigned int counter = stack_starting_page; counter < numPages; counter++){
-		ppn = memory_map->Find(); 
-					printf("ppn : %d\n", ppn);
-			if(ppn == -1){
-				printf("Error, all memory occupied\n");
-				//Error, all memory occupied
-			}
-		printf("\tSaving to pageTable[%d]\n", counter);
-		printf("\tPageTable.physicalPage : %d\n", ppn);
-		pageTable[counter].virtualPage = counter;
-		pageTable[counter].physicalPage = ppn;
-		pageTable[counter].valid = TRUE;
-		pageTable[counter].use = FALSE;
-		pageTable[counter].dirty = FALSE;
-		pageTable[counter].readOnly = FALSE;
-	}
+
+	printf("Going out of AddrSpace constructor\n");
 	bitmap_lock.Release();
-
 }
 
 //------------------------
@@ -267,6 +199,7 @@ int AddrSpace::newStack(){
 	newStackLock.Acquire();
 	int ppn;
 	unsigned int newNumPages = numPages + 8;
+	int Stack_top;
 	TranslationEntry *NewPageTable = new TranslationEntry[newNumPages];
 	//Copy the old page table to the new one
 	for(unsigned int i = 0; i < numPages; i++){
@@ -276,31 +209,31 @@ int AddrSpace::newStack(){
 		NewPageTable[i].use = pageTable[i].use;
 		NewPageTable[i].dirty = pageTable[i].dirty;
 		NewPageTable[i].readOnly = pageTable[i].readOnly;
-					printf("Copying pageTable[%d] to NewPageTable\n", i);
+			printf("Copying pageTable[%d] to NewPageTable\n", i);
 	}
 	//Remove the old table to free up resources
 	delete pageTable;
 	//Assign new stack to the new table
 	for(unsigned int i = numPages; i < newNumPages; i++){
-		printf("Assigning new Stack Pages %d\n", i);
 		ppn = memory_map->Find(); 
-		printf("\tPageTable.physicalPage : %d\n", ppn);
+		printf("Assigning new Stack Pages [%d] with ppn : [%d]\n", i, ppn);
 		if(ppn == -1){
 			printf("Error, all memory occupied\n");
 			//Error, all memory occupied
 		}
 		NewPageTable[i].virtualPage = i;
 		NewPageTable[i].physicalPage = ppn;
-		NewPageTable[i].valid = pageTable[i].valid;
-		NewPageTable[i].use = pageTable[i].use;
-		NewPageTable[i].dirty = pageTable[i].dirty;
-		NewPageTable[i].readOnly = pageTable[i].readOnly;
+		NewPageTable[i].valid = TRUE;
+		NewPageTable[i].use = FALSE;
+		NewPageTable[i].dirty = FALSE;
+		NewPageTable[i].readOnly = FALSE;
 	}
 	//update numPages and pageTable and store the starting position of stack
+	Stack_top = numPages;
 	numPages = newNumPages;
 	pageTable = NewPageTable;
 	newStackLock.Release();
-	return numPages*PageSize;
+	return newNumPages*PageSize;
 	
 
 

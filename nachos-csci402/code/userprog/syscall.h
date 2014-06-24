@@ -29,13 +29,11 @@
 #define SC_Close	8
 #define SC_Fork		9
 #define SC_Yield	10
-
-// For lock system calls
-
 #define SC_LOCK_ALLOCATE    11
 #define SC_LOCK_ACQUIRE     12
 #define SC_LOCK_RELEASE		13
 #define SC_LOCK_FREE        14
+#define SC_Print        15
 #define MAXFILENAME 256
 
 #ifndef IN_ASM
@@ -125,14 +123,17 @@ void Close(OpenFileId id);
 /* Fork a thread to run a procedure ("func") in the *same* address space 
  * as the current thread.
  */
-void Fork(void (*func));
+void Fork(void (*func), char* name);
 
 /* Yield the CPU to another runnable thread, whether in this address space 
  * or not. 
  */
 void Yield();
 
-//Lock Acquire
+void my_printf(char* buffer, int size);
+
+
+/* Lock Acquire */
 void Lock_Acquire(int lock_index);	
 
 #endif /* IN_ASM */

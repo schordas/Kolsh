@@ -287,34 +287,65 @@ class func_info_class {
 
 
 void kernel_thread(int value){
+		printf("\t######   kernel_thread:   ######\n");
 	//translate the pseudo int to a valid pointer to a class that stores function and name
 	func_info_class *my_info = (func_info_class*) value;
 	int start_point = currentThread->space->newStack(); //Allocate new stack for this addrSpace
+	currentThread->space->RestoreState();
+		printf("Stack starting point: %d\n", start_point);
 	machine->WriteRegister(PCReg, (int) my_info->func);
 	machine->WriteRegister(NextPCReg, (int) my_info->func + 4);
-	currentThread->RestoreUserState();
+		printf("Store into PC registers: func = %d\n", (int) my_info->func);
+		printf("Store into NextPC registers: func = %d\n", (int) my_info->func + 4);
 	//write to the stack register , the starting postion of the stack for this thread.
-	machine->WriteRegister(StackReg, start_point);
+	machine->WriteRegister(StackReg, start_point-16);
 	machine->Run();
 
 }
 
 
-int Fork_Syscall(void (*func), char* name){
+int Fork_Syscall(void (*func), unsigned int vaddr){
+	printf("Fork_Syscall:\n");
+	//Store the name of the function
+	char* buf = new char[21];
+	if (!buf) return -1;
+    if( copyin(vaddr,20,buf) == -1 ) {
+		printf("%s","Bad pointer passed to Create\n");
+		delete buf;
+		return -1;
+    }
+    buf[20]='\0';
 	if(func == NULL){
 		return -1;
 	}
 	func_info_class *info_ptr = new func_info_class();
+		printf("func: 0x%p\n", func);
+		printf("name: %s\n", buf);
 	info_ptr->func = func;
-	info_ptr->name = name;
-	Thread *t = new Thread("Kernel_thread");
-	t->space = currentThread->space; //Forked thread have the same addrSpace as currentThread
-	t->Fork( (VoidFunctionPtr) kernel_thread, (int)info_ptr);
-	machine->Run();
+	info_ptr->name = buf;
+	Thread *t = new Thread(buf);
+	//Forked thread have the same addrSpace as currentThread
+	t->space = currentThread->space;
+	t->Fork((VoidFunctionPtr) kernel_thread, (int)info_ptr);
+	//machine->Run();
+	currentThread->Yield();
 	return 0;
 
 }
 
+int printf_syscall(unsigned int vaddr, int size){
+	char* buf = new char[size+1];
+	if (!buf) return -1;
+    if( copyin(vaddr,size,buf) == -1 ) {
+		printf("%s","Bad pointer passed to Create\n");
+		delete buf;
+		return -1;
+    }
+    buf[size]='\0';
+	printf(buf);
+	return 0;
+
+}
 
 
 void ExceptionHandler(ExceptionType which) {
@@ -376,9 +407,13 @@ void ExceptionHandler(ExceptionType which) {
             rv = free_lock_syscall(machine->ReadRegister(4));
             break;
         case SC_Fork:
-            DEBUG('a', "Lock free Syscall.\n");
-            rv = Fork_Syscall( (void*) (machine->ReadRegister(4)), (char*) machine->ReadRegister(5));
-            break;			
+            DEBUG('a', "Fork.\n");
+            rv = Fork_Syscall( (void*) (machine->ReadRegister(4)), machine->ReadRegister(5));
+            break;
+        case SC_Print:
+            DEBUG('a', "Print.\n");
+            rv = printf_syscall(machine->ReadRegister(4), machine->ReadRegister(5));
+            break;				
     }
 
     // Put in the return value and increment the PC
@@ -387,8 +422,30 @@ void ExceptionHandler(ExceptionType which) {
     machine->WriteRegister(PCReg,machine->ReadRegister(NextPCReg));
     machine->WriteRegister(NextPCReg,machine->ReadRegister(PCReg)+4);
     return;
-    } else {
-      cout<<"Unexpected user mode exception - which:"<<which<<"  type:"<< type<<endl;
+    } 
+	else if (which == PageFaultException){
+	  cout<<"Unexpected user mode exception\n[PageFaultException] - which:" << which << "  type:"<< type<<endl;
+      interrupt->Halt();
+
+	}
+	else if (which == ReadOnlyException){
+	  cout<<"Unexpected user mode exception\n[ReadOnlyException] - which:" << which << "  type:"<< type<<endl;
+      interrupt->Halt();
+
+	}
+	else if (which == BusErrorException){
+	  cout<<"Unexpected user mode exception\n[BusErrorException] - which:" << which << "  type:"<< type<<endl;
+      interrupt->Halt();
+
+	}
+	else if (which == AddressErrorException){
+	  cout<<"Unexpected user mode exception\n[AddressErrorException] - which:" << which << "  type:"<< type<<endl;
+      interrupt->Halt();
+
+	}
+	
+	else {
+      cout<<"Unexpected user mode exception - which:" << which << "  type:"<< type<<endl;
       interrupt->Halt();
     }
 }

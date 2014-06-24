@@ -161,6 +161,14 @@ Lock_Free:
 	syscall
 	j	$31
 	.end Lock_Free
+	
+	.globl my_printf
+	.ent	my_printf
+my_printf:
+	addiu $2,$0,SC_Print
+	syscall
+	j	$31
+	.end my_printf	
 
 /* dummy function to keep gcc happy */
         .globl  __main
