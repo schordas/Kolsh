@@ -306,6 +306,11 @@ void kernel_thread(int value){
 
 int Fork_Syscall(void (*func), unsigned int vaddr){
 	printf("Fork_Syscall:\n");
+	//Check if the address is within boundary
+	if(!currentThread->space->checkAddr((int) func)){
+		printf("Error: Trying to fork to an invalid address: %d\n", (int) func);
+		return -1;
+	}
 	//Store the name of the function
 	char* buf = new char[21];
 	if (!buf) return -1;
@@ -344,7 +349,89 @@ int printf_syscall(unsigned int vaddr, int size){
     buf[size]='\0';
 	printf(buf);
 	return 0;
+}
 
+int exec_syscall(unsigned int vaddr, int size){
+	unsigned int vpn, offset, pageFrame;
+	int paddr, i, counter;
+	char check_end;
+	char* buf;
+	vpn = (unsigned) vaddr/PageSize;
+	offset = (unsigned) vaddr%PageSize;
+	printf("Vaddr received: %d,   vpn: %d \t offset: %d\n", vaddr, vpn, offset);
+	TranslationEntry *entry;
+	if (vpn >= machine->pageTableSize) {
+	    DEBUG('a', "virtual page # %d too large for page table size %d!\n", 
+			vaddr, machine->pageTableSize);
+	    return AddressErrorException;
+	} 
+	else if (!machine->pageTable[vpn].valid) {
+	    DEBUG('a', "virtual page # %d is not valid %d!\n", 
+			vaddr, machine->pageTableSize);
+	    return PageFaultException;
+	}
+	entry = &machine->pageTable[vpn];
+	if(entry == NULL){
+		printf("No valid entry found\n");
+		return -1;
+	}
+	pageFrame = entry->physicalPage;
+	printf("Physical Page: %d\n", pageFrame);
+	if(pageFrame >= NumPhysPages){
+		DEBUG('a', "*** frame %d > %d!\n", pageFrame, NumPhysPages);
+		return BusErrorException;
+	}
+	entry->use = TRUE;
+	paddr = pageFrame * PageSize + offset;
+	i = paddr;
+	counter = 0;
+	check_end = machine->mainMemory[i];
+	while(check_end != '\0'){
+		//If physical address go out of boundary
+		if(i > MemorySize){
+			printf("Physical address is out of bound\n");
+			return -1;
+		}
+		if (check_end = machine->mainMemory[i++] != '\0')
+		counter++;
+	}
+	buf = new char[counter];
+	for(int j = 0; j < counter; j++){
+		printf("Storing %c into buf[%d]\n", machine->mainMemory[paddr], j);
+		buf[j] = machine->mainMemory[paddr++];
+	}
+	
+	printf("paddr: %s\n", buf);
+	ASSERT((paddr >= 0) && ((paddr + size) <= MemorySize));
+	
+	
+/* 	Working code but need extra parameter 'size'
+	char *buf = new char[size+1];
+	if (!buf) return -1;
+	if(copyin(vaddr, size, buf) == -1){
+		printf("%s","Read into buffer received an invalid character array.\n");
+		return -1;
+	}
+		printf("Opening file '%s'\n", buf); */
+	OpenFile *user_executable = fileSystem->Open((char*)paddr);
+	AddrSpace *file_space;
+	if (user_executable == NULL) {
+       printf("Unable to open file %s\n", (char*)paddr);
+       return -1;
+    }
+	file_space = new AddrSpace(user_executable);
+	currentThread->space = file_space;
+    delete user_executable;          // close file
+
+    file_space->InitRegisters();     // set the initial register values
+    file_space->RestoreState();      // load page table register
+
+    machine->Run();
+    ASSERT(FALSE);              // machine->Run never returns;
+                                // the address space exits
+                                // by doing the syscall "exit"
+
+	return 0;
 }
 
 
@@ -414,6 +501,10 @@ void ExceptionHandler(ExceptionType which) {
             DEBUG('a', "Print.\n");
             rv = printf_syscall(machine->ReadRegister(4), machine->ReadRegister(5));
             break;				
+		case SC_Exec:
+			DEBUG('a',"Exec.\n");
+			rv = exec_syscall(machine->ReadRegister(4),machine->ReadRegister(5));
+			break;
     }
 
     // Put in the return value and increment the PC

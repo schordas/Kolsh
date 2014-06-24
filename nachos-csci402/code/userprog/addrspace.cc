@@ -123,7 +123,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     unsigned int i, size;
 	//### Declare virtual, physical page number to read file
 	int vpn, ppn;
-	int NotStackPages;
+	unsigned int NotStackPages;
 	//###Lock for bit map
 
     // Don't allocate the input or output to disk files
@@ -247,6 +247,23 @@ int AddrSpace::newStack(){
 
 AddrSpace::~AddrSpace() {
     delete pageTable;
+}
+
+//----------------------------------------------------------------------
+// AddrSpace::checkAddr
+//
+//	Check the virtual address passed in is within the boundary
+//----------------------------------------------------------------------
+bool AddrSpace::checkAddr(int vaddr){
+	if(vaddr < numPages*PageSize && vaddr >= 0){
+		//vaddr is in boundary
+		return true;
+	}else{
+	
+		return false;
+	}
+
+
 }
 
 //----------------------------------------------------------------------
