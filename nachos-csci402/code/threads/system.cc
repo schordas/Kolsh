@@ -75,9 +75,7 @@ TimerInterruptHandler(int dummy)
 //  "argv" is an array of strings, one for each command line argument
 //      ex: "nachos -d +" -> argv = {"nachos", "-d", "+"}
 //----------------------------------------------------------------------
-void
-Initialize(int argc, char **argv)
-{
+void Initialize(int argc, char **argv) {
     int argCount;
     char* debugArgs = "";
     bool randomYield = FALSE;
@@ -93,40 +91,41 @@ Initialize(int argc, char **argv)
     int netname = 0;        // UNIX socket name
 #endif
     
-    for (argc--, argv++; argc > 0; argc -= argCount, argv += argCount) {
-    argCount = 1;
-    if (!strcmp(*argv, "-d")) {
-        if (argc == 1)
-        debugArgs = "+";    // turn on all debug flags
-        else {
-            debugArgs = *(argv + 1);
+    for(argc--, argv++; argc > 0; argc -= argCount, argv += argCount) {
+        argCount = 1;
+        if(!strcmp(*argv, "-d")) {
+            if(argc == 1)
+            debugArgs = "+";    // turn on all debug flags
+            else {
+                debugArgs = *(argv + 1);
+                argCount = 2;
+            }
+        } else if(!strcmp(*argv, "-rs")) {
+            ASSERT(argc > 1);
+            RandomInit(atoi(*(argv + 1)));  // initialize pseudo-random number generator
+            randomYield = TRUE;
             argCount = 2;
         }
-    } else if (!strcmp(*argv, "-rs")) {
-        ASSERT(argc > 1);
-        RandomInit(atoi(*(argv + 1)));  // initialize pseudo-random
-                        // number generator
-        randomYield = TRUE;
-        argCount = 2;
-    }
 #ifdef USER_PROGRAM
-    if (!strcmp(*argv, "-s"))
-        debugUserProg = TRUE;
+        if(!strcmp(*argv, "-s")) {
+            debugUserProg = TRUE;
+        }
 #endif
 #ifdef FILESYS_NEEDED
-    if (!strcmp(*argv, "-f"))
-        format = TRUE;
+        if(!strcmp(*argv, "-f")) {
+            format = TRUE;
+        }
 #endif
 #ifdef NETWORK
-    if (!strcmp(*argv, "-l")) {
-        ASSERT(argc > 1);
-        rely = atof(*(argv + 1));
-        argCount = 2;
-    } else if (!strcmp(*argv, "-m")) {
-        ASSERT(argc > 1);
-        netname = atoi(*(argv + 1));
-        argCount = 2;
-    }
+        if(!strcmp(*argv, "-l")) {
+            ASSERT(argc > 1);
+            rely = atof(*(argv + 1));
+            argCount = 2;
+        } else if (!strcmp(*argv, "-m")) {
+            ASSERT(argc > 1);
+            netname = atoi(*(argv + 1));
+            argCount = 2;
+        }
 #endif
     }
 
@@ -171,9 +170,7 @@ Initialize(int argc, char **argv)
 // Cleanup
 //  Nachos is halting.  De-allocate global data structures.
 //----------------------------------------------------------------------
-void
-Cleanup()
-{
+void Cleanup() {
     printf("\nCleaning up...\n");
 #ifdef NETWORK
     delete postOffice;
