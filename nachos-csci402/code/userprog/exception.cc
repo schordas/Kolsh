@@ -250,202 +250,136 @@ void Close_Syscall(int fd) {
     }
 }
 
-void Yield_Syscall(){
+void Yield_Syscall() {
   printf("Yielding the current thread\n");
   currentThread->Yield();
 }
 
-// Lock system calls
-// Input validation is done in LockLut functions
-int allocate_lock_syscall(unsigned int vaddr, int length) {
-    char* lock_name = read_into_buffer(vaddr, length);
-    if(lock_name == NULL) {
-        lock_name = "Synchronization lock";
-    }
-
-    return lock_lut->allocate_lock(lock_name);
-}
-
-int release_lock_syscall(int index) {
-	return lock_lut->release_lock(index);
-}
-
-int aquire_lock_syscall(int kernel_lock_index){
-  // call acquire_lock(int), validations done in function
-  return lock_lut->acquire_lock(kernel_lock_index);
-}
-
-int free_lock_syscall(int lock_index) {
-    return lock_lut->free_lock(lock_index);
+void Print_F_Syscall(unsigned int vaddr, int len) {
+    
 }
 
 class func_info_class {
-	public:
-		void (*func);
-		char *name;
+    public:
+        void (*func);
+        char *name;
 };
 
 
 void kernel_thread(int value){
-		printf("\t######   kernel_thread:   ######\n");
-	//translate the pseudo int to a valid pointer to a class that stores function and name
-	func_info_class *my_info = (func_info_class*) value;
-	int start_point = currentThread->space->newStack(); //Allocate new stack for this addrSpace
-	currentThread->space->RestoreState();
-		printf("Stack starting point: %d\n", start_point);
-	machine->WriteRegister(PCReg, (int) my_info->func);
-	machine->WriteRegister(NextPCReg, (int) my_info->func + 4);
-		printf("Store into PC registers: func = %d\n", (int) my_info->func);
-		printf("Store into NextPC registers: func = %d\n", (int) my_info->func + 4);
-	//write to the stack register , the starting postion of the stack for this thread.
-	machine->WriteRegister(StackReg, start_point-16);
-	machine->Run();
+        printf("\t######   kernel_thread:   ######\n");
+    //translate the pseudo int to a valid pointer to a class that stores function and name
+    func_info_class *my_info = (func_info_class*) value;
+    int start_point = currentThread->space->newStack(); //Allocate new stack for this addrSpace
+    currentThread->space->RestoreState();
+        printf("Stack starting point: %d\n", start_point);
+    machine->WriteRegister(PCReg, (int) my_info->func);
+    machine->WriteRegister(NextPCReg, (int) my_info->func + 4);
+        printf("Store into PC registers: func = %d\n", (int) my_info->func);
+        printf("Store into NextPC registers: func = %d\n", (int) my_info->func + 4);
+    //write to the stack register , the starting postion of the stack for this thread.
+    machine->WriteRegister(StackReg, start_point-16);
+    machine->Run();
 
 }
 
 
 int Fork_Syscall(void (*func), unsigned int vaddr){
-	printf("Fork_Syscall:\n");
-	//Store the name of the function
-	char* buf = new char[21];
-	if (!buf) return -1;
+    printf("Fork_Syscall:\n");
+    //Store the name of the function
+    char* buf = new char[21];
+    if (!buf) return -1;
     if( copyin(vaddr,20,buf) == -1 ) {
-		printf("%s","Bad pointer passed to Create\n");
-		delete buf;
-		return -1;
+        printf("%s","Bad pointer passed to Create\n");
+        delete buf;
+        return -1;
     }
     buf[20]='\0';
-	if(func == NULL){
-		return -1;
-	}
-	func_info_class *info_ptr = new func_info_class();
-		printf("func: 0x%p\n", func);
-		printf("name: %s\n", buf);
-	info_ptr->func = func;
-	info_ptr->name = buf;
-	Thread *t = new Thread(buf);
-	//Forked thread have the same addrSpace as currentThread
-	t->space = currentThread->space;
-	t->Fork((VoidFunctionPtr) kernel_thread, (int)info_ptr);
-	//machine->Run();
-	currentThread->Yield();
-	return 0;
-
-}
-
-int printf_syscall(unsigned int vaddr, int size){
-	char* buf = new char[size+1];
-	if (!buf) return -1;
-    if( copyin(vaddr,size,buf) == -1 ) {
-		printf("%s","Bad pointer passed to Create\n");
-		delete buf;
-		return -1;
+    if(func == NULL){
+        return -1;
     }
-    buf[size]='\0';
-	printf(buf);
-	return 0;
+    func_info_class *info_ptr = new func_info_class();
+        printf("func: 0x%p\n", func);
+        printf("name: %s\n", buf);
+    info_ptr->func = func;
+    info_ptr->name = buf;
+    Thread *t = new Thread(buf);
+    //Forked thread have the same addrSpace as currentThread
+    t->space = currentThread->space;
+    t->Fork((VoidFunctionPtr) kernel_thread, (int)info_ptr);
+    //machine->Run();
+    currentThread->Yield();
+    return 0;
 
 }
-
 
 void ExceptionHandler(ExceptionType which) {
     int type = machine->ReadRegister(2); // Which syscall?
     int rv=0;   // the return value from a syscall
 
     if ( which == SyscallException ) {
-    switch (type) {
-        default:
-            DEBUG('a', "Unknown syscall - shutting down.\n");
-            break;
-        case SC_Halt:
-            DEBUG('a', "Shutdown, initiated by user program.\n");
-            interrupt->Halt();
-            break;
-        case SC_Create:
-            DEBUG('a', "Create syscall.\n");
-            Create_Syscall(machine->ReadRegister(4), machine->ReadRegister(5));
-            break;
-        case SC_Open:
-            DEBUG('a', "Open syscall.\n");
-            rv = Open_Syscall(machine->ReadRegister(4), machine->ReadRegister(5));
-            break;
-        case SC_Write:
-            DEBUG('a', "Write syscall.\n");
-            Write_Syscall(machine->ReadRegister(4),
-                      machine->ReadRegister(5),
-                      machine->ReadRegister(6));
-            break;
-        case SC_Read:
-            DEBUG('a', "Read syscall.\n");
-            rv = Read_Syscall(machine->ReadRegister(4),
-                      machine->ReadRegister(5),
-                      machine->ReadRegister(6));
-            break;
-        case SC_Close:
-            DEBUG('a', "Close syscall.\n");
-            Close_Syscall(machine->ReadRegister(4));
-            break;
-        case SC_Yield:
-            DEBUG('a', "Yield Syscall.\n");
-            Yield_Syscall();
-            break;
-        case SC_LOCK_ALLOCATE:
-            DEBUG('a', "Lock allocate Syscall.\n");
-            rv = allocate_lock_syscall(machine->ReadRegister(4),
-            machine->ReadRegister(5));
-			break;		
-		case SC_LOCK_RELEASE:
-			DEBUG('a', "Lock Release.\n");
-			rv = release_lock_syscall(machine->ReadRegister(4));
-            break;
-        case SC_LOCK_ACQUIRE:
-            DEBUG('a', "Lock acquire Syscall.\n");
-            rv = aquire_lock_syscall(machine->ReadRegister(4));
-            break;
-        case SC_LOCK_FREE:
-            DEBUG('a', "Lock free Syscall.\n");
-            rv = free_lock_syscall(machine->ReadRegister(4));
-            break;
-        case SC_Fork:
-            DEBUG('a', "Fork.\n");
-            rv = Fork_Syscall( (void*) (machine->ReadRegister(4)), machine->ReadRegister(5));
-            break;
-        case SC_Print:
-            DEBUG('a', "Print.\n");
-            rv = printf_syscall(machine->ReadRegister(4), machine->ReadRegister(5));
-            break;				
-    }
+        switch (type) {
+            default:
+                DEBUG('a', "Unknown syscall - shutting down.\n");
+                break;
+            case SC_Halt:
+                DEBUG('a', "Shutdown, initiated by user program.\n");
+                interrupt->Halt();
+                break;
+            case SC_Create:
+                DEBUG('a', "Create syscall.\n");
+                Create_Syscall(machine->ReadRegister(4), machine->ReadRegister(5));
+                break;
+            case SC_Open:
+                DEBUG('a', "Open syscall.\n");
+                rv = Open_Syscall(machine->ReadRegister(4), machine->ReadRegister(5));
+                break;
+            case SC_Write:
+                DEBUG('a', "Write syscall.\n");
+                Write_Syscall(machine->ReadRegister(4),
+                          machine->ReadRegister(5),
+                          machine->ReadRegister(6));
+                break;
+            case SC_Read:
+                DEBUG('a', "Read syscall.\n");
+                rv = Read_Syscall(machine->ReadRegister(4),
+                          machine->ReadRegister(5),
+                          machine->ReadRegister(6));
+                break;
+            case SC_Close:
+                DEBUG('a', "Close syscall.\n");
+                Close_Syscall(machine->ReadRegister(4));
+                break;
+            case SC_Yield:
+                DEBUG('a', "Yield Syscall.\n");
+                Yield_Syscall();
+                break;
+            case SC_Fork:
+                DEBUG('a', "Fork.\n");
+                rv = Fork_Syscall( (void*) (machine->ReadRegister(4)), machine->ReadRegister(5));
+                break;
+        }
 
-    // Put in the return value and increment the PC
-    machine->WriteRegister(2,rv);
-    machine->WriteRegister(PrevPCReg,machine->ReadRegister(PCReg));
-    machine->WriteRegister(PCReg,machine->ReadRegister(NextPCReg));
-    machine->WriteRegister(NextPCReg,machine->ReadRegister(PCReg)+4);
-    return;
-    } 
-	else if (which == PageFaultException){
-	  cout<<"Unexpected user mode exception\n[PageFaultException] - which:" << which << "  type:"<< type<<endl;
-      interrupt->Halt();
-
-	}
-	else if (which == ReadOnlyException){
-	  cout<<"Unexpected user mode exception\n[ReadOnlyException] - which:" << which << "  type:"<< type<<endl;
-      interrupt->Halt();
-
-	}
-	else if (which == BusErrorException){
-	  cout<<"Unexpected user mode exception\n[BusErrorException] - which:" << which << "  type:"<< type<<endl;
-      interrupt->Halt();
-
-	}
-	else if (which == AddressErrorException){
-	  cout<<"Unexpected user mode exception\n[AddressErrorException] - which:" << which << "  type:"<< type<<endl;
-      interrupt->Halt();
-
-	}
-	
-	else {
-      cout<<"Unexpected user mode exception - which:" << which << "  type:"<< type<<endl;
-      interrupt->Halt();
+        // Put in the return value and increment the PC
+        machine->WriteRegister(2,rv);
+        machine->WriteRegister(PrevPCReg,machine->ReadRegister(PCReg));
+        machine->WriteRegister(PCReg,machine->ReadRegister(NextPCReg));
+        machine->WriteRegister(NextPCReg,machine->ReadRegister(PCReg)+4);
+        return;
+    }else if(which == PageFaultException) {
+        cout<<"Unexpected user mode exception\n[PageFaultException] - which:" << which << "  type:"<< type<<endl;
+        interrupt->Halt();
+    }else if(which == ReadOnlyException) {
+        cout<<"Unexpected user mode exception\n[ReadOnlyException] - which:" << which << "  type:"<< type<<endl;
+        interrupt->Halt();
+    }else if(which == BusErrorException) {
+        cout<<"Unexpected user mode exception\n[BusErrorException] - which:" << which << "  type:"<< type<<endl;
+        interrupt->Halt();
+    }else if(which == AddressErrorException) {
+        cout<<"Unexpected user mode exception\n[AddressErrorException] - which:" << which << "  type:"<< type<<endl;
+        interrupt->Halt();
+    }else {
+        cout<<"Unexpected user mode exception - which:" << which << "  type:"<< type<<endl;
+        interrupt->Halt();
     }
 }

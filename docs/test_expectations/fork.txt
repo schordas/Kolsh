@@ -1,0 +1,34 @@
+/**
+ * Project:     NACHOS Kolsh OS
+ * Date:        Tuesday, June 24, 2014
+ * Description: The behavioral expectancies of the Fork System call.
+ */
+
+
+We will be testing input output behavior in accordance to the following
+function definition.
+
+Function Signature:
+    int Fork(void *func_ptr);
+    int Fork(void *func_ptr, char *name, int name_size);
+
+Parameters:
+void *func_ptr  A pointer to the function that will be executed in
+                a new thread. This address must be non-zero, 
+                non-negative, and lie in the address space of
+                the caller.
+
+char *name      If supplied, will be used to name the forked thread,
+                otherwise the name will default to 
+                [process name]-thread[thread_id]. This address must 
+                be non-zero, non-negative, and lie in the address 
+                space of the caller.
+
+int name_size   The size of the name string not including the null
+                terminator. This value must be non-zero, and non-negative.
+
+Return Value
+    int         If non-negative, it is the thread id of the newly forked thread.
+                Otherwise the error codes are as follows
+                -1  invalid user input
+                -2  max process threads allocated

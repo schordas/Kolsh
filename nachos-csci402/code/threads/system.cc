@@ -30,6 +30,7 @@ SynchDisk   *synchDisk;
 #ifdef USER_PROGRAM     // requires either FILESYS or FILESYS_STUB
 Machine *machine;       // user program memory and registers
 LockLut *lock_lut;      // user program synchronization lock lookup table
+Lock *memory_map_mutex;
 BitMap *memory_map;
 #endif
 
@@ -146,11 +147,12 @@ void Initialize(int argc, char **argv) {
     currentThread->setStatus(RUNNING);
 
     interrupt->Enable();
-    CallOnUserAbort(Cleanup);               // if user hits ctl-C
+    CallOnUserAbort(Cleanup);                           // if user hits ctl-C
     
 #ifdef USER_PROGRAM
-    machine = new Machine(debugUserProg);   // this must come first
+    machine = new Machine(debugUserProg);               // this must come first
 	memory_map = new BitMap(NumPhysPages);
+    memory_map_mutex = new Lock("Memory map mutex.");
     lock_lut = new LockLut();
 #endif
 

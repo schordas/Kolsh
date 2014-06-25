@@ -130,45 +130,13 @@ Yield:
 	j	$31
 	.end Yield
 
-	.globl Lock_Allocate
-	.ent	Lock_Allocate
-Lock_Allocate:
-	addiu $2,$0,SC_LOCK_ALLOCATE
+	.globl Print_F
+	.ent	Print_F
+Print_F:
+	addiu $2,$0,SC_Print_F
 	syscall
 	j	$31
-	.end Lock_Allocate
-
-	.globl Lock_Release
-	.ent	Lock_Release
-Lock_Release:
-	addiu $2,$0,SC_LOCK_RELEASE
-	syscall
-	j	$31
-	.end Lock_Release
-	
-	.globl Lock_Acquire
-	.ent Lock_Acquire
-Lock_Acquire:
-	addiu $2,$0,SC_LOCK_ACQUIRE
-	syscall
-	j	$31
-	.end Lock_Acquire
-
-	.globl Lock_Free
-	.ent	Lock_Free
-Lock_Free:
-	addiu $2,$0,SC_LOCK_FREE
-	syscall
-	j	$31
-	.end Lock_Free
-	
-	.globl my_printf
-	.ent	my_printf
-my_printf:
-	addiu $2,$0,SC_Print
-	syscall
-	j	$31
-	.end my_printf	
+	.end Print_F
 
 /* dummy function to keep gcc happy */
         .globl  __main

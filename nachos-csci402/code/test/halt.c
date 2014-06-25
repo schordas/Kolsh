@@ -11,12 +11,9 @@
  */
 
 #include "syscall.h"
-int a[3];
-int b, c;
 
-int
-main()
-{
+int main() {
+    printf("In userprogram, going to halt\n");
     Halt();
     /* not reached */
 }
