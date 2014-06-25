@@ -29,6 +29,7 @@
 // Initialization and cleanup routines
 extern void Initialize(int argc, char **argv);  // Initialization,
                                                 // called before anything else
+
 extern void Cleanup();                  // Cleanup, called when
                                         // Nachos is done.
 
@@ -41,12 +42,12 @@ extern Timer *timer;                    // the hardware alarm clock
 
 #ifdef USER_PROGRAM
 #include "machine.h"
-#include "lock_lut.h"
 #include "bitmap.h"
-extern Machine* machine;                // user program memory and registers
-extern LockLut *lock_lut;               // user program synchronization lock lookup table
-extern BitMap *memory_map;              // memory bitmap
-extern Lock *memory_map_mutex;          // mutex for memory map
+#include "synchronization_lut.h"
+extern Machine* machine;                        // user program memory and registers
+extern BitMap *memory_map;                      // memory bitmap
+extern Lock *memory_map_mutex;                  // mutex for memory map
+extern SynchronizationLut *synchronization_lut; // user program synchronization lock lookup table
 #endif
 
 #ifdef FILESYS_NEEDED                   // FILESYS or FILESYS_STUB 

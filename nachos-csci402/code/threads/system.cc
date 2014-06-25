@@ -12,12 +12,12 @@
 // These are all initialized and de-allocated by this file.
 
 Thread *currentThread;          // the thread we are running now
-Thread *threadToBeDestroyed;        // the thread that just finished
+Thread *threadToBeDestroyed;    // the thread that just finished
 Scheduler *scheduler;           // the ready list
 Interrupt *interrupt;           // interrupt status
-Statistics *stats;          // performance metrics
-Timer *timer;               // the hardware timer device,
-                    // for invoking context switches
+Statistics *stats;              // performance metrics
+Timer *timer;                   // the hardware timer device,
+                                // for invoking context switches
 
 #ifdef FILESYS_NEEDED
 FileSystem  *fileSystem;
@@ -27,12 +27,14 @@ FileSystem  *fileSystem;
 SynchDisk   *synchDisk;
 #endif
 
-#ifdef USER_PROGRAM     // requires either FILESYS or FILESYS_STUB
-Machine *machine;       // user program memory and registers
-LockLut *lock_lut;      // user program synchronization lock lookup table
+
+#ifdef USER_PROGRAM                         // requires either FILESYS or FILESYS_STUB
+Machine *machine;                           // user program memory and registers
 Lock *memory_map_mutex;
 BitMap *memory_map;
+SynchronizationLut *synchronization_lut;    // user program synchronization lock lookup table
 #endif
+
 
 #ifdef NETWORK
 PostOffice *postOffice;
@@ -60,9 +62,7 @@ extern void Cleanup();
 //  "dummy" is because every interrupt handler takes one argument,
 //      whether it needs it or not.
 //----------------------------------------------------------------------
-static void
-TimerInterruptHandler(int dummy)
-{
+static void TimerInterruptHandler(int dummy) {
     if (interrupt->getStatus() != IdleMode)
     interrupt->YieldOnReturn();
 }
@@ -83,26 +83,26 @@ void Initialize(int argc, char **argv) {
     bool randomYield = FALSE;
 
 #ifdef USER_PROGRAM
-    bool debugUserProg = FALSE; // single step user program
+    bool debugUserProg = FALSE;     // single step user program
 #endif
 #ifdef FILESYS_NEEDED
-    bool format = FALSE;    // format disk
+    bool format = FALSE;            // format disk
 #endif
 #ifdef NETWORK
-    double rely = 1;        // network reliability
-    int netname = 0;        // UNIX socket name
+    double rely = 1;                // network reliability
+    int netname = 0;                // UNIX socket name
 #endif
-    
     for(argc--, argv++; argc > 0; argc -= argCount, argv += argCount) {
         argCount = 1;
         if(!strcmp(*argv, "-d")) {
-            if(argc == 1)
-            debugArgs = "+";    // turn on all debug flags
+            if(argc == 1) {
+                debugArgs = "+";    // turn on all debug flags
+            }
             else {
                 debugArgs = *(argv + 1);
                 argCount = 2;
             }
-        } else if(!strcmp(*argv, "-rs")) {
+        }else if(!strcmp(*argv, "-rs")) {
             ASSERT(argc > 1);
             RandomInit(atoi(*(argv + 1)));  // initialize pseudo-random number generator
             randomYield = TRUE;
@@ -131,11 +131,11 @@ void Initialize(int argc, char **argv) {
 #endif
     }
 
-    DebugInit(debugArgs);           // initialize DEBUG messages
+    DebugInit(debugArgs);               // initialize DEBUG messages
     stats = new Statistics();           // collect statistics
     interrupt = new Interrupt;          // start up interrupt handling
     scheduler = new Scheduler();        // initialize the ready queue
-    if (randomYield)                // start the timer (if needed)
+    if (randomYield)                    // start the timer (if needed)
     timer = new Timer(TimerInterruptHandler, 0, randomYield);
 
     threadToBeDestroyed = NULL;
@@ -153,7 +153,7 @@ void Initialize(int argc, char **argv) {
     machine = new Machine(debugUserProg);               // this must come first
 	memory_map = new BitMap(NumPhysPages);
     memory_map_mutex = new Lock("Memory map mutex.");
-    lock_lut = new LockLut();
+    synchronization_lut = new SynchronizationLut();
 #endif
 
 #ifdef FILESYS
@@ -181,7 +181,7 @@ void Cleanup() {
     
 #ifdef USER_PROGRAM
     delete machine;
-    delete lock_lut;
+    delete synchronization_lut;
 #endif
 
 #ifdef FILESYS_NEEDED

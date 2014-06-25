@@ -5,20 +5,18 @@
  *
  */
 
-#include <stdio.h>
 #include "syscall.h"
 
 
-int myfunc(){
+int myfunc() {
 	return 0;
 }
 
 int main() {
 
-    printf("hello world.\n");
-
-	char* text = "Hello";
-    Fork(myfunc, text);
+    Print_F("hello world.\n", sizeof("hello world.\n"));
+    
+    Fork(myfunc, "Hello", sizeof("Hello"));
 	
 	
     /* not reached */

@@ -38,20 +38,18 @@ int copyin(unsigned int vaddr, int len, char *buf) {
     int *paddr = new int;
 
     while ( n >= 0 && n < len) {
-      result = machine->ReadMem( vaddr, 1, paddr );
-      while(!result) // FALL 09 CHANGES
-      {
+        result = machine->ReadMem( vaddr, 1, paddr );
+        while(!result) { // FALL 09 CHANGES
             result = machine->ReadMem( vaddr, 1, paddr ); // FALL 09 CHANGES: TO HANDLE PAGE FAULT IN THE ReadMem SYS CALL
-      } 
+        } 
       
-      buf[n++] = *paddr;
+        buf[n++] = *paddr;
      
-      if ( !result ) {
-    //translation failed
-    return -1;
-      }
-
-      vaddr++;
+        if(!result) {
+            //translation failed
+            return -1;
+        }
+        vaddr++;
     }
 
     delete paddr;
@@ -86,15 +84,13 @@ int copyout(unsigned int vaddr, int len, char *buf) {
     int n=0;            // The number of bytes copied in
 
     while ( n >= 0 && n < len) {
-      // Note that we check every byte's address
-      result = machine->WriteMem( vaddr, 1, (int)(buf[n++]) );
-
-      if ( !result ) {
-    //translation failed
-    return -1;
-      }
-
-      vaddr++;
+        // Note that we check every byte's address
+        result = machine->WriteMem( vaddr, 1, (int)(buf[n++]) );
+        if ( !result ) {
+            //translation failed
+            return -1;
+        }
+        vaddr++;
     }
 
     return n;
@@ -109,9 +105,9 @@ void Create_Syscall(unsigned int vaddr, int len) {
     if (!buf) return;
 
     if( copyin(vaddr,len,buf) == -1 ) {
-    printf("%s","Bad pointer passed to Create\n");
-    delete buf;
-    return;
+        printf("%s","Bad pointer passed to Create\n");
+        delete buf;
+        return;
     }
 
     buf[len]='\0';
@@ -132,14 +128,14 @@ int Open_Syscall(unsigned int vaddr, int len) {
     int id;             // The openfile id
 
     if (!buf) {
-    printf("%s","Can't allocate kernel buffer in Open\n");
-    return -1;
+        printf("%s","Can't allocate kernel buffer in Open\n");
+        return -1;
     }
 
     if( copyin(vaddr,len,buf) == -1 ) {
-    printf("%s","Bad pointer passed to Open\n");
-    delete[] buf;
-    return -1;
+        printf("%s","Bad pointer passed to Open\n");
+        delete[] buf;
+        return -1;
     }
 
     buf[len]='\0';
@@ -147,13 +143,15 @@ int Open_Syscall(unsigned int vaddr, int len) {
     f = fileSystem->Open(buf);
     delete[] buf;
 
-    if ( f ) {
-    if ((id = currentThread->space->fileTable.Put(f)) == -1 )
-        delete f;
-    return id;
+    if(f) {
+        if((id = currentThread->space->fileTable.Put(f)) == -1 ) {
+            delete f;
+        }
+        return id;
     }
-    else
-    return -1;
+    else {
+        return -1;
+    }
 }
 
 void Write_Syscall(unsigned int vaddr, int len, int id) {
@@ -174,15 +172,15 @@ void Write_Syscall(unsigned int vaddr, int len, int id) {
     return;
     } else {
         if ( copyin(vaddr,len,buf) == -1 ) {
-        printf("%s","Bad pointer passed to to write: data not written\n");
-        delete[] buf;
-        return;
-    }
+            printf("%s","Bad pointer passed to to write: data not written\n");
+            delete[] buf;
+            return;
+        }
     }
 
     if ( id == ConsoleOutput) {
       for (int ii=0; ii<len; ii++) {
-    printf("%c",buf[ii]);
+        printf("%c",buf[ii]);
       }
 
     } else {
@@ -206,33 +204,35 @@ int Read_Syscall(unsigned int vaddr, int len, int id) {
     char *buf;      // Kernel buffer for input
     OpenFile *f;    // Open file for output
 
-    if ( id == ConsoleOutput) return -1;
+    if(id == ConsoleOutput){
+        return -1;
+    }
     
-    if ( !(buf = new char[len]) ) {
-    printf("%s","Error allocating kernel buffer in Read\n");
-    return -1;
+    if(!(buf = new char[len])) {
+        printf("%s","Error allocating kernel buffer in Read\n");
+        return -1;
     }
 
-    if ( id == ConsoleInput) {
-      //Reading from the keyboard
-      scanf("%s", buf);
+    if(id == ConsoleInput) {
+        //Reading from the keyboard
+        scanf("%s", buf);
 
-      if ( copyout(vaddr, len, buf) == -1 ) {
-    printf("%s","Bad pointer passed to Read: data not copied\n");
-      }
-    } else {
-    if ( (f = (OpenFile *) currentThread->space->fileTable.Get(id)) ) {
-        len = f->Read(buf, len);
-        if ( len > 0 ) {
-            //Read something from the file. Put into user's address space
-            if ( copyout(vaddr, len, buf) == -1 ) {
+        if(copyout(vaddr, len, buf) == -1) {
             printf("%s","Bad pointer passed to Read: data not copied\n");
         }
+    }else {
+        if((f = (OpenFile *) currentThread->space->fileTable.Get(id))) {
+            len = f->Read(buf, len);
+            if(len > 0) {
+                //Read something from the file. Put into user's address space
+                if(copyout(vaddr, len, buf) == -1) {
+                    printf("%s","Bad pointer passed to Read: data not copied\n");
+                }
+            }
+        }else {
+            printf("%s","Bad OpenFileId passed to Read\n");
+            len = -1;
         }
-    } else {
-        printf("%s","Bad OpenFileId passed to Read\n");
-        len = -1;
-    }
     }
 
     delete[] buf;
@@ -243,20 +243,80 @@ void Close_Syscall(int fd) {
     // Close the file associated with id fd.  No error reporting.
     OpenFile *f = (OpenFile *) currentThread->space->fileTable.Remove(fd);
 
-    if ( f ) {
-      delete f;
-    } else {
-      printf("%s","Tried to close an unopen file\n");
+    if(f) {
+        delete f;
+    }else {
+        printf("%s","Tried to close an unopen file\n");
     }
 }
 
-void Yield_Syscall() {
-  printf("Yielding the current thread\n");
-  currentThread->Yield();
+void Yield_Syscall(){
+    printf("Yielding the current thread\n");
+    currentThread->Yield();
 }
 
-void Print_F_Syscall(unsigned int vaddr, int len) {
-    
+// **************************************************************************************
+// LOCK SYSTEM CALLS
+// User-level lock operations: Create, Acquire, Release, Delete.
+// Input validation is done in target functions
+//
+
+int lock_create_syscall(unsigned int vaddr, int length) {
+    char* lock_name = read_into_buffer(vaddr, length);
+    if(lock_name == NULL) {
+        lock_name = "Synchronization lock";
+    }
+
+    return synchronization_lut->lock_create(lock_name);
+}
+
+int lock_acquire_syscall(int lock_index) {
+    return synchronization_lut->lock_acquire(lock_index);
+}
+
+int lock_release_syscall(int lock_index) {
+	return synchronization_lut->lock_release(lock_index);
+}
+
+int lock_delete_syscall(int lock_index) {
+    return synchronization_lut->lock_delete(lock_index);
+}
+
+// **************************************************************************************
+// CONDITION INTERFACE
+// User-level condition operations: Create, Wait, Signal, Broadcast, Delete.
+// Input validation is done in target functions
+//
+
+int condition_create_syscall(unsigned int vaddr, int length) {
+    char* condition_name = read_into_buffer(vaddr, length);
+    if(condition_name == NULL) {
+        condition_name = "Synchronization condition";
+    }
+
+    return synchronization_lut->condition_create(condition_name);
+}
+
+int condition_wait_syscall(int condition_index, int lock_index) {
+    return synchronization_lut->condition_wait(condition_index, lock_index);
+}
+
+int condition_signal_syscall(int condition_index, int lock_index) {
+    return synchronization_lut->condition_signal(condition_index, lock_index);
+}
+
+int condition_broadcast_syscall(int condition_index, int lock_index) {
+    return synchronization_lut->condition_broadcast(condition_index, lock_index);
+}
+
+int condition_delete_syscall(int condition_index) {
+    return synchronization_lut->condition_delete(condition_index);
+}
+
+void print_f_syscall(unsigned int vaddr, int length) {
+    char* output_buffer = read_into_buffer(vaddr, length);
+    printf("%s", output_buffer);
+    delete output_buffer;
 }
 
 class func_info_class {
@@ -266,8 +326,8 @@ class func_info_class {
 };
 
 
-void kernel_thread(int value){
-        printf("\t######   kernel_thread:   ######\n");
+void kernel_thread(int value) {
+    printf("\t######   kernel_thread:   ######\n");
     //translate the pseudo int to a valid pointer to a class that stores function and name
     func_info_class *my_info = (func_info_class*) value;
     int start_point = currentThread->space->newStack(); //Allocate new stack for this addrSpace
@@ -280,11 +340,10 @@ void kernel_thread(int value){
     //write to the stack register , the starting postion of the stack for this thread.
     machine->WriteRegister(StackReg, start_point-16);
     machine->Run();
-
 }
 
 
-int Fork_Syscall(void (*func), unsigned int vaddr){
+int Fork_Syscall(void (*func), unsigned int vaddr) {
     printf("Fork_Syscall:\n");
     //Store the name of the function
     char* buf = new char[21];
@@ -310,12 +369,11 @@ int Fork_Syscall(void (*func), unsigned int vaddr){
     //machine->Run();
     currentThread->Yield();
     return 0;
-
 }
 
 void ExceptionHandler(ExceptionType which) {
-    int type = machine->ReadRegister(2); // Which syscall?
-    int rv=0;   // the return value from a syscall
+    int type = machine->ReadRegister(2);    // Which syscall?
+    int rv = 0;                             // the return value from a syscall
 
     if ( which == SyscallException ) {
         switch (type) {
@@ -358,6 +416,54 @@ void ExceptionHandler(ExceptionType which) {
                 DEBUG('a', "Fork.\n");
                 rv = Fork_Syscall( (void*) (machine->ReadRegister(4)), machine->ReadRegister(5));
                 break;
+            // LOCK SYSTEM CALLS
+            case SC_LOCK_CREATE:
+                DEBUG('a', "Lock create syscall.\n");
+                rv = lock_create_syscall(machine->ReadRegister(4),
+                                            machine->ReadRegister(5));
+                break;
+            case SC_LOCK_ACQUIRE:
+                DEBUG('a', "Lock acquire syscall.\n");
+                rv = lock_acquire_syscall(machine->ReadRegister(4));
+                break;      
+            case SC_LOCK_RELEASE:
+                DEBUG('a', "Lock release syscall.\n");
+                rv = lock_release_syscall(machine->ReadRegister(4));
+                break;
+            case SC_LOCK_DELETE:
+                DEBUG('a', "Lock delete syscall.\n");
+                rv = lock_delete_syscall(machine->ReadRegister(4));
+                break;
+            // CONDITION SYSTEM CALLS
+            case SC_CONDITION_CREATE:
+                DEBUG('a', "Condition create syscall.\n");
+                rv = condition_create_syscall(machine->ReadRegister(4),
+                                                machine->ReadRegister(5));
+                break;
+            case SC_CONDITION_WAIT:
+                DEBUG('a', "Condition wait syscall.\n");
+                rv = condition_wait_syscall(machine->ReadRegister(4),
+                                                machine->ReadRegister(5));
+                break;
+            case SC_CONDITION_SIGNAL:
+                DEBUG('a', "Condition signal syscall.\n");
+                rv = condition_signal_syscall(machine->ReadRegister(4),
+                                                machine->ReadRegister(5));
+                break;
+            case SC_CONDITION_BROADCAST:
+                DEBUG('a', "Condition broadcast syscall.\n");
+                rv = condition_broadcast_syscall(machine->ReadRegister(4),
+                                                    machine->ReadRegister(5));
+                break;
+            case SC_CONDITION_DELETE:
+                DEBUG('a', "Condition delete syscall.\n");
+                rv = condition_delete_syscall(machine->ReadRegister(4));
+                break;
+            case SC_Print_F:
+                DEBUG('a', "Print F sys call.\n");
+                print_f_syscall(machine->ReadRegister(4),
+                                    machine->ReadRegister(5));
+                break;    
         }
 
         // Put in the return value and increment the PC

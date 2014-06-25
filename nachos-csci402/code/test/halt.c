@@ -13,7 +13,7 @@
 #include "syscall.h"
 
 int main() {
-    printf("In userprogram, going to halt\n");
+    Print_F("In userprogram, going to halt\n", sizeof("In userprogram, going to halt\n"));
     Halt();
     /* not reached */
 }

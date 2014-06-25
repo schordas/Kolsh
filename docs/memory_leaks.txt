@@ -1,0 +1,21 @@
+/**
+ * Project:     NACHOS Kolsh OS
+ * Date:        Wednesday, June 25, 2014
+ * Description: Potential areas of memory leaks.
+ */
+
+
+userprog/exception.cc
+    When allocating a new char array to store string input,
+    the life cycle of this array is never managed. If used
+    locally within exception.cc it should be deleted at the end
+    of it's use. If it is being used as input to other functions
+    or constructors, tracking the life cycle of the array can get
+    messy. Care should be taken so we don't pass around unnecessary
+    references to "new" objects unless it is certain the request 
+    needs it and then it should be verified in the request function
+    that the memory is freed when it's no longer needed.
+
+    An example of passing around new char arrays is when we create
+    a new lock, we pass the name of the lock as a new char array.
+    It must be ensured in the ~Lock() that we free this array.
