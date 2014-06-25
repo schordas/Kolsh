@@ -120,8 +120,10 @@ int SynchronizationLut::lock_acquire(int lock_index){
     KernelLock *kernel_lock = lock_lookup_table[lock_index];
 
     kernel_lock->lock->Acquire();
-    kernel_lock->in_use_count++;        // this statement is in a critical section
-                                        // it must come after lock->Acquire();
+    kernel_lock->in_use_count++;        // this statement must come after 
+                                        // kernel_lock->lock->Acquire(); to
+                                        // ensure only one thread can alter
+                                        // this value at a time.
     return 0;
 }
 
@@ -136,7 +138,7 @@ int SynchronizationLut::lock_release(int lock_index) {
     // we need to ensure that the lock is actually released before
     // decrementing the in_use_count value. (consider the case if
     // the current thread isn't the lock owner, if we didn't have this
-    // check, the in_use_count could get corrupted).
+    // check, the in_use_count field could get corrupted).
     if(kernel_lock->lock->Release()) {
         lock_entry_mutex->Acquire();
         kernel_lock->in_use_count--;

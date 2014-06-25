@@ -9,12 +9,11 @@
 #       is at location 0.  This means: start.o must be the first .o passed 
 # 	to ld, in order for the routine "Start" to be loaded at location 0
 #
-
 # If you are running on SunOS 5.x machines, uncomment the next line
 GCCDIR = /auto/home-scf-22/csci402/testgnu/decstation-ultrix/bin/
-LDFLAGS = -T newscript -N
-ASFLAGS = -mips1
-CPPFLAGS = $(INCDIR)
+LDFLAGS = -T newscript -N 
+ASFLAGS = -mips1 
+CPPFLAGS = $(INCDIR) 
 
 # if you aren't cross-compiling:
 # GCCDIR =
@@ -31,12 +30,18 @@ CPP = $(GCCDIR)cpp
 INCDIR =-I../userprog -I../threads
 CFLAGS = -G 0 -c $(INCDIR)
 
-all: halt matmult sort testfiles yield
+all: halt matmult sort testfiles yield fork
 
 start.o: start.s ../userprog/syscall.h
 	$(CPP) $(CPPFLAGS) start.s > strt.s
 	$(AS) $(ASFLAGS) -o start.o strt.s
 	rm strt.s
+	
+fork.o: fork.c
+	$(CC) $(CFLAGS) -c fork.c
+fork: fork.o start.o
+	$(LD) $(LDFLAGS) start.o fork.o -o fork.coff
+	../bin/coff2noff fork.coff fork	
 
 halt.o: halt.c
 	$(CC) $(CFLAGS) -c halt.c

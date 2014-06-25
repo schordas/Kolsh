@@ -125,10 +125,10 @@ Fork:
     .globl  Yield
     .ent    Yield
 Yield:
-    addiu $2,$0,SC_Yield
-    syscall
-    j   $31
-    .end Yield
+	addiu $2,$0,SC_Yield
+	syscall
+	j	$31
+	.end Yield
 
     .globl  Lock_Create
     .ent    Lock_Create
@@ -202,6 +202,13 @@ Condition_Delete:
     j   $31
     .end Condition_Delete
 
+    .globl  Print_F 
+    .ent    Print_F
+Print_F:
+    addiu $2,$0,SC_Print_F
+    syscall
+    j   $31
+    .end Print_F
 
 /* dummy function to keep gcc happy */
         .globl  __main

@@ -27,10 +27,14 @@ FileSystem  *fileSystem;
 SynchDisk   *synchDisk;
 #endif
 
-#ifdef USER_PROGRAM                             // requires either FILESYS or FILESYS_STUB
-Machine *machine;                               // user program memory and registers
-SynchronizationLut *synchronization_lut;        // user program synchronization lock lookup table
+
+#ifdef USER_PROGRAM                         // requires either FILESYS or FILESYS_STUB
+Machine *machine;                           // user program memory and registers
+Lock *memory_map_mutex;
+BitMap *memory_map;
+SynchronizationLut *synchronization_lut;    // user program synchronization lock lookup table
 #endif
+
 
 #ifdef NETWORK
 PostOffice *postOffice;
@@ -88,34 +92,34 @@ void Initialize(int argc, char **argv) {
     double rely = 1;                // network reliability
     int netname = 0;                // UNIX socket name
 #endif
-    for (argc--, argv++; argc > 0; argc -= argCount, argv += argCount) {
+    for(argc--, argv++; argc > 0; argc -= argCount, argv += argCount) {
         argCount = 1;
-        if (!strcmp(*argv, "-d")) {
-            if (argc == 1)
-            debugArgs = "+";        // turn on all debug flags
+        if(!strcmp(*argv, "-d")) {
+            if(argc == 1) {
+                debugArgs = "+";    // turn on all debug flags
+            }
             else {
                 debugArgs = *(argv + 1);
                 argCount = 2;
             }
-        } else if (!strcmp(*argv, "-rs")) {
+        }else if(!strcmp(*argv, "-rs")) {
             ASSERT(argc > 1);
-            RandomInit(atoi(*(argv + 1)));      // initialize pseudo-random
-                                                // number generator
+            RandomInit(atoi(*(argv + 1)));  // initialize pseudo-random number generator
             randomYield = TRUE;
             argCount = 2;
         }
 #ifdef USER_PROGRAM
-        if (!strcmp(*argv, "-s")) {
+        if(!strcmp(*argv, "-s")) {
             debugUserProg = TRUE;
         }
 #endif
 #ifdef FILESYS_NEEDED
-        if (!strcmp(*argv, "-f")) {
+        if(!strcmp(*argv, "-f")) {
             format = TRUE;
         }
 #endif
 #ifdef NETWORK
-        if (!strcmp(*argv, "-l")) {
+        if(!strcmp(*argv, "-l")) {
             ASSERT(argc > 1);
             rely = atof(*(argv + 1));
             argCount = 2;
@@ -143,10 +147,12 @@ void Initialize(int argc, char **argv) {
     currentThread->setStatus(RUNNING);
 
     interrupt->Enable();
-    CallOnUserAbort(Cleanup);               // if user hits ctl-C
+    CallOnUserAbort(Cleanup);                           // if user hits ctl-C
     
 #ifdef USER_PROGRAM
-    machine = new Machine(debugUserProg);   // this must come first
+    machine = new Machine(debugUserProg);               // this must come first
+	memory_map = new BitMap(NumPhysPages);
+    memory_map_mutex = new Lock("Memory map mutex.");
     synchronization_lut = new SynchronizationLut();
 #endif
 
@@ -167,9 +173,7 @@ void Initialize(int argc, char **argv) {
 // Cleanup
 //  Nachos is halting.  De-allocate global data structures.
 //----------------------------------------------------------------------
-void
-Cleanup()
-{
+void Cleanup() {
     printf("\nCleaning up...\n");
 #ifdef NETWORK
     delete postOffice;

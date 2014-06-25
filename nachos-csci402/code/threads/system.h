@@ -8,6 +8,16 @@
 #ifndef SYSTEM_H
 #define SYSTEM_H
 
+
+// used to toggle debug print statements
+// a submission build should be compiled
+// with DEBUG_BUILD set to false.
+// DEBUG_VERBOSITY_LEVEL is an int in the
+// range 1 to 3 inclusive. 1 is the least
+// verbose, and 3 is the most verbose.
+#define DEBUG_BUILD             true
+#define DEBUG_VERBOSITY_LEVEL   3
+
 #include "copyright.h"
 #include "utility.h"
 #include "thread.h"
@@ -19,24 +29,28 @@
 // Initialization and cleanup routines
 extern void Initialize(int argc, char **argv);  // Initialization,
                                                 // called before anything else
-extern void Cleanup();                          // Cleanup, called when
-                                                // Nachos is done.
 
-extern Thread *currentThread;               // the thread holding the CPU
-extern Thread *threadToBeDestroyed;         // the thread that just finished
-extern Scheduler *scheduler;                // the ready list
-extern Interrupt *interrupt;                // interrupt status
-extern Statistics *stats;                   // performance metrics
-extern Timer *timer;                        // the hardware alarm clock
+extern void Cleanup();                  // Cleanup, called when
+                                        // Nachos is done.
+
+extern Thread *currentThread;           // the thread holding the CPU
+extern Thread *threadToBeDestroyed;     // the thread that just finished
+extern Scheduler *scheduler;            // the ready list
+extern Interrupt *interrupt;            // interrupt status
+extern Statistics *stats;               // performance metrics
+extern Timer *timer;                    // the hardware alarm clock
 
 #ifdef USER_PROGRAM
 #include "machine.h"
+#include "bitmap.h"
 #include "synchronization_lut.h"
-extern Machine* machine;                                    // user program memory and registers
-extern SynchronizationLut *synchronization_lut;             // user program synchronization lock lookup table
+extern Machine* machine;                        // user program memory and registers
+extern BitMap *memory_map;                      // memory bitmap
+extern Lock *memory_map_mutex;                  // mutex for memory map
+extern SynchronizationLut *synchronization_lut; // user program synchronization lock lookup table
 #endif
 
-#ifdef FILESYS_NEEDED       // FILESYS or FILESYS_STUB 
+#ifdef FILESYS_NEEDED                   // FILESYS or FILESYS_STUB 
 #include "filesys.h"
 extern FileSystem  *fileSystem;
 #endif
