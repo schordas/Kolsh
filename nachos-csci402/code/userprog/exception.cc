@@ -285,6 +285,12 @@ class func_info_class {
 		char *name;
 };
 
+//-----------------------
+//
+//   Fork SysCall
+//
+//----------------------------
+
 
 void kernel_thread(int value){
 		printf("\t######   kernel_thread:   ######\n");
@@ -330,6 +336,7 @@ int Fork_Syscall(void (*func), unsigned int vaddr){
 	info_ptr->name = buf;
 	Thread *t = new Thread(buf);
 	//Forked thread have the same addrSpace as currentThread
+        printf("Current Thread: %s\n", currentThread->getName());
 	t->space = currentThread->space;
 	t->Fork((VoidFunctionPtr) kernel_thread, (int)info_ptr);
 	//machine->Run();
@@ -337,6 +344,68 @@ int Fork_Syscall(void (*func), unsigned int vaddr){
 	return 0;
 
 }
+
+//----------------------------
+//
+//
+//       Exec SysCall
+//
+//----------------------------
+
+void exec_kernel_function(int i){
+    printf("Inside exec_kernel_function:\n");
+    printf("Current Thread: %s\n", currentThread->getName());
+    currentThread->space->InitRegisters();     // set the initial register values
+    currentThread->space->RestoreState();      // load page table register    
+    machine->Run();
+}
+
+
+int exec_syscall(unsigned int vaddr, int size){
+
+    char *buf = new char[size+1];    // Kernel buffer to put the name in
+    if (!buf) {
+    printf("%s","Can't allocate kernel buffer in Open\n");
+    return -1;
+    }
+
+    if( copyin(vaddr,size,buf) == -1 ) {
+    printf("%s","Bad pointer passed to Open\n");
+    delete[] buf;
+    return -1;
+    }
+
+    buf[size]='\0';
+    printf("Characters read from vaddr: %s\n", buf);
+
+    //Open the file name stored in buf
+    OpenFile *user_executable = fileSystem->Open(buf);
+    if (user_executable == NULL) {
+       printf("Unable to open file %s\n", buf);
+       return -1;
+    }
+    //Create a new thread with the address space of the file
+    AddrSpace *file_space = new AddrSpace(user_executable);
+
+    Thread *exec_thread = new Thread("exec_thread");
+    exec_thread->space = file_space;
+    exec_thread->Fork(exec_kernel_function, 0);
+
+    //Update the process table and related data structure
+    ProcessTable[Process_counter].as = file_space;
+    ProcessTable[Process_counter].Process_Count = Process_counter;
+    Process_counter++;
+    
+    delete user_executable;          // close file
+    printf("Current Thread: %s\n", currentThread->getName());
+
+    while(!scheduler->getreadyList()->IsEmpty()){
+        currentThread->Yield();
+    }
+
+    return 0;
+}
+
 
 int printf_syscall(unsigned int vaddr, int size){
 	char* buf = new char[size+1];
@@ -350,90 +419,6 @@ int printf_syscall(unsigned int vaddr, int size){
 	printf(buf);
 	return 0;
 }
-
-int exec_syscall(unsigned int vaddr, int size){
-	unsigned int vpn, offset, pageFrame;
-	int paddr, i, counter;
-	char check_end;
-	char* buf;
-	vpn = (unsigned) vaddr/PageSize;
-	offset = (unsigned) vaddr%PageSize;
-	printf("Vaddr received: %d,   vpn: %d \t offset: %d\n", vaddr, vpn, offset);
-	TranslationEntry *entry;
-	if (vpn >= machine->pageTableSize) {
-	    DEBUG('a', "virtual page # %d too large for page table size %d!\n", 
-			vaddr, machine->pageTableSize);
-	    return AddressErrorException;
-	} 
-	else if (!machine->pageTable[vpn].valid) {
-	    DEBUG('a', "virtual page # %d is not valid %d!\n", 
-			vaddr, machine->pageTableSize);
-	    return PageFaultException;
-	}
-	entry = &machine->pageTable[vpn];
-	if(entry == NULL){
-		printf("No valid entry found\n");
-		return -1;
-	}
-	pageFrame = entry->physicalPage;
-	printf("Physical Page: %d\n", pageFrame);
-	if(pageFrame >= NumPhysPages){
-		DEBUG('a', "*** frame %d > %d!\n", pageFrame, NumPhysPages);
-		return BusErrorException;
-	}
-	entry->use = TRUE;
-	paddr = pageFrame * PageSize + offset;
-	i = paddr;
-	counter = 0;
-	check_end = machine->mainMemory[i];
-	while(check_end != '\0'){
-		//If physical address go out of boundary
-		if(i > MemorySize){
-			printf("Physical address is out of bound\n");
-			return -1;
-		}
-		if (check_end = machine->mainMemory[i++] != '\0')
-		counter++;
-	}
-	buf = new char[counter];
-	for(int j = 0; j < counter; j++){
-		printf("Storing %c into buf[%d]\n", machine->mainMemory[paddr], j);
-		buf[j] = machine->mainMemory[paddr++];
-	}
-	
-	printf("paddr: %s\n", buf);
-	ASSERT((paddr >= 0) && ((paddr + size) <= MemorySize));
-	
-	
-/* 	Working code but need extra parameter 'size'
-	char *buf = new char[size+1];
-	if (!buf) return -1;
-	if(copyin(vaddr, size, buf) == -1){
-		printf("%s","Read into buffer received an invalid character array.\n");
-		return -1;
-	}
-		printf("Opening file '%s'\n", buf); */
-	OpenFile *user_executable = fileSystem->Open((char*)paddr);
-	AddrSpace *file_space;
-	if (user_executable == NULL) {
-       printf("Unable to open file %s\n", (char*)paddr);
-       return -1;
-    }
-	file_space = new AddrSpace(user_executable);
-	currentThread->space = file_space;
-    delete user_executable;          // close file
-
-    file_space->InitRegisters();     // set the initial register values
-    file_space->RestoreState();      // load page table register
-
-    machine->Run();
-    ASSERT(FALSE);              // machine->Run never returns;
-                                // the address space exits
-                                // by doing the syscall "exit"
-
-	return 0;
-}
-
 
 void ExceptionHandler(ExceptionType which) {
     int type = machine->ReadRegister(2); // Which syscall?

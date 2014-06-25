@@ -154,11 +154,6 @@ printf("Code: %d bytes, initData: %d bytes, uninitData: %d bytes.\n",
     DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
 					numPages, size);
 					
-					
-// zero out the entire address space, to zero the unitialized data segment 
-// and the stack segment
-    bzero(machine->mainMemory, size);// first, set up the translation 
-	
 	
     pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
@@ -168,7 +163,8 @@ printf("Code: %d bytes, initData: %d bytes, uninitData: %d bytes.\n",
 			printf("Error, all memory occupied\n");
 			//Error, all memory occupied
 		}
-		
+        //Clear the space one page at a time
+		bzero(&machine->mainMemory[ppn*PageSize], PageSize);
 		pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
 		pageTable[i].physicalPage = ppn;
 		pageTable[i].valid = TRUE;
@@ -238,6 +234,7 @@ int AddrSpace::newStack(){
 	return newNumPages*PageSize;
 }
 
+
 //----------------------------------------------------------------------
 // AddrSpace::~AddrSpace
 //
@@ -254,7 +251,7 @@ AddrSpace::~AddrSpace() {
 //
 //	Check the virtual address passed in is within the boundary
 //----------------------------------------------------------------------
-bool AddrSpace::checkAddr(int vaddr){
+bool AddrSpace::checkAddr(unsigned int vaddr){
 	if(vaddr < numPages*PageSize && vaddr >= 0){
 		//vaddr is in boundary
 		return true;

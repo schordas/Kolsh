@@ -8,6 +8,8 @@
 #ifndef SYSTEM_H
 #define SYSTEM_H
 
+
+
 #include "copyright.h"
 #include "utility.h"
 #include "thread.h"
@@ -22,6 +24,11 @@ extern void Initialize(int argc, char **argv);  // Initialization,
 extern void Cleanup();              // Cleanup, called when
                         // Nachos is done.
 
+//Struct for ProcessTable
+struct ProcessEntry{
+    int Process_Count;
+    AddrSpace *as;
+};
 extern Thread *currentThread;           // the thread holding the CPU
 extern Thread *threadToBeDestroyed;         // the thread that just finished
 extern Scheduler *scheduler;            // the ready list
@@ -36,6 +43,8 @@ extern Timer *timer;                // the hardware alarm clock
 extern Machine* machine;            // user program memory and registers
 extern LockLut *lock_lut;           // user program synchronization lock lookup table
 extern BitMap *memory_map;
+extern ProcessEntry ProcessTable[10];
+extern int Process_counter;
 #endif
 
 #ifdef FILESYS_NEEDED       // FILESYS or FILESYS_STUB 

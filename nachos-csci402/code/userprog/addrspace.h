@@ -37,8 +37,8 @@ class AddrSpace {
     Table fileTable;            // Table of openfiles
     
     int newStack();             //Allocate new stack pages for Fork syscall
-	bool checkAddr(int vaddr);			//Check if the virtual address is within this addrSpace
-
+	bool checkAddr(unsigned int vaddr);			//Check if the virtual address is within this addrSpace
+    int getnumPages(){return numPages;} //Return the numPages variable
  private:
     TranslationEntry *pageTable;    // Assume linear page table translation
                                     // for now!

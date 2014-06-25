@@ -32,8 +32,11 @@ void StartProcess(char *filename) {
     }
    
     space = new AddrSpace(executable);
-
     currentThread->space = space;
+    //Set ProcessTable
+    ProcessTable[Process_counter].as = space;
+    ProcessTable[Process_counter].Process_Count = Process_counter;
+    Process_counter++;
 
     delete executable;          // close file
 
