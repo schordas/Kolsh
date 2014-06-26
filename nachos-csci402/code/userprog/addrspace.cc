@@ -263,13 +263,13 @@ void AddrSpace::removeStack(int stack){
     }
     //Copy the section after the stack
     for(unsigned int i = stack_page - 8; i < newNumPages; i++){
-        stack_page++;
         NewPageTable[i].virtualPage = pageTable[stack_page].virtualPage;
         NewPageTable[i].physicalPage = pageTable[stack_page].physicalPage;
         NewPageTable[i].valid = pageTable[stack_page].valid;
         NewPageTable[i].use = pageTable[stack_page].use;
         NewPageTable[i].dirty = pageTable[stack_page].dirty;
         NewPageTable[i].readOnly = pageTable[stack_page].readOnly;
+        stack_page++;
             printf("Copying pageTable[%d] to NewPageTable[%d] with ppn: %d\n", stack_page, i, pageTable[i].physicalPage);
     }
     //Remove the old table

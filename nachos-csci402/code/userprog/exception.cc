@@ -491,27 +491,34 @@ int exit_syscall(unsigned int status){
         printf("In Exit_Syscall:\n");
     //Get the current process ID
     int P_ID = currentThread->space->ProcessID;
+    //Print out the debugging message
+        printf("\tProcess Count: %d\n", Process_counter);
+        printf("\tProcessTable[%d].ThreadCount: %d\n", P_ID, ProcessTable[P_ID].threadCount);
         printf("CurrentThread: %s, ProcessTable[%d]\n", currentThread->getName(), P_ID);
     if(ProcessTable[P_ID].threadCount > 1){
         //Child threads exist, reclaim 8 stack pages and go to sleep
         int ptr = currentThread->thread_ID;
         int stack_start = ProcessTable[P_ID].threads[ptr].firstStackPage;
             printf("Going to Remove Stack\n");
+        ProcessTable[P_ID].threadCount--;
         currentThread->space->removeStack(stack_start);
         currentThread->Finish();
     }
-    if(ProcessTable[P_ID].threadCount == 1 && Process_counter > 1){
+    else if(ProcessTable[P_ID].threadCount == 1 && Process_counter > 1){
         //If last thread but not last process
         printf("Last thread but not last process\n");
         //Reclaim all memory
         currentThread->space->returnMemory();
         //Recliam all locks
         currentThread->Finish();
+        ProcessTable[P_ID].threadCount--;
+
     }
-    if(ProcessTable[P_ID].threadCount == 1 && Process_counter == 1){
+    else if(ProcessTable[P_ID].threadCount == 1 && Process_counter == 1){
         //Last Thread in the last process
         printf("Last Thread in the last process\n");
         interrupt->Halt();
+        ProcessTable[P_ID].threadCount--;
     }
     exitLock.Release();
     return 0;
