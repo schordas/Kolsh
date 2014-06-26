@@ -132,7 +132,7 @@ def pull(remoteWorkingDirectory):
 def push(remoteWorkingDirectory):
     exe = ExecutionContext(True)
     print "syncing changes with aludra"
-    exe.execute('rsync -rtvz -C --delete --exclude-from=excludes.txt * aludra:'+remoteWorkingDirectory)
+    exe.execute('rsync -rtvz -C --delete --include-from=includes.txt --exclude-from=excludes.txt * aludra:'+remoteWorkingDirectory)
 
 def watch(remoteWorkingDirectory):
 

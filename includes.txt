@@ -1,0 +1,10 @@
+/test/*.c
+/test/MakeFile
+/test/nachos.ld
+/test/newscript
+/test/script
+/test/start.s
+
+/code/Makefile
+/code/Makefile.common
+/code/Makefile.dep
