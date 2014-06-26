@@ -17,9 +17,7 @@ int main() {
     Print_F("hello world.\n", sizeof("hello world.\n"));
     
     Fork(myfunc, "Hello", sizeof("Hello"));
-	
-	
-    /* not reached */
+    
 	return 0;
 }
 

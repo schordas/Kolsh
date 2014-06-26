@@ -8,7 +8,6 @@
 #ifndef SYSTEM_H
 #define SYSTEM_H
 
-
 // used to toggle debug print statements
 // a submission build should be compiled
 // with DEBUG_BUILD set to false.
@@ -33,6 +32,11 @@ extern void Initialize(int argc, char **argv);  // Initialization,
 extern void Cleanup();                  // Cleanup, called when
                                         // Nachos is done.
 
+//Struct for ProcessTable
+struct ProcessEntry{
+    int Process_Count;
+    AddrSpace *as;
+};
 extern Thread *currentThread;           // the thread holding the CPU
 extern Thread *threadToBeDestroyed;     // the thread that just finished
 extern Scheduler *scheduler;            // the ready list
@@ -48,6 +52,8 @@ extern Machine* machine;                        // user program memory and regis
 extern BitMap *memory_map;                      // memory bitmap
 extern Lock *memory_map_mutex;                  // mutex for memory map
 extern SynchronizationLut *synchronization_lut; // user program synchronization lock lookup table
+extern ProcessEntry ProcessTable[10];
+extern int Process_counter;
 #endif
 
 #ifdef FILESYS_NEEDED                   // FILESYS or FILESYS_STUB 

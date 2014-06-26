@@ -8,6 +8,9 @@
 #include "copyright.h"
 #include "system.h"
 
+
+
+
 // This defines *all* of the global data structures used by Nachos.
 // These are all initialized and de-allocated by this file.
 
@@ -33,6 +36,8 @@ Machine *machine;                           // user program memory and registers
 Lock *memory_map_mutex;
 BitMap *memory_map;
 SynchronizationLut *synchronization_lut;    // user program synchronization lock lookup table
+ProcessEntry ProcessTable[10];
+int Process_counter;
 #endif
 
 

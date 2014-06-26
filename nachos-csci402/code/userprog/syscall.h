@@ -74,7 +74,7 @@ typedef int SpaceId;
 /* Run the executable, stored in the Nachos file "name", and return the 
  * address space identifier
  */
-SpaceId Exec(char *name);
+SpaceId Exec(char *name ,int size);
  
 /* Only return once the the user program "id" has finished.  
  * Return the exit status.
@@ -133,7 +133,7 @@ void Close(OpenFileId id);
 \*******************************************************************************************/
 
 /* Fork a thread to run a procedure ("func") in the *same* address space 
- * as the current thread.
+ * as the current thread. and the second parameter 'name' will be new thread's name
  */
 void Fork(void (*func), char* name, int size);
 

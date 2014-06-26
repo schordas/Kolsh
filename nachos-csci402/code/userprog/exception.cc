@@ -275,7 +275,7 @@ int lock_acquire_syscall(int lock_index) {
 }
 
 int lock_release_syscall(int lock_index) {
-	return synchronization_lut->lock_release(lock_index);
+    return synchronization_lut->lock_release(lock_index);
 }
 
 int lock_delete_syscall(int lock_index) {
@@ -325,7 +325,6 @@ class func_info_class {
         char *name;
 };
 
-
 void kernel_thread(int value) {
     printf("\t######   kernel_thread:   ######\n");
     //translate the pseudo int to a valid pointer to a class that stores function and name
@@ -342,9 +341,13 @@ void kernel_thread(int value) {
     machine->Run();
 }
 
-
 int Fork_Syscall(void (*func), unsigned int vaddr) {
     printf("Fork_Syscall:\n");
+    //Check if the address is within boundary
+    if(!currentThread->space->checkAddr((int) func)){
+        printf("Error: Trying to fork to an invalid address: %d\n", (int) func);
+        return -1;
+    }
     //Store the name of the function
     char* buf = new char[21];
     if (!buf) return -1;
@@ -364,12 +367,76 @@ int Fork_Syscall(void (*func), unsigned int vaddr) {
     info_ptr->name = buf;
     Thread *t = new Thread(buf);
     //Forked thread have the same addrSpace as currentThread
+        printf("Current Thread: %s\n", currentThread->getName());
     t->space = currentThread->space;
     t->Fork((VoidFunctionPtr) kernel_thread, (int)info_ptr);
     //machine->Run();
     currentThread->Yield();
     return 0;
 }
+
+
+//----------------------------
+//
+//
+//       Exec SysCall
+//
+//----------------------------
+
+void exec_kernel_function(int i){
+    printf("Inside exec_kernel_function:\n");
+    printf("Current Thread: %s\n", currentThread->getName());
+    currentThread->space->InitRegisters();     // set the initial register values
+    currentThread->space->RestoreState();      // load page table register    
+    machine->Run();
+}
+
+
+int exec_syscall(unsigned int vaddr, int size){
+
+    char *buf = new char[size+1];    // Kernel buffer to put the name in
+    if (!buf) {
+    printf("%s","Can't allocate kernel buffer in Open\n");
+    return -1;
+    }
+
+    if( copyin(vaddr,size,buf) == -1 ) {
+    printf("%s","Bad pointer passed to Open\n");
+    delete[] buf;
+    return -1;
+    }
+
+    buf[size]='\0';
+    printf("Characters read from vaddr: %s\n", buf);
+
+    //Open the file name stored in buf
+    OpenFile *user_executable = fileSystem->Open(buf);
+    if (user_executable == NULL) {
+       printf("Unable to open file %s\n", buf);
+       return -1;
+    }
+    //Create a new thread with the address space of the file
+    AddrSpace *file_space = new AddrSpace(user_executable);
+
+    Thread *exec_thread = new Thread("exec_thread");
+    exec_thread->space = file_space;
+    exec_thread->Fork(exec_kernel_function, 0);
+
+    //Update the process table and related data structure
+    ProcessTable[Process_counter].as = file_space;
+    ProcessTable[Process_counter].Process_Count = Process_counter;
+    Process_counter++;
+    
+    delete user_executable;          // close file
+    printf("Current Thread: %s\n", currentThread->getName());
+
+    while(!scheduler->getreadyList()->IsEmpty()){
+        currentThread->Yield();
+    }
+
+    return 0;
+}
+
 
 void ExceptionHandler(ExceptionType which) {
     int type = machine->ReadRegister(2);    // Which syscall?
@@ -415,6 +482,10 @@ void ExceptionHandler(ExceptionType which) {
             case SC_Fork:
                 DEBUG('a', "Fork.\n");
                 rv = Fork_Syscall( (void*) (machine->ReadRegister(4)), machine->ReadRegister(5));
+                break;
+            case SC_Exec:
+                DEBUG('a',"Exec.\n");
+                rv = exec_syscall(machine->ReadRegister(4),machine->ReadRegister(5));
                 break;
             // LOCK SYSTEM CALLS
             case SC_LOCK_CREATE:
@@ -465,7 +536,6 @@ void ExceptionHandler(ExceptionType which) {
                                     machine->ReadRegister(5));
                 break;    
         }
-
         // Put in the return value and increment the PC
         machine->WriteRegister(2,rv);
         machine->WriteRegister(PrevPCReg,machine->ReadRegister(PCReg));

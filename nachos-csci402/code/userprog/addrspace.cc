@@ -264,6 +264,7 @@ int AddrSpace::newStack(){
     return newNumPages*PageSize;
 }
 
+
 //----------------------------------------------------------------------
 // AddrSpace::~AddrSpace
 //
@@ -273,6 +274,23 @@ int AddrSpace::newStack(){
 
 AddrSpace::~AddrSpace() {
     delete pageTable;
+}
+
+//----------------------------------------------------------------------
+// AddrSpace::checkAddr
+//
+//	Check the virtual address passed in is within the boundary
+//----------------------------------------------------------------------
+bool AddrSpace::checkAddr(unsigned int vaddr){
+	if(vaddr < numPages*PageSize && vaddr >= 0){
+		//vaddr is in boundary
+		return true;
+	}else{
+	
+		return false;
+	}
+
+
 }
 
 //----------------------------------------------------------------------
