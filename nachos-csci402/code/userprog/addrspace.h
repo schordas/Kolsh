@@ -39,6 +39,9 @@ class AddrSpace {
     int newStack();             //Allocate new stack pages for Fork syscall
 	bool checkAddr(unsigned int vaddr);			//Check if the virtual address is within this addrSpace
     int getnumPages(){return numPages;} //Return the numPages variable
+    int ProcessID;
+    void returnMemory();
+    void removeStack(int stack);
  private:
     TranslationEntry *pageTable;    // Assume linear page table translation
                                     // for now!

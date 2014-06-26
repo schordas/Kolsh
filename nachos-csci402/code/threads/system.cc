@@ -34,7 +34,7 @@ SynchDisk   *synchDisk;
 Machine *machine;       // user program memory and registers
 LockLut *lock_lut;      // user program synchronization lock lookup table
 BitMap *memory_map;
-ProcessEntry ProcessTable[10];
+ProcessEntry *ProcessTable;
 int Process_counter;
 #endif
 
@@ -157,6 +157,16 @@ void Initialize(int argc, char **argv) {
     machine = new Machine(debugUserProg);   // this must come first
 	memory_map = new BitMap(NumPhysPages);
     lock_lut = new LockLut();
+    ProcessTable = new ProcessEntry[Ptable_MaxProcess];
+    //Initialize the ProcessTable
+    Process_counter = 0;
+    for(int i = 0; i < Ptable_MaxProcess; i++){
+        ProcessTable[i].as = NULL;
+        ProcessTable[i].threadCount = 0;
+        for(int j = 0; j < Ptable_MaxThread; j++){
+            ProcessTable[i].threads[j].myThread = NULL;
+        }
+    }
 #endif
 
 #ifdef FILESYS

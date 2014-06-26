@@ -106,6 +106,7 @@ class Thread {
     void Print() { 
         printf("%s, ", threadName); 
     }
+    int thread_ID;
 
   private:
     // some of the private data for this class is listed above

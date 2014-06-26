@@ -33,15 +33,24 @@ void StartProcess(char *filename) {
    
     space = new AddrSpace(executable);
     currentThread->space = space;
-    //Set ProcessTable
-    ProcessTable[Process_counter].as = space;
-    ProcessTable[Process_counter].Process_Count = Process_counter;
-    Process_counter++;
+
 
     delete executable;          // close file
 
     space->InitRegisters();     // set the initial register values
     space->RestoreState();      // load page table register
+
+    //Set ProcessTable
+    ProcessTable[Process_counter].as = space;
+    currentThread->space->ProcessID = Process_counter;
+
+    int ptr = ProcessTable[Process_counter].threadCount;
+    ProcessTable[Process_counter].threads[ptr].myThread = currentThread;
+    currentThread->thread_ID = ptr;
+    ProcessTable[Process_counter].threads[ptr].firstStackPage = machine->pageTableSize * PageSize;
+    ProcessTable[Process_counter].threadCount++;
+    Process_counter++;
+
 
     machine->Run();             // jump to the user program
     ASSERT(FALSE);              // machine->Run never returns;

@@ -293,12 +293,35 @@ class func_info_class {
 
 
 void kernel_thread(int value){
-		printf("\t######   kernel_thread:   ######\n");
+		printf("\t######   Fork SysCall kernel_thread:   ######\n");
 	//translate the pseudo int to a valid pointer to a class that stores function and name
 	func_info_class *my_info = (func_info_class*) value;
 	int start_point = currentThread->space->newStack(); //Allocate new stack for this addrSpace
 	currentThread->space->RestoreState();
 		printf("Stack starting point: %d\n", start_point);
+    //=========Process Table===============
+    //Find an available thread spot
+    bool found_T = false;
+    int P_ID = currentThread->space->ProcessID;
+    int ptr;
+    for(int t = 0; t < Ptable_MaxThread; t++){
+        if(ProcessTable[P_ID].threads[t].myThread == NULL){
+            ProcessTable[P_ID].threadCount++;
+            ptr = t;
+            found_T = true;
+            break;
+        }
+    }
+    if(found_T = false){
+        //All Thread spot are taken
+        printf("Error: No Thread spot avaiable in process table[%d]\n", P_ID);
+        interrupt->Halt();
+    } 
+        printf("Setting ProcessTable[%d]: Thread[%d], threadcount:%d\n", P_ID, ptr, ProcessTable[P_ID].threadCount);
+    currentThread->thread_ID = ptr;
+    ProcessTable[P_ID].threads[ptr].myThread = currentThread;
+    ProcessTable[P_ID].threads[ptr].firstStackPage = (machine->pageTableSize) * PageSize;
+    //======================================
 	machine->WriteRegister(PCReg, (int) my_info->func);
 	machine->WriteRegister(NextPCReg, (int) my_info->func + 4);
 		printf("Store into PC registers: func = %d\n", (int) my_info->func);
@@ -356,7 +379,46 @@ void exec_kernel_function(int i){
     printf("Inside exec_kernel_function:\n");
     printf("Current Thread: %s\n", currentThread->getName());
     currentThread->space->InitRegisters();     // set the initial register values
-    currentThread->space->RestoreState();      // load page table register    
+    currentThread->space->RestoreState();      // load page table register   
+
+    //Update the process table and related data structure
+    //Find an available process spot
+    bool found_P = false, found_T = false;
+    int ptr, P_ID;
+    for(int p = 0; p < Ptable_MaxProcess; p++){
+        if(ProcessTable[p].as == NULL){
+            Process_counter++;
+            P_ID = p;
+            found_P = true;
+            break;
+        }
+    }
+    //Find an available thread spot
+    for(int t = 0; t < Ptable_MaxThread; t++){
+        if(ProcessTable[P_ID].threads[t].myThread == NULL){
+            ProcessTable[P_ID].threadCount++;
+            ptr = t;
+            found_T = true;
+            break;
+        }
+    }
+    if(found_P = false){
+        //All process spot are taken
+        printf("Error: No spot avaiable in process table\n");
+        interrupt->Halt();
+    }
+    if(found_T = false){
+        //All Thread spot are taken
+        printf("Error: No Thread spot avaiable in process table[%d]\n", P_ID);
+        interrupt->Halt();
+    } 
+    //Assign values to the Process Table
+    ProcessTable[P_ID].as = currentThread->space;
+    currentThread->space->ProcessID = P_ID;
+    printf("Found ProcessID: %d, threadID: %d\n",P_ID, ptr);
+    currentThread->thread_ID = ptr;
+    ProcessTable[P_ID].threads[ptr].myThread = currentThread;
+    ProcessTable[P_ID].threads[ptr].firstStackPage = machine->pageTableSize * PageSize;
     machine->Run();
 }
 
@@ -391,10 +453,6 @@ int exec_syscall(unsigned int vaddr, int size){
     exec_thread->space = file_space;
     exec_thread->Fork(exec_kernel_function, 0);
 
-    //Update the process table and related data structure
-    ProcessTable[Process_counter].as = file_space;
-    ProcessTable[Process_counter].Process_Count = Process_counter;
-    Process_counter++;
     
     delete user_executable;          // close file
     printf("Current Thread: %s\n", currentThread->getName());
@@ -418,6 +476,45 @@ int printf_syscall(unsigned int vaddr, int size){
     buf[size]='\0';
 	printf(buf);
 	return 0;
+}
+
+//===============================
+//
+//          Exit Syscall
+//Pass in 0 to return normally
+//
+//===============================
+
+int exit_syscall(unsigned int status){
+    Lock exitLock("exitLock");
+    exitLock.Acquire();
+        printf("In Exit_Syscall:\n");
+    //Get the current process ID
+    int P_ID = currentThread->space->ProcessID;
+        printf("CurrentThread: %s, ProcessTable[%d]\n", currentThread->getName(), P_ID);
+    if(ProcessTable[P_ID].threadCount > 1){
+        //Child threads exist, reclaim 8 stack pages and go to sleep
+        int ptr = currentThread->thread_ID;
+        int stack_start = ProcessTable[P_ID].threads[ptr].firstStackPage;
+            printf("Going to Remove Stack\n");
+        currentThread->space->removeStack(stack_start);
+        currentThread->Finish();
+    }
+    if(ProcessTable[P_ID].threadCount == 1 && Process_counter > 1){
+        //If last thread but not last process
+        printf("Last thread but not last process\n");
+        //Reclaim all memory
+        currentThread->space->returnMemory();
+        //Recliam all locks
+        currentThread->Finish();
+    }
+    if(ProcessTable[P_ID].threadCount == 1 && Process_counter == 1){
+        //Last Thread in the last process
+        printf("Last Thread in the last process\n");
+        interrupt->Halt();
+    }
+    exitLock.Release();
+    return 0;
 }
 
 void ExceptionHandler(ExceptionType which) {
@@ -490,6 +587,9 @@ void ExceptionHandler(ExceptionType which) {
 			DEBUG('a',"Exec.\n");
 			rv = exec_syscall(machine->ReadRegister(4),machine->ReadRegister(5));
 			break;
+        case SC_Exit:
+            DEBUG('a',"Exit.\n");
+            rv = exit_syscall(machine->ReadRegister(4));
     }
 
     // Put in the return value and increment the PC

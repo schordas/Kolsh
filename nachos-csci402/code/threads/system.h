@@ -25,10 +25,19 @@ extern void Cleanup();              // Cleanup, called when
                         // Nachos is done.
 
 //Struct for ProcessTable
-struct ProcessEntry{
-    int Process_Count;
-    AddrSpace *as;
+#define Ptable_MaxProcess 10
+#define Ptable_MaxThread 100
+struct ThreadEntry{
+	int firstStackPage;
+	Thread *myThread;
 };
+struct ProcessEntry{
+    int threadCount;
+    AddrSpace *as;
+    ThreadEntry threads[Ptable_MaxThread];
+};
+
+
 extern Thread *currentThread;           // the thread holding the CPU
 extern Thread *threadToBeDestroyed;         // the thread that just finished
 extern Scheduler *scheduler;            // the ready list
@@ -43,7 +52,7 @@ extern Timer *timer;                // the hardware alarm clock
 extern Machine* machine;            // user program memory and registers
 extern LockLut *lock_lut;           // user program synchronization lock lookup table
 extern BitMap *memory_map;
-extern ProcessEntry ProcessTable[10];
+extern ProcessEntry *ProcessTable;
 extern int Process_counter;
 #endif
 
