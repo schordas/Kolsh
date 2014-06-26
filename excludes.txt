@@ -5,6 +5,7 @@
 .gitignore
 */bin
 */nachos
+<<<<<<< HEAD
 
 */test
 
