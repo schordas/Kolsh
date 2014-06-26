@@ -371,6 +371,27 @@ int Fork_Syscall(void (*func), unsigned int vaddr) {
     return 0;
 }
 
+int Exit_Syscall(int status){
+    int number_of_processes = process_table->get_number_of_running_processes();
+
+    if(number_of_processes == 1 /*&& last thread*/){
+        interrupt->Halt();
+        return 0;
+    }
+    else if(number_of_processes > 1 /*&& last thread*/){
+        // reclaim all memory
+        page_table->release_process_id(currentThread->space->get_process_id());
+        // reclaim all locks/CVs
+        return 0;
+    }
+    else if(/*!last thread*/){
+        // reclaim 8 stack pages,
+        return 0;
+    }
+
+    return -1;
+}
+
 void ExceptionHandler(ExceptionType which) {
     int type = machine->ReadRegister(2);    // Which syscall?
     int rv = 0;                             // the return value from a syscall
@@ -415,7 +436,11 @@ void ExceptionHandler(ExceptionType which) {
             case SC_Fork:
                 DEBUG('a', "Fork.\n");
                 rv = Fork_Syscall( (void*) (machine->ReadRegister(4)), machine->ReadRegister(5));
-                break;
+                break; 
+            case SC_Exit:
+                DEBUG('a', "Print F sys call.\n"); 
+                rv = Exit_Syscall(machine->ReadRegister(4));
+                break;  
             // LOCK SYSTEM CALLS
             case SC_LOCK_CREATE:
                 DEBUG('a', "Lock create syscall.\n");
@@ -463,7 +488,7 @@ void ExceptionHandler(ExceptionType which) {
                 DEBUG('a', "Print F sys call.\n");
                 print_f_syscall(machine->ReadRegister(4),
                                     machine->ReadRegister(5));
-                break;    
+                break;
         }
 
         // Put in the return value and increment the PC

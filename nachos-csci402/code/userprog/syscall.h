@@ -142,6 +142,9 @@ void Fork(void (*func), char* name, int size);
  */
 void Yield();
 
+/* exit the current executing process in the cpu*/
+void Exit(int status);
+
 
 /*******************************************************************************************\
 | LOCK OPERATIONS:                                                                          |
