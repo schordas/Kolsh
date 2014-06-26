@@ -55,6 +55,8 @@
 // WATCH OUT IF THIS ISN'T BIG ENOUGH!!!!!
 #define StackSize   (4 * 1024)  // in words
 
+class AddrSpace;
+
 
 // Thread state
 enum ThreadStatus { JUST_CREATED, RUNNING, READY, BLOCKED };
@@ -106,6 +108,8 @@ class Thread {
     void Print() { 
         printf("%s, ", threadName); 
     }
+
+    int thread_ID;
 
   private:
     // some of the private data for this class is listed above

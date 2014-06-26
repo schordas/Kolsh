@@ -19,14 +19,14 @@ public:
     int assign_new_process_id();
     bool bind_address_space(int process_id, AddrSpace *address_space);
     bool release_process_id(int process_id);
-    int get_number_of_runnning_proccesses();
+    int get_number_of_running_processes();
 
 private:
     Lock *process_table_lock;
     ProcessTableEntry *process_table[MAX_SYSTEM_PROCESSES];
 
     int next_available_process_index;
-    int running_proccesses;
+    int running_processes;
 };
 
 #endif // KOLSH_CODE_USSERPROG_PROCESS_TABLE_H_

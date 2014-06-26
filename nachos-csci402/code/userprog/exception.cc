@@ -29,6 +29,7 @@
 
 using namespace std;
 
+
 int copyin(unsigned int vaddr, int len, char *buf) {
     // Copy len bytes from the current thread's virtual address vaddr.
     // Return the number of bytes so read, or -1 if an error occors.
@@ -323,15 +324,30 @@ class func_info_class {
     public:
         void (*func);
         char *name;
+        int thread_id;
+        int start_point;
 };
 
 void kernel_thread(int value) {
     printf("\t######   kernel_thread:   ######\n");
     //translate the pseudo int to a valid pointer to a class that stores function and name
+    // func_info_class *my_info = (func_info_class*) value;
+    // int start_point = currentThread->space->newStack(); //Allocate new stack for this addrSpace
+    // currentThread->space->RestoreState();
+    //     printf("Stack starting point: %d\n", start_point);
+    // machine->WriteRegister(PCReg, (int) my_info->func);
+    // machine->WriteRegister(NextPCReg, (int) my_info->func + 4);
+    //     printf("Store into PC registers: func = %d\n", (int) my_info->func);
+    //     printf("Store into NextPC registers: func = %d\n", (int) my_info->func + 4);
+    // //write to the stack register , the starting postion of the stack for this thread.
+    // machine->WriteRegister(StackReg, start_point-16);
+    // machine->Run();
+    //translate the pseudo int to a valid pointer to a class that stores function and name
     func_info_class *my_info = (func_info_class*) value;
-    int start_point = currentThread->space->newStack(); //Allocate new stack for this addrSpace
+    
     currentThread->space->RestoreState();
-        printf("Stack starting point: %d\n", start_point);
+        //printf("Stack starting point: %d\n", start_point);
+    
     machine->WriteRegister(PCReg, (int) my_info->func);
     machine->WriteRegister(NextPCReg, (int) my_info->func + 4);
         printf("Store into PC registers: func = %d\n", (int) my_info->func);
@@ -366,8 +382,14 @@ int Fork_Syscall(void (*func), unsigned int vaddr) {
     info_ptr->func = func;
     info_ptr->name = buf;
     Thread *t = new Thread(buf);
+    //info_ptr->thread_id++;
     //Forked thread have the same addrSpace as currentThread
         printf("Current Thread: %s\n", currentThread->getName());
+
+    info_ptr->start_point = t->space->newStack(t); //Allocate new stack for this addrSpace
+    //t->thread_ID = info_ptr->thread_id;
+    //t->space->threads[].start_point = (machine->pageTableSize) * PageSize;
+   
     t->space = currentThread->space;
     t->Fork((VoidFunctionPtr) kernel_thread, (int)info_ptr);
     //machine->Run();
@@ -387,6 +409,44 @@ void exec_kernel_function(int i){
     printf("Current Thread: %s\n", currentThread->getName());
     currentThread->space->InitRegisters();     // set the initial register values
     currentThread->space->RestoreState();      // load page table register    
+    //Update the process table and related data structure
+    //Find an available process spot
+    bool found_P = false, found_T = false;
+    int ptr, P_ID;
+    // for(int p = 0; p < Ptable_MaxProcess; p++){
+    //     if(ProcessTable[p].as == NULL){
+    //         Process_counter++;
+    //         P_ID = p;
+    //         found_P = true;
+    //         break;
+    //     }
+    // }
+    // //Find an available thread spot
+    // for(int t = 0; t < Ptable_MaxThread; t++){
+    //     if(ProcessTable[P_ID].threads[t].myThread == NULL){
+    //         ProcessTable[P_ID].threadCount++;
+    //         ptr = t;
+    //         found_T = true;
+    //         break;
+    //     }
+    // }
+    if(found_P = false){
+        //All process spot are taken
+        printf("Error: No spot avaiable in process table\n");
+        interrupt->Halt();
+    }
+    if(found_T = false){
+        //All Thread spot are taken
+        printf("Error: No Thread spot avaiable in process table[%d]\n", P_ID);
+        interrupt->Halt();
+    } 
+    //Assign values to the Process Table
+    ProcessTable[P_ID].as = currentThread->space;
+    currentThread->space->ProcessID = P_ID;
+    printf("Found ProcessID: %d, threadID: %d\n",P_ID, ptr);
+    currentThread->thread_ID = ptr;
+    currentThread->space->threads[ptr].myThread = currentThread;
+    currentThread->space->threads[ptr].firstStackPage = machine->pageTableSize * PageSize;
     machine->Run();
 }
 
@@ -439,24 +499,38 @@ int exec_syscall(unsigned int vaddr, int size){
 
 
 int Exit_Syscall(int status){
-    int number_of_processes = process_table->get_number_of_running_processes();
+    Lock exit_lock("exit_lock");
+    exit_lock.Acquire();
+    int number_of_processes = process_table->get_number_of_running_processes(); // get value of processes 
+    int num_threads;
+                       
+    num_threads = currentThread->space->get_number_of_threads();                        
+                                                                
 
-    if(number_of_processes == 1 /*&& last thread*/){
+    if(number_of_processes == 1 && num_threads == 1){
         interrupt->Halt();
-        return 0;
     }
-    else if(number_of_processes > 1 /*&& last thread*/){
+    else if(number_of_processes > 1 && num_threads == 1){
         // reclaim all memory
-        page_table->release_process_id(currentThread->space->get_process_id());
+        process_table->release_process_id(currentThread->space->get_process_id());
         // reclaim all locks/CVs
-        return 0;
+        
     }
-    else if(/*!last thread*/){
-        // reclaim 8 stack pages,
-        return 0;
+    else if(num_threads > 1){
+        // reclaim 8 stack pages
+        int thread = currentThread->thread_ID;
+        int stack_page = currentThread->space->threads[thread].firstStackPage;
+        currentThread->space->removeStack(stack_page);
+        currentThread->Finish();
+        
+    }
+    else{
+        return -1;
     }
 
-    return -1;
+    currentThread->space->decrement_number_of_threads();
+    
+    return 0;
 }
 
 

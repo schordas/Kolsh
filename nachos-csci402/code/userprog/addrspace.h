@@ -17,6 +17,8 @@
 #include "filesys.h"
 #include "table.h"
 #include "translate.h"
+#include "thread.h"
+
 
 #define USER_STACK_SIZE         1024    // Stack size in bytes. With
                                         // current system settings,
@@ -24,9 +26,20 @@
 #define MaxOpenFiles            256
 #define MaxChildSpaces          256
 #define MAX_PROCESS_THREADS     64
+#define Ptable_MaxThread        100
+
+class Thread;
+
+struct ThreadEntry{
+        int firstStackPage;
+        Thread *myThread;
+    };
+        
 
 class AddrSpace {
   public:
+
+    
     AddrSpace(OpenFile *executable, int process_id);    // Create an address space,
                                                         // initializing it with the program
                                                         // stored in the file "executable"
@@ -40,17 +53,26 @@ class AddrSpace {
     
     Table fileTable;                            // Table of openfiles
 
+    int get_number_of_threads();                //return the number of active threads
+
+    void decrement_number_of_threads();
+
     int get_process_id();                       // return the process id this address space is associated with.
     
-    int newStack();                             //Allocate new stack pages for Fork syscall
+    void removeStack(int stack);
+    int newStack(Thread *thread);               //Allocate new stack pages for Fork syscall
 	bool checkAddr(unsigned int vaddr);			//Check if the virtual address is within this addrSpace
     int getnumPages(){return numPages;}         //Return the numPages variable
  private:
+    // Lock needed for manipulating/access number of threads
+    Lock *manipulate_number_of_threads;
     TranslationEntry *pageTable;    // Assume linear page table translation
                                     // for now!
     unsigned int numPages;          // Number of pages in the virtual 
                                     // address space
     int process_id;                 // process_id for this address space
+    int number_of_threads;          //keep track of active threads
+    ThreadEntry threads[Ptable_MaxThread];
 };
 
 #endif // ADDRSPACE_H

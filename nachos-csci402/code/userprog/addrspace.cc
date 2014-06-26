@@ -17,11 +17,10 @@
 
 #include <assert.h>
 #include "copyright.h"
-#include "system.h"
 #include "addrspace.h"
 #include "noff.h"
-#include "table.h"
 #include "synch.h"
+#include "system.h"
 
 extern "C" { int bzero(char *, int); };
 
@@ -121,6 +120,9 @@ AddrSpace::AddrSpace(OpenFile *executable, int process_id) : fileTable(MaxOpenFi
     NoffHeader noffH;
     int ppn;
     int process_address_space_size_in_bytes;
+    manipulate_number_of_threads = new Lock("manipulate_number_of_threadsanipulate");
+
+    number_of_threads = 0;
 
     // we can't construct an address space without a valid process_id
     // we take it that the caller has done their due diligence
@@ -166,8 +168,7 @@ AddrSpace::AddrSpace(OpenFile *executable, int process_id) : fileTable(MaxOpenFi
     // release the pages we have already requested, and notify the
     // caller that we can't complete their request due to a lack of
     // memory. Initialize all the page entries to their initial conditions.
-    pageTable = new TranslationEntry[numPages];
-    memory_map_mutex->Acquire();
+    pageTable = new TranslationEntry[numPages];\
     for(unsigned int i = 0; i < numPages; i++) {
         ppn = memory_map->Find();   // Find an available physical memory page
         if(ppn == -1) {
@@ -184,7 +185,6 @@ AddrSpace::AddrSpace(OpenFile *executable, int process_id) : fileTable(MaxOpenFi
         pageTable[i].dirty = FALSE;
         pageTable[i].readOnly = FALSE;
     }
-    memory_map_mutex->Release();
     
     // we have now allocated all the pages we need in memory.
     // we can go ahead and copy the relevant sections from
@@ -224,51 +224,125 @@ AddrSpace::AddrSpace(OpenFile *executable, int process_id) : fileTable(MaxOpenFi
 //Update the pageTable to include new stack pages
 //------------------------
 
-int AddrSpace::newStack(){
+int AddrSpace::newStack(Thread *thread){
+
+    if(number_of_threads == Ptable_MaxThread){
+        return -1;
+    }
+    //=========Process Table===============
+    //Find an available thread spot
+    bool found_T = false;
+    //int P_ID = currentThread->space->get_process_id();
+    int p_id = process_id;
+    int ptr; //for printf below
+    
+    for(int t = 0; t < Ptable_MaxThread; t++){
+        if(threads[t].myThread == NULL){
+            //ProcessTable[P_ID].threadCount++;
+            ptr = t;
+            found_T = true;
+            break;
+        }
+    }
+    if(found_T = false){
+        //All Thread spot are taken
+        printf("Error: No Thread spot avaiable in process table[%d]\n", p_id);
+        interrupt->Halt();
+    } 
+        printf("Setting ProcessTable[%d]: Thread[%d], threadcount:%d\n", p_id, ptr, number_of_threads);
+
+    //======================================
     //Update numPages to include 8 new pages of stack
     int ppn;
     unsigned int newNumPages = numPages + 8;
-    int Stack_top;
+    //update number of threads
+                                             // --------------------------------------------
+    manipulate_number_of_threads->Acquire(); // need to acquire a lock before accessing the 
+    number_of_threads++;                     // number of threads to ensure appropriate value.
+    manipulate_number_of_threads->Release(); // release lock.
+                                             // --------------------------------------------
+    
     TranslationEntry *NewPageTable = new TranslationEntry[newNumPages];
     //Copy the old page table to the new one
-    for(unsigned int i = 0; i < numPages; i++) {
+    // for(unsigned int i = 0; i < numPages; i++) {
+    //     NewPageTable[i].virtualPage = pageTable[i].virtualPage;
+    //     NewPageTable[i].physicalPage = pageTable[i].physicalPage;
+    //     NewPageTable[i].valid = pageTable[i].valid;
+    //     NewPageTable[i].use = pageTable[i].use;
+    //     NewPageTable[i].dirty = pageTable[i].dirty;
+    //     NewPageTable[i].readOnly = pageTable[i].readOnly;
+    //     printf("Copying pageTable[%d] to NewPageTable\n", i);
+    // }
+    
+    // //Remove the old table to free up resources
+    // delete pageTable;
+    
+    // //Assign new stack to the new table
+    // for(unsigned int i = numPages; i < newNumPages; i++){
+    //     ppn = memory_map->Find(); 
+    //     printf("Assigning new Stack Pages [%d] with ppn : [%d]\n", i, ppn);
+    //     if(ppn == -1){
+    //         printf("Error, all memory occupied\n");
+    //         //Error, all memory occupied
+    //         interrupt->Halt();
+    //     }
+    //     NewPageTable[i].virtualPage = i;
+    //     NewPageTable[i].physicalPage = ppn;
+    //     NewPageTable[i].valid = TRUE;
+    //     NewPageTable[i].use = FALSE;
+    //     NewPageTable[i].dirty = FALSE;
+    //     NewPageTable[i].readOnly = FALSE;
+    // }
+
+    //update numPages and pageTable and store the starting position of stack
+    numPages = newNumPages;
+    pageTable = NewPageTable;
+
+
+    return newNumPages*PageSize;
+}
+
+void AddrSpace::removeStack(int stack){
+    Lock stackLock("RemoveStackLock");
+    stackLock.Acquire();
+    unsigned int stack_page = divRoundUp(stack,PageSize);
+        printf("Deleting stack pages: %d in Thread: %s\n", stack_page, currentThread->getName());
+    unsigned int newNumPages = numPages - 8;
+    TranslationEntry *NewPageTable = new TranslationEntry[newNumPages];
+    //Copy the section before the stack
+    for(unsigned int i = 0; i < stack_page - 8; i++){
         NewPageTable[i].virtualPage = pageTable[i].virtualPage;
         NewPageTable[i].physicalPage = pageTable[i].physicalPage;
         NewPageTable[i].valid = pageTable[i].valid;
         NewPageTable[i].use = pageTable[i].use;
         NewPageTable[i].dirty = pageTable[i].dirty;
         NewPageTable[i].readOnly = pageTable[i].readOnly;
-        printf("Copying pageTable[%d] to NewPageTable\n", i);
+            printf("Copying pageTable[%d] to NewPageTable with ppn: %d\n", i, pageTable[i].physicalPage);
     }
-    
-    //Remove the old table to free up resources
+    //Free up physical memory space
+    for(unsigned int i = stack_page - 8; i < stack_page; i++){
+        int pa = pageTable[i].physicalPage;
+            printf("Freeing physical page: %d\n", pa);
+        memory_map->Clear(pa);
+    }
+    //Copy the section after the stack
+    for(unsigned int i = stack_page - 8; i < newNumPages; i++){
+        NewPageTable[i].virtualPage = pageTable[stack_page].virtualPage;
+        NewPageTable[i].physicalPage = pageTable[stack_page].physicalPage;
+        NewPageTable[i].valid = pageTable[stack_page].valid;
+        NewPageTable[i].use = pageTable[stack_page].use;
+        NewPageTable[i].dirty = pageTable[stack_page].dirty;
+        NewPageTable[i].readOnly = pageTable[stack_page].readOnly;
+        stack_page++;
+            printf("Copying pageTable[%d] to NewPageTable[%d] with ppn: %d\n", stack_page, i, pageTable[i].physicalPage);
+    }
+    //Remove the old table
     delete pageTable;
-    
-    //Assign new stack to the new table
-    memory_map_mutex->Acquire();
-    for(unsigned int i = numPages; i < newNumPages; i++){
-        ppn = memory_map->Find(); 
-        printf("Assigning new Stack Pages [%d] with ppn : [%d]\n", i, ppn);
-        if(ppn == -1){
-            printf("Error, all memory occupied\n");
-            //Error, all memory occupied
-        }
-        NewPageTable[i].virtualPage = i;
-        NewPageTable[i].physicalPage = ppn;
-        NewPageTable[i].valid = TRUE;
-        NewPageTable[i].use = FALSE;
-        NewPageTable[i].dirty = FALSE;
-        NewPageTable[i].readOnly = FALSE;
-    }
-
-    //update numPages and pageTable and store the starting position of stack
-    Stack_top = numPages;
     numPages = newNumPages;
     pageTable = NewPageTable;
-    memory_map_mutex->Acquire();
-
-    return newNumPages*PageSize;
+    stackLock.Release();
 }
+
 
 
 //----------------------------------------------------------------------
@@ -350,4 +424,24 @@ void AddrSpace::SaveState() {}
 void AddrSpace::RestoreState() {
     machine->pageTable = pageTable;
     machine->pageTableSize = numPages;
+}
+
+//return number of active threads
+
+int AddrSpace::get_number_of_threads(){
+    int num_threads;
+    manipulate_number_of_threads->Acquire();
+    num_threads = number_of_threads;
+    manipulate_number_of_threads->Release();
+    return num_threads;
+}
+
+void AddrSpace::decrement_number_of_threads(){
+    manipulate_number_of_threads->Acquire();
+    number_of_threads--;
+    manipulate_number_of_threads->Release();
+}
+
+int AddrSpace::get_process_id(){
+    return process_id;
 }
