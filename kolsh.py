@@ -146,7 +146,7 @@ def watch(remoteWorkingDirectory):
 
     class FSEventHandler(PatternMatchingEventHandler):
         def __init__(self):
-            ignore_patterns = [".git"]
+            ignore_patterns = [".git", "*.s", "bin"]
             patterns = ["*"]
             super(FSEventHandler, self).__init__(ignore_patterns=ignore_patterns, patterns=patterns)
 
