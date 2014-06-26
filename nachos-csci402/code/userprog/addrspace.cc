@@ -160,8 +160,9 @@ printf("Code: %d bytes, initData: %d bytes, uninitData: %d bytes.\n",
 		//Find an available physical page
 		ppn = memory_map->Find(); 
 		if(ppn == -1){
+            //Error, all memory occupied
 			printf("Error, all memory occupied\n");
-			//Error, all memory occupied
+            interrupt->Halt();
 		}
         //Clear the space one page at a time
 		bzero(&machine->mainMemory[ppn*PageSize], PageSize);
@@ -197,7 +198,6 @@ int AddrSpace::newStack(){
 	newStackLock.Acquire();
 	int ppn;
 	unsigned int newNumPages = numPages + 8;
-	int Stack_top;
 	TranslationEntry *NewPageTable = new TranslationEntry[newNumPages];
 	//Copy the old page table to the new one
 	for(unsigned int i = 0; i < numPages; i++){
@@ -214,11 +214,12 @@ int AddrSpace::newStack(){
 	//Assign new stack to the new table
 	for(unsigned int i = numPages; i < newNumPages; i++){
 		ppn = memory_map->Find(); 
-		printf("Assigning new Stack Pages [%d] with ppn : [%d]\n", i, ppn);
 		if(ppn == -1){
-			printf("Error, all memory occupied\n");
-			//Error, all memory occupied
+            //Error, all memory occupied
+            printf("Error, all memory occupied\n");
+            interrupt->Halt();
 		}
+        printf("Assigning new Stack Pages [%d] with ppn : [%d]\n", i, ppn);
 		NewPageTable[i].virtualPage = i;
 		NewPageTable[i].physicalPage = ppn;
 		NewPageTable[i].valid = TRUE;
@@ -227,7 +228,6 @@ int AddrSpace::newStack(){
 		NewPageTable[i].readOnly = FALSE;
 	}
 	//update numPages and pageTable and store the starting position of stack
-	Stack_top = numPages;
 	numPages = newNumPages;
 	pageTable = NewPageTable;
 	newStackLock.Release();
