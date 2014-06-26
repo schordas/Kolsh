@@ -54,7 +54,7 @@ SynchronizationLut::~SynchronizationLut() {
  *              index of the lock. Otherwise -1 to represent an error.
  */
 int SynchronizationLut::lock_create(char *lock_name) {
-    int allocated_lock_index = next_available_lock_index;
+    int allocated_lock_index = -1;
     int watchdog_counter = 0;
 
     lock_table_mutex->Acquire();
@@ -71,7 +71,7 @@ int SynchronizationLut::lock_create(char *lock_name) {
     // this will turn into an infinite loop if allocated_locks isn't maintained properly
     // the watchdog counter will prevent an infinite and fail with -1.
     while(loop_kernel_lock != NULL && watchdog_counter != MAX_SYSTEM_LOCKS) {
-        next_available_lock_index ++;
+        next_available_lock_index++;
 
         // to ensure we don't go out of bounds on our lookup table
         if(next_available_lock_index == MAX_SYSTEM_LOCKS) {
@@ -79,7 +79,7 @@ int SynchronizationLut::lock_create(char *lock_name) {
         }
 
         loop_kernel_lock = lock_lookup_table[next_available_lock_index];
-        watchdog_counter ++;
+        watchdog_counter++;
     }
 
     if(watchdog_counter == MAX_SYSTEM_LOCKS) {
@@ -104,7 +104,6 @@ int SynchronizationLut::lock_create(char *lock_name) {
     lock_lookup_table[next_available_lock_index] = new_kernel_lock;
     allocated_lock_index = next_available_lock_index;
 
-    next_available_lock_index ++;
     allocated_locks ++;
 
     lock_table_mutex->Release();
@@ -230,8 +229,7 @@ int SynchronizationLut::condition_create(char* condition_name) {
     // store the new_kernel_condition in the lookup table
     condition_lookup_table[next_available_condition_index] = new_kernel_condition;
     allocated_condition_index = next_available_condition_index;
-
-    next_available_condition_index ++;
+    
     allocated_conditions ++;
 
     condition_table_mutex->Release();

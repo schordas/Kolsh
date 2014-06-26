@@ -117,10 +117,16 @@ static void SwapHeader(NoffHeader *noffH) {
 //      constructed set to false.
 //----------------------------------------------------------------------
 
-AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
+AddrSpace::AddrSpace(OpenFile *executable, int process_id) : fileTable(MaxOpenFiles) {
     NoffHeader noffH;
     int ppn;
     int process_address_space_size_in_bytes;
+
+    // we can't construct an address space without a valid process_id
+    // we take it that the caller has done their due diligence
+    // to ensure that is a valid process id. We have no way of checking.
+    assert(process_id != NULL);
+    this->process_id = process_id;
 
     // Don't allocate the input or output to disk files
     fileTable.Put(0);

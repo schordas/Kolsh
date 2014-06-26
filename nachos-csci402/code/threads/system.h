@@ -32,11 +32,6 @@ extern void Initialize(int argc, char **argv);  // Initialization,
 extern void Cleanup();                  // Cleanup, called when
                                         // Nachos is done.
 
-//Struct for ProcessTable
-struct ProcessEntry{
-    int Process_Count;
-    AddrSpace *as;
-};
 extern Thread *currentThread;           // the thread holding the CPU
 extern Thread *threadToBeDestroyed;     // the thread that just finished
 extern Scheduler *scheduler;            // the ready list
@@ -48,12 +43,12 @@ extern Timer *timer;                    // the hardware alarm clock
 #include "machine.h"
 #include "bitmap.h"
 #include "synchronization_lut.h"
+#include "process_table.h"
 extern Machine* machine;                        // user program memory and registers
 extern BitMap *memory_map;                      // memory bitmap
 extern Lock *memory_map_mutex;                  // mutex for memory map
 extern SynchronizationLut *synchronization_lut; // user program synchronization lock lookup table
-extern ProcessEntry ProcessTable[10];
-extern int Process_counter;
+extern ProcessTable *process_table;             // data structure that records all running system process.
 #endif
 
 #ifdef FILESYS_NEEDED                   // FILESYS or FILESYS_STUB 

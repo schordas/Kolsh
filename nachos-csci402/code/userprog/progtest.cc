@@ -31,13 +31,16 @@ void StartProcess(char *filename) {
        return;
     }
    
-    space = new AddrSpace(executable);
-    currentThread->space = space;
-    //Set ProcessTable
-    ProcessTable[Process_counter].as = space;
-    ProcessTable[Process_counter].Process_Count = Process_counter;
-    Process_counter++;
+    int process_id = process_table->assign_new_process_id();
+    if(process_id < 0) {
+        printf("The system does not have resources to exec a new process. Aborting.\n");
+        return;
+    }
 
+    space = new AddrSpace(executable, process_id);
+    currentThread->space = space;
+    process_table->bind_address_space(process_id, space);
+    
     delete executable;          // close file
 
     space->InitRegisters();     // set the initial register values

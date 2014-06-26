@@ -416,16 +416,17 @@ int exec_syscall(unsigned int vaddr, int size){
        return -1;
     }
     //Create a new thread with the address space of the file
-    AddrSpace *file_space = new AddrSpace(user_executable);
+    int process_id = process_table->assign_new_process_id();
+    if(process_id < 0) {
+        printf("The system does not have resources to exec a new process. Aborting.\n");
+        return -1;
+    }
+    AddrSpace *file_space = new AddrSpace(user_executable, process_id);
+    process_table->bind_address_space(process_id, file_space);
 
     Thread *exec_thread = new Thread("exec_thread");
     exec_thread->space = file_space;
     exec_thread->Fork(exec_kernel_function, 0);
-
-    //Update the process table and related data structure
-    ProcessTable[Process_counter].as = file_space;
-    ProcessTable[Process_counter].Process_Count = Process_counter;
-    Process_counter++;
     
     delete user_executable;          // close file
     printf("Current Thread: %s\n", currentThread->getName());

@@ -36,8 +36,7 @@ Machine *machine;                           // user program memory and registers
 Lock *memory_map_mutex;
 BitMap *memory_map;
 SynchronizationLut *synchronization_lut;    // user program synchronization lock lookup table
-ProcessEntry ProcessTable[10];
-int Process_counter;
+ProcessTable *process_table;                // data structure that records all running system process.
 #endif
 
 
@@ -159,6 +158,7 @@ void Initialize(int argc, char **argv) {
 	memory_map = new BitMap(NumPhysPages);
     memory_map_mutex = new Lock("Memory map mutex.");
     synchronization_lut = new SynchronizationLut();
+    process_table = new ProcessTable();
 #endif
 
 #ifdef FILESYS
@@ -186,7 +186,10 @@ void Cleanup() {
     
 #ifdef USER_PROGRAM
     delete machine;
+    delete memory_map;
+    delete memory_map_mutex;
     delete synchronization_lut;
+    delete process_table;
 #endif
 
 #ifdef FILESYS_NEEDED
