@@ -19,7 +19,6 @@
 #include "copyright.h"
 #include "system.h"
 #include "addrspace.h"
-#include "noff.h"
 #include "table.h"
 #include "synch.h"
 
@@ -125,7 +124,6 @@ AddrSpace::AddrSpace(OpenFile *executable, int process_id) : fileTable(MaxOpenFi
     // we can't construct an address space without a valid process_id
     // we take it that the caller has done their due diligence
     // to ensure that is a valid process id. We have no way of checking.
-    assert(process_id != NULL);
     this->process_id = process_id;
 
     // Don't allocate the input or output to disk files
@@ -137,6 +135,8 @@ AddrSpace::AddrSpace(OpenFile *executable, int process_id) : fileTable(MaxOpenFi
         SwapHeader(&noffH);
     }
     ASSERT(noffH.noffMagic == NOFFMAGIC);
+
+    this->noffH = noffH;
     printf("Code: %d bytes, initData: %d bytes, uninitData: %d bytes.\n", 
         noffH.code.size, noffH.initData.size, noffH.uninitData.size);
     
@@ -198,7 +198,6 @@ AddrSpace::AddrSpace(OpenFile *executable, int process_id) : fileTable(MaxOpenFi
         if(vpn < last_code_page) {
             pageTable[vpn].readOnly = TRUE;
         }
-        pageTable[vpn].readOnly = TRUE;
         executable->ReadAt(&(machine->mainMemory[ppn*PageSize]), PageSize, noffH.code.inFileAddr + vpn*PageSize);
         
         // print out the executable read from file
@@ -351,3 +350,16 @@ void AddrSpace::RestoreState() {
     machine->pageTable = pageTable;
     machine->pageTableSize = numPages;
 }
+
+int AddrSpace::get_process_id() {
+    return 0;
+}
+
+bool AddrSpace::is_valid_code_address(unsigned int vaddr) {
+    return true;
+}
+
+bool AddrSpace::is_valid_data_address(unsigned int vaddr) {
+    return true;
+}
+

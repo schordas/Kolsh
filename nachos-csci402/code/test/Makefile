@@ -30,42 +30,19 @@ CPP = $(GCCDIR)cpp
 INCDIR =-I../userprog -I../threads
 CFLAGS = -G 0 -c $(INCDIR)
 
-all: halt matmult sort testfiles yield fork exec
+all: halt matmult sort testfiles exec execution_stream_syscalls fork
 
 start.o: start.s ../userprog/syscall.h
 	$(CPP) $(CPPFLAGS) start.s > strt.s
 	$(AS) $(ASFLAGS) -o start.o strt.s
 	rm strt.s
-	
-fork.o: fork.c
-	$(CC) $(CFLAGS) -c fork.c
-fork: fork.o start.o
-	$(LD) $(LDFLAGS) start.o fork.o -o fork.coff
-	../bin/coff2noff fork.coff fork	
+
 
 halt.o: halt.c
 	$(CC) $(CFLAGS) -c halt.c
 halt: halt.o start.o
 	$(LD) $(LDFLAGS) start.o halt.o -o halt.coff
 	../bin/coff2noff halt.coff halt
-	
-exec.o: exec.c
-	$(CC) $(CFLAGS) -c exec.c
-exec: exec.o start.o
-	$(LD) $(LDFLAGS) start.o exec.o -o exec.coff
-	../bin/coff2noff exec.coff exec
-
-yield.o: yield.c
-	$(CC) $(CFLAGS) -c yield.c
-yield: yield.o start.o
-	$(LD) $(LDFLAGS) start.o yield.o -o yield.coff
-	../bin/coff2noff yield.coff yield
-
-sort.o: sort.c
-	$(CC) $(CFLAGS) -c sort.c
-sort: sort.o start.o
-	$(LD) $(LDFLAGS) start.o sort.o -o sort.coff
-	../bin/coff2noff sort.coff sort
 
 matmult.o: matmult.c
 	$(CC) $(CFLAGS) -c matmult.c
@@ -73,11 +50,35 @@ matmult: matmult.o start.o
 	$(LD) $(LDFLAGS) start.o matmult.o -o matmult.coff
 	../bin/coff2noff matmult.coff matmult
 
+sort.o: sort.c
+	$(CC) $(CFLAGS) -c sort.c
+sort: sort.o start.o
+	$(LD) $(LDFLAGS) start.o sort.o -o sort.coff
+	../bin/coff2noff sort.coff sort
+
 testfiles.o: testfiles.c
 	$(CC) $(CFLAGS) -c testfiles.c
 testfiles: testfiles.o start.o
 	$(LD) $(LDFLAGS) start.o testfiles.o -o testfiles.coff
 	../bin/coff2noff testfiles.coff testfiles
+
+exec.o: exec.c
+	$(CC) $(CFLAGS) -c exec.c
+exec: exec.o start.o
+	$(LD) $(LDFLAGS) start.o exec.o -o exec.coff
+	../bin/coff2noff exec.coff exec
+
+execution_stream_syscalls.o: execution_stream_syscalls.c
+	$(CC) $(CFLAGS) -c execution_stream_syscalls.c
+execution_stream_syscalls: execution_stream_syscalls.o start.o
+	$(LD) $(LDFLAGS) start.o execution_stream_syscalls.o -o execution_stream_syscalls.coff
+	../bin/coff2noff execution_stream_syscalls.coff execution_stream_syscalls
+
+fork.o: fork.c
+	$(CC) $(CFLAGS) -c fork.c
+fork: fork.o start.o
+	$(LD) $(LDFLAGS) start.o fork.o -o fork.coff
+	../bin/coff2noff fork.coff fork
 
 clean:
 	rm -f *.o *.coff

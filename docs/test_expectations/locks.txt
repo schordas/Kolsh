@@ -1,0 +1,11 @@
+/**
+ * Project:     NACHOS Kolsh OS
+ * Date:        Tuesday, June 24, 2014
+ * Description: The behavioral expectancies of the lock sys call interface
+ */
+
+ This document outlines the expected behavior of the following system calls.
+    int Lock_Create(char* name_buffer, int size_of_name_buffer);
+    int Lock_Acquire(int lock_index);
+    int Lock_Release(int lock_index);
+    int Lock_Delete(int lock_index);

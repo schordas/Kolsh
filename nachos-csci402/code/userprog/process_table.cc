@@ -126,7 +126,7 @@ bool ProcessTable::bind_address_space(int process_id, AddrSpace *address_space) 
  * 
  * @return int The current number of running process.
  */
-int ProcessTable::get_number_of_runnning_proccesses() {
+int ProcessTable::get_number_of_running_processes() {
     int current_number_of_running_process = 0;
     
     process_table_lock->Acquire();

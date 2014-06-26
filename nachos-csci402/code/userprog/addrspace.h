@@ -15,6 +15,7 @@
 
 #include "copyright.h"
 #include "filesys.h"
+#include "noff.h"
 #include "table.h"
 #include "translate.h"
 
@@ -45,9 +46,13 @@ class AddrSpace {
     int newStack();                             //Allocate new stack pages for Fork syscall
 	bool checkAddr(unsigned int vaddr);			//Check if the virtual address is within this addrSpace
     int getnumPages(){return numPages;}         //Return the numPages variable
+    
+    bool is_valid_code_address(unsigned int vaddr); // check if vaddr is in the code section of the executable
+    bool is_valid_data_address(unsigned int vaddr); // check if vaddr is in the data section of the executable
+
  private:
     TranslationEntry *pageTable;    // Assume linear page table translation
-                                    // for now!
+    NoffHeader noffH;               // process executable header
     unsigned int numPages;          // Number of pages in the virtual 
                                     // address space
     int process_id;                 // process_id for this address space

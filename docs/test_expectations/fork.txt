@@ -32,4 +32,8 @@ Return Value
                 -1  invalid user input
                 -2  max process threads allocated
 
+Corner Cases
+    1   we should not be able to allocate more the MAX_PROCESS_THREADS
+    2   stack overflow should not be allowed (we haven't explicitly coded for
+        this, but NACHOS should already have this in place).
 

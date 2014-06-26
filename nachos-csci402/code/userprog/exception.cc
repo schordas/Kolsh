@@ -24,7 +24,6 @@
 #include "copyright.h"
 #include "system.h"
 #include "syscall.h"
-#include <stdio.h>
 #include <iostream>
 
 using namespace std;
@@ -341,7 +340,7 @@ void kernel_thread(int value) {
     machine->Run();
 }
 
-int Fork_Syscall(void (*func), unsigned int vaddr) {
+int Fork_Syscall(void (*func), unsigned int vaddr, int length) {
     printf("Fork_Syscall:\n");
     //Check if the address is within boundary
     if(!currentThread->space->checkAddr((int) func)){
@@ -447,11 +446,11 @@ int Exit_Syscall(int status){
     }
     else if(number_of_processes > 1 /*&& last thread*/){
         // reclaim all memory
-        page_table->release_process_id(currentThread->space->get_process_id());
+        process_table->release_process_id(currentThread->space->get_process_id());
         // reclaim all locks/CVs
         return 0;
     }
-    else if(/*!last thread*/){
+    else if(FALSE/*!last thread*/){
         // reclaim 8 stack pages,
         return 0;
     }
@@ -503,7 +502,9 @@ void ExceptionHandler(ExceptionType which) {
                 break;
             case SC_Fork:
                 DEBUG('a', "Fork.\n");
-                rv = Fork_Syscall( (void*) (machine->ReadRegister(4)), machine->ReadRegister(5));
+                rv = Fork_Syscall( (void*) (machine->ReadRegister(4)), 
+                                                machine->ReadRegister(5),
+                                                machine->ReadRegister(6));
                 break;
             case SC_Exec:
                 DEBUG('a',"Exec.\n");
@@ -569,19 +570,19 @@ void ExceptionHandler(ExceptionType which) {
         machine->WriteRegister(NextPCReg,machine->ReadRegister(PCReg)+4);
         return;
     }else if(which == PageFaultException) {
-        cout<<"Unexpected user mode exception\n[PageFaultException] - which:" << which << "  type:"<< type<<endl;
+        printf("UserMode Exception: [PageFaultException]\n");
         interrupt->Halt();
     }else if(which == ReadOnlyException) {
-        cout<<"Unexpected user mode exception\n[ReadOnlyException] - which:" << which << "  type:"<< type<<endl;
+        printf("UserMode Exception: [ReadOnlyException]\n");
         interrupt->Halt();
     }else if(which == BusErrorException) {
-        cout<<"Unexpected user mode exception\n[BusErrorException] - which:" << which << "  type:"<< type<<endl;
+        printf("UserMode Exception: [BusErrorException]\n");
         interrupt->Halt();
     }else if(which == AddressErrorException) {
-        cout<<"Unexpected user mode exception\n[AddressErrorException] - which:" << which << "  type:"<< type<<endl;
+        printf("UserMode Exception: [AddressErrorException]\n");
         interrupt->Halt();
     }else {
-        cout<<"Unexpected user mode exception - which:" << which << "  type:"<< type<<endl;
+        printf("Unexpected user mode exception - which:[%d] type:[%d]\n", which, type);
         interrupt->Halt();
     }
 }

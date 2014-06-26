@@ -132,10 +132,16 @@ void Close(OpenFileId id);
 |   Allows multiple threads to operate within a user program.                               |
 \*******************************************************************************************/
 
-/* Fork a thread to run a procedure ("func") in the *same* address space 
- * as the current thread. and the second parameter 'name' will be new thread's name
+/**
+ * Fork a thread to run a procedure (function) in the same address space 
+ * as the calling thread. If the system is unable to fork a new thread,
+ * returns a value < 0, Otherwise returns 0.
+ *
+ * @param *func                 function to execute
+ * @param name                  name of the thread
+ * @param name_buffer_size      size of name buffer (not null terminated). 
  */
-void Fork(void (*func), char* name, int size);
+int Fork(void (*func), char* name, int name_buffer_size);
 
 /* Yield the CPU to another runnable thread, whether in this address space 
  * or not. 
@@ -156,11 +162,11 @@ void Exit(int status);
  * function will return -1. On success it will return an index to the newly created lock.
  *
  * @param name_buffer           name of the lock.
- * @param size_of_name_buffer   size of name buffer (not null terminated).
+ * @param name_buffer_size      size of name buffer (not null terminated).
  *
  * @return int - index of lock or -1 on failure
  */
-int Lock_Create(char* name_buffer, int size_of_name_buffer);
+int Lock_Create(char* name_buffer, int name_buffer_size);
 
 /**
  * Acquire a lock
