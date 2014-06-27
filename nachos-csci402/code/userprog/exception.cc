@@ -55,7 +55,7 @@ int copyin(unsigned int vaddr, int len, char *buf) {
     return len;
 }
 
-char* read_into_buffer(unsigned int vaddr, int len) {
+char* read_into_new_buffer(unsigned int vaddr, int len) {
     char *buf = new char[len+1];            // Kernel buffer to put string in
 
     if(!buf) {
@@ -261,7 +261,7 @@ void Yield_Syscall(){
 //
 
 int lock_create_syscall(unsigned int vaddr, int length) {
-    char* lock_name = read_into_buffer(vaddr, length);
+    char* lock_name = read_into_new_buffer(vaddr, length);
     if(lock_name == NULL) {
         lock_name = "Synchronization lock";
     }
@@ -288,7 +288,7 @@ int lock_delete_syscall(int lock_index) {
 //
 
 int condition_create_syscall(unsigned int vaddr, int length) {
-    char* condition_name = read_into_buffer(vaddr, length);
+    char* condition_name = read_into_new_buffer(vaddr, length);
     if(condition_name == NULL) {
         condition_name = "Synchronization condition";
     }
@@ -313,63 +313,59 @@ int condition_delete_syscall(int condition_index) {
 }
 
 void print_f_syscall(unsigned int vaddr, int length) {
-    char* output_buffer = read_into_buffer(vaddr, length);
+    char* output_buffer = read_into_new_buffer(vaddr, length);
     printf("%s", output_buffer);
     delete output_buffer;
 }
 
-class func_info_class {
-    public:
-        void (*func);
-        char *name;
+class ThreadData {
+public:
+    void (*function_to_execute);
+    unsigned int stack_start_address;
 };
 
-void kernel_thread(int value) {
-    printf("\t######   kernel_thread:   ######\n");
-    //translate the pseudo int to a valid pointer to a class that stores function and name
-    func_info_class *my_info = (func_info_class*) value;
-    int start_point = currentThread->space->newStack(); //Allocate new stack for this addrSpace
-    currentThread->space->RestoreState();
-        printf("Stack starting point: %d\n", start_point);
-    machine->WriteRegister(PCReg, (int) my_info->func);
-    machine->WriteRegister(NextPCReg, (int) my_info->func + 4);
-        printf("Store into PC registers: func = %d\n", (int) my_info->func);
-        printf("Store into NextPC registers: func = %d\n", (int) my_info->func + 4);
-    //write to the stack register , the starting postion of the stack for this thread.
-    machine->WriteRegister(StackReg, start_point-16);
+void kernel_fork_boilerplate(int value) {
+    printf("\t######   kernel_fork_boilerplate:   ######\n");
+    ThreadData *thread_data = (ThreadData *)value;
+
+    // prep the newly forked thread for execution
+    machine->WriteRegister(PCReg, (unsigned int)thread_data->function_to_execute);
+    machine->WriteRegister(NextPCReg, (unsigned int)thread_data->function_to_execute + 4);
+    machine->WriteRegister(StackReg, (unsigned int)thread_data->stack_start_address - 16);
+    
+    printf("Stack starting point: %d\n", thread_data->stack_start_address);
+    printf("Store into PC registers: func = %d\n", (int) thread_data->function_to_execute);
+    printf("Store into NextPC registers: func = %d\n", (int) thread_data->function_to_execute + 4);
+    
     machine->Run();
 }
 
 int Fork_Syscall(void (*func), unsigned int vaddr, int length) {
     printf("Fork_Syscall:\n");
-    //Check if the address is within boundary
-    if(!currentThread->space->checkAddr((int) func)){
-        printf("Error: Trying to fork to an invalid address: %d\n", (int) func);
+    Thread *new_thread;
+    ThreadData *new_thread_data;
+    char *thread_name;
+
+    // validate input parameters
+    if(currentThread->space->is_invalid_code_address((unsigned int)func) || vaddr <= 0 || length <= 0) {
+        printf("@exception.cc\nInvalid input.\n");
         return -1;
     }
-    //Store the name of the function
-    char* buf = new char[21];
-    if (!buf) return -1;
-    if( copyin(vaddr,20,buf) == -1 ) {
-        printf("%s","Bad pointer passed to Create\n");
-        delete buf;
-        return -1;
-    }
-    buf[20]='\0';
-    if(func == NULL){
-        return -1;
-    }
-    func_info_class *info_ptr = new func_info_class();
-        printf("func: 0x%p\n", func);
-        printf("name: %s\n", buf);
-    info_ptr->func = func;
-    info_ptr->name = buf;
-    Thread *t = new Thread(buf);
-    //Forked thread have the same addrSpace as currentThread
-        printf("Current Thread: %s\n", currentThread->getName());
-    t->space = currentThread->space;
-    t->Fork((VoidFunctionPtr) kernel_thread, (int)info_ptr);
-    //machine->Run();
+
+    thread_name = read_into_new_buffer(vaddr, length);
+    new_thread = new Thread(thread_name);
+    new_thread_data = new ThreadData();
+
+    new_thread->space = currentThread->space;
+
+    new_thread_data->function_to_execute = func;
+    new_thread_data->stack_start_address = currentThread->space->newStack();
+
+    printf("Forking new thread...\n");
+    printf("\tname: [%s]\n", thread_name);
+    printf("\tfunc: [0x%p]\n", func);
+    
+    new_thread->Fork((VoidFunctionPtr) kernel_fork_boilerplate, (int)new_thread_data);
     currentThread->Yield();
     return 0;
 }

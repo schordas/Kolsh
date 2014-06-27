@@ -33,29 +33,28 @@ class AddrSpace {
                                                         // stored in the file "executable"
     ~AddrSpace();                                       // De-allocate an address space
 
-    void InitRegisters();                       // Initialize user-level CPU registers,
-                                                // before jumping to user code
+    void InitRegisters();                              // Initialize user-level CPU registers,
+                                                       // before jumping to user code
 
-    void SaveState();                           // Save/restore address space-specific
-    void RestoreState();                        // info on a context switch
+    void SaveState();                                   // Save/restore address space-specific
+    void RestoreState();                                // info on a context switch
     
-    Table fileTable;                            // Table of openfiles
+    Table fileTable;                                    // Table of openfiles
 
-    int get_process_id();                       // return the process id this address space is associated with.
+    int get_process_id();                               // return the process id this address space is associated with.
     
-    int newStack();                             //Allocate new stack pages for Fork syscall
-	bool checkAddr(unsigned int vaddr);			//Check if the virtual address is within this addrSpace
-    int getnumPages(){return numPages;}         //Return the numPages variable
+    int newStack();                                     // Allocate new stack pages for Fork syscall
+	bool checkAddr(unsigned int vaddr);			        // Check if the virtual address is within this addrSpace
+    int getnumPages(){return numPages;}                 // Return the numPages variable
     
-    bool is_valid_code_address(unsigned int vaddr); // check if vaddr is in the code section of the executable
-    bool is_valid_data_address(unsigned int vaddr); // check if vaddr is in the data section of the executable
+    bool is_invalid_code_address(unsigned int vaddr);   // return if vaddr is an invalid code address
 
  private:
     TranslationEntry *pageTable;    // Assume linear page table translation
-    NoffHeader noffH;               // process executable header
     unsigned int numPages;          // Number of pages in the virtual 
                                     // address space
     int process_id;                 // process_id for this address space
+    unsigned int code_vaddr_fence;  // last virtual address in the code section of memory
 };
 
 #endif // ADDRSPACE_H

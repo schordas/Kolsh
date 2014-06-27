@@ -1,4 +1,4 @@
-/test/*.c
+**.c
 /test/MakeFile
 /test/nachos.ld
 /test/newscript

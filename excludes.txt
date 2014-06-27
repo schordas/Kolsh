@@ -5,8 +5,9 @@
 .gitignore
 */bin
 */nachos
+*.coff
 
-*/test
+nachos-csci402/code/test/*
 
 /**Makefile
 /**makedep

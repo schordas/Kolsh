@@ -100,7 +100,7 @@ int ProcessTable::assign_new_process_id() {
 bool ProcessTable::bind_address_space(int process_id, AddrSpace *address_space) {
     if(process_id < 0 || process_id >= MAX_SYSTEM_PROCESSES) {
         // invalid process id
-        printf("@ProcessTable::bind_address_space\nInvalid process id [%d] supplied.\n", process_id);
+        printf("@ProcessTable::bind_address_space\nInvalid process id [%d]\n", process_id);
         return false;
     }
 

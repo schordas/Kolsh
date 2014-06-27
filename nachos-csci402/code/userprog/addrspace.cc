@@ -129,14 +129,14 @@ AddrSpace::AddrSpace(OpenFile *executable, int process_id) : fileTable(MaxOpenFi
     // Don't allocate the input or output to disk files
     fileTable.Put(0);
     fileTable.Put(0);
-        
+
     executable->ReadAt((char *)&noffH, sizeof(noffH), 0);
     if((noffH.noffMagic != NOFFMAGIC) && (WordToHost(noffH.noffMagic) == NOFFMAGIC)) {
         SwapHeader(&noffH);
     }
     ASSERT(noffH.noffMagic == NOFFMAGIC);
 
-    this->noffH = noffH;
+    
     printf("Code: %d bytes, initData: %d bytes, uninitData: %d bytes.\n", 
         noffH.code.size, noffH.initData.size, noffH.uninitData.size);
     
@@ -146,6 +146,7 @@ AddrSpace::AddrSpace(OpenFile *executable, int process_id) : fileTable(MaxOpenFi
         printf("How can you have 0 code in your executable?\n");
         assert(FALSE);
     }
+    code_vaddr_fence = noffH.code.size;
 
     // when creating a new user process, we allocate stack for one thread only.
     // TODO: make the thread allocation process more efficient by allocating stacks in blocks of 8.
@@ -355,11 +356,7 @@ int AddrSpace::get_process_id() {
     return 0;
 }
 
-bool AddrSpace::is_valid_code_address(unsigned int vaddr) {
-    return true;
-}
-
-bool AddrSpace::is_valid_data_address(unsigned int vaddr) {
-    return true;
+bool AddrSpace::is_invalid_code_address(unsigned int vaddr) {
+    return vaddr <= 0 || vaddr >= code_vaddr_fence;
 }
 
