@@ -7,28 +7,17 @@
 
 #include "syscall.h"
 
-int a[3];
 
-
-
-int myfunc(){
-	my_printf("Inside myfunc\n", 20);
+int myfunc() {
 	return 0;
 }
 
-int
-main()
-{
-	char* text = "Hello";
-	/* Positive Test */
-	my_printf("In userprogram, going to fork\n", 40);
-    Fork(myfunc, text);
-	my_printf("In userprogram, after fork\n", 40);
-	/* Negative Test */
-/* 	my_printf("In userprogram, going to fork\n", 40);
-    Fork((void*)-1, text);
-	my_printf("In userprogram, after fork\n", 40); */
-    /* not reached */
+int main() {
+
+    Print_F("hello world.\n", sizeof("hello world.\n"));
+    
+    Fork(myfunc, "Hello", sizeof("Hello"));
+    
 	return 0;
 }
 

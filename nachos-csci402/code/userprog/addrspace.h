@@ -18,10 +18,12 @@
 #include "table.h"
 #include "translate.h"
 
-#define UserStackSize       1024    // increase this as necessary!
-
-#define MaxOpenFiles 256
-#define MaxChildSpaces 256
+#define USER_STACK_SIZE         1024    // Stack size in bytes. With
+                                        // current system settings,
+                                        // translates to 8 pages.
+#define MaxOpenFiles            256
+#define MaxChildSpaces          256
+#define MAX_PROCESS_THREADS     64
 
 class AddrSpace {
   public:
@@ -32,8 +34,10 @@ class AddrSpace {
 
     void InitRegisters();       // Initialize user-level CPU registers,
                                 // before jumping to user code
+
     void SaveState();           // Save/restore address space-specific
     void RestoreState();        // info on a context switch
+    
     Table fileTable;            // Table of openfiles
     
     int newStack();             //Allocate new stack pages for Fork syscall
