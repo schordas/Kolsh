@@ -336,7 +336,6 @@ void kernel_thread(int value){
     func_info_class *my_info = (func_info_class*) value;
     int start_point = currentThread->space->newStack(); //Allocate new stack for this addrSpace
     currentThread->space->RestoreState();
-        printf("Stack starting point: %d\n", start_point);
     //=========Process Table===============
     //Find an available thread spot
     bool found_T = false;
@@ -378,16 +377,21 @@ int Fork_Syscall(void (*func), unsigned int vaddr, int length){
         printf("Error: Trying to fork to an invalid address: %d\n", (int) func);
         return -1;
     }
+    //Check if the maximun number of threads is reached
+    int P_ID = currentThread->space->ProcessID;
+    if(ProcessTable[P_ID].threadCount >= Ptable_MaxThread){
+        printf("Error: Maximum number of threads reached, Quitting the program");
+        interrupt->Halt();
+    }
     //Store the name of the function
     char *name = read_into_new_buffer(vaddr, length);
     if(func == NULL){
         return -1;
     }
     func_info_class *info_ptr = new func_info_class();
-        printf("func: 0x%p\n", func);
-        printf("name: %s\n", name);
     info_ptr->func = func;
     info_ptr->name = name;
+
     Thread *t = new Thread(name);
     //Forked thread have the same addrSpace as currentThread
         printf("Current Thread: %s\n", currentThread->getName());
@@ -400,7 +404,6 @@ int Fork_Syscall(void (*func), unsigned int vaddr, int length){
 }
 
 //----------------------------
-//
 //
 //       Exec SysCall
 //
@@ -487,11 +490,9 @@ int exec_syscall(unsigned int vaddr, int size){
     
     delete user_executable;          // close file
     printf("Current Thread: %s\n", currentThread->getName());
-
     while(!scheduler->getreadyList()->IsEmpty()){
         currentThread->Yield();
     }
-
     return 0;
 }
 
@@ -508,17 +509,19 @@ int exit_syscall(unsigned int status){
         printf("In Exit_Syscall:\n");
     //Get the current process ID
     int P_ID = currentThread->space->ProcessID;
+    int ptr = currentThread->thread_ID;
     //Print out the debugging message
         printf("\tProcess Count: %d\n", Process_counter);
         printf("\tProcessTable[%d].ThreadCount: %d\n", P_ID, ProcessTable[P_ID].threadCount);
         printf("CurrentThread: %s, ProcessTable[%d]\n", currentThread->getName(), P_ID);
     if(ProcessTable[P_ID].threadCount > 1){
         //Child threads exist, reclaim 8 stack pages and go to sleep
-        int ptr = currentThread->thread_ID;
         int stack_start = ProcessTable[P_ID].threads[ptr].firstStackPage;
             printf("Going to Remove Stack\n");
         ProcessTable[P_ID].threadCount--;
+        ProcessTable[P_ID].threads[ptr].myThread = NULL;
         currentThread->space->removeStack(stack_start);
+        exitLock.Release();
         currentThread->Finish();
     }
     else if(ProcessTable[P_ID].threadCount == 1 && Process_counter > 1){
@@ -527,17 +530,19 @@ int exit_syscall(unsigned int status){
         //Reclaim all memory
         currentThread->space->returnMemory();
         //Recliam all locks
-        currentThread->Finish();
+        ProcessTable[P_ID].threads[ptr].myThread = NULL;
         ProcessTable[P_ID].threadCount--;
+        exitLock.Release();
+        currentThread->Finish();
 
     }
     else if(ProcessTable[P_ID].threadCount == 1 && Process_counter == 1){
         //Last Thread in the last process
         printf("Last Thread in the last process\n");
-        interrupt->Halt();
         ProcessTable[P_ID].threadCount--;
+        exitLock.Release();
+        interrupt->Halt();
     }
-    exitLock.Release();
     return 0;
 }
 

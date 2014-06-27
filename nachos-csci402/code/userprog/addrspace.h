@@ -48,5 +48,4 @@ class AddrSpace {
     unsigned int numPages;          // Number of pages in the virtual 
                                     // address space
 };
-
-#endif // ADDRSPACE_H
+#endif  // ADDRSPACE_H
