@@ -1,12 +1,12 @@
 #include "syscall.h"
-
 #define NUMBER_OF_PATIENTS 10
 #define NUMBER_OF_RECEPTIONISTS 5
 #define DOCTORS_COUNT 3
 #define DOORBOYS_COUNT 5
 #define CASHIERS_COUNT 3
 #define NUMBER_OF_PHARMACISTS 3
-
+#define true 1
+#define false 0
 
 
 
@@ -133,7 +133,8 @@ const int medicine_costs[5] = {0, 15, 20, 25, 30};
 
 
 void fill_array(int *array, int number_of_elements, int fill_value) {
-    for(int i = 0; i < number_of_elements; i++) {
+    int i;
+    for(i = 0; i < number_of_elements; i++) {
         array[i] = fill_value;
     }
 }
@@ -146,10 +147,11 @@ void initialize() {
     initialize all of our arrays with the appropriate objects
 
     initialize shared patient receptionist arrays*/
-    receptionist_break_cv = new Condition("Receptionist break CV");
+    int i;
+    receptionist_break_cv = Condition_Create("Receptionist break CV", sizeof("Receptionist break CV"));
     fill_array(receptionist_state, NUMBER_OF_RECEPTIONISTS, 1);
     fill_array(receptionist_token_bucket, NUMBER_OF_RECEPTIONISTS, -1);
-    for(int i = 0; i < NUMBER_OF_RECEPTIONISTS; i++) {
+    for(i = 0; i < NUMBER_OF_RECEPTIONISTS; i++) {
         char receptionist_cv_name[32];
         char receptionist_line_empty_cv_name[32];
         char receptionist_line_full_cv_name[32];
@@ -160,23 +162,23 @@ void initialize() {
         sprintf(receptionist_line_full_cv_name, "Receptionist line full CV %d", i);
         sprintf(receptionist_lock_name, "Receptionist lock %d",i);
         
-        receptionist_cv[i] = Condition_Create(receptionist_cv_name);
-        receptionist_line_empty_cv[i] = Condition_Create(receptionist_line_empty_cv_name);
-        receptionist_line_full_cv[i] = Condition_Create(receptionist_line_full_cv_name);
-        receptionist_lock[i] = Lock_Create(receptionist_lock_name);
+        receptionist_cv[i] = Condition_Create(receptionist_cv_name, sizeof(receptionist_cv_name));
+        receptionist_line_empty_cv[i] = Condition_Create(receptionist_line_empty_cv_name, sizeof(receptionist_line_empty_cv_name));
+        receptionist_line_full_cv[i] = Condition_Create(receptionist_line_full_cv_name, sizeof(receptionist_line_full_cv_name));
+        receptionist_lock[i] = Lock_Create(receptionist_lock_name, sizeof(receptionist_lock_name));
     }
 
 /*    initialize shared patient door-boy doctor data
 */    fill_array(doctor_state, DOCTORS_COUNT, 1);
-    for(int i = 0; i < DOCTORS_COUNT; i++) {
+    for(i = 0; i < DOCTORS_COUNT; i++) {
         char doctor_lock_name[32];
         char doctor_cv_name[32];
 
         sprintf(doctor_lock_name, "Doctor lock %d", i);
         sprintf(doctor_cv_name, "Doctor CV %d", i);
         
-        doctor_lock[i] = Lock_Create(doctor_lock_name);
-        doctor_cv[i] = Condition_Create(doctor_cv_name);
+        doctor_lock[i] = Lock_Create(doctor_lock_name, sizeof(doctor_lock_name));
+        doctor_cv[i] = Condition_Create(doctor_cv_name, sizeof(doctor_cv_name));
     }
 
     /*initialize shared patient doctor data*/
@@ -186,15 +188,15 @@ void initialize() {
     /*initialize shared cashier patient data*/
     fill_array(cashier_state, CASHIERS_COUNT, 1);
     fill_array(patient_cashier_bucket, CASHIERS_COUNT, -2);
-    for(int i = 0; i < CASHIERS_COUNT; i++){
+    for(i = 0; i < CASHIERS_COUNT; i++){
         char cashier_lock_name[32];
         char cashier_cv_name[32];
 
         sprintf(cashier_lock_name, "Cashier lock %d", i);
         sprintf(cashier_cv_name, "Cashier CV %d", i);
 
-        cashier_lock[i] = Lock_Create(cashier_lock_name);
-        cashier_cv[i] = Condition_Create(cashier_cv_name);
+        cashier_lock[i] = Lock_Create(cashier_lock_name, sizeof(cashier_lock_name));
+        cashier_cv[i] = Condition_Create(cashier_cv_name, sizeof(cashier_cv_name));
     }
 
     /*initialize patient pharmacist data*/
@@ -205,37 +207,37 @@ void initialize() {
     fill_array(to_patient_medicine_bill_bucket, NUMBER_OF_PHARMACISTS, -2);
     fill_array(to_pharmacist_medicine_payment_bucket, NUMBER_OF_PHARMACISTS, -2);
 
-    for(int i = 0; i < NUMBER_OF_PHARMACISTS; i++) {
+    for(i = 0; i < NUMBER_OF_PHARMACISTS; i++) {
         char pharmacist_lock_name[32];
         char pharmacist_cv_name[32];
 
         sprintf(pharmacist_lock_name, "Pharmacist lock %d", i);
         sprintf(pharmacist_cv_name, "Pharmacist CV %d", i);
         
-        pharmacist_lock[i] = Lock_Create(pharmacist_lock_name);
-        pharmacist_cv[i] = Condition_Create(pharmacist_cv_name);
+        pharmacist_lock[i] = Lock_Create(pharmacist_lock_name, sizeof(pharmacist_lock_name));
+        pharmacist_cv[i] = Condition_Create(pharmacist_cv_name, sizeof(pharmacist_cv_name));
     }
 
-    random_number_lock = Lock_Create("Random number lock");
-    patient_count_mutex = Lock_Create("patient count mutex");
-    receptionist_break_cv = Condition_Create("Receptionist break CV");
-    receptionist_line_lock = Lock_Create("receptionist line lock");
-    receptionist_token_access_lock = Lock_Create("receptionist token access lock");
-    doorboy_break_cv = Create_Condition("Door-boy break CV");
-    doctor_doorboy_lock = Create_Lock("Doctor door-boy lock");
-    doorboy_line_lock = Create_Lock("Door-boy line lock");
-    patient_read_next_available_doctor_cv = Create_Condition("Patient read next available doctor CV");
-	doorboy_line_empty_cv = Create_Condition("Door-boy line empty CV");
-	doorboy_line_full_cv = Create_Condition("Door-boy line full CV");
-	doctor_available_cv = Create_Condition("Doctor available CV");
-	cashier_break_cv = Create_Condition("Cashier break CV");
-	cashier_payment_lock = Create_Lock("Cashier payment lock");
-	cashier_line_lock = Create_Lock("Cashier line lock");
-	cashier_line_empty_cv = Create_Condition("Cashier line empty CV");
-	pharmacist_break_cv = Create_Condition("Pharmacist break CV");
-	pharmacist_payment_lock = Create_Lock("Pharmacist payment lock");
-	pharmacist_line_empty_cv = Create_Condition("Pharmacist line empty CV");
-	pharmacist_line_lock = Create_Lock("Pharmacist line lock");
+    random_number_lock = Lock_Create("Random number lock", sizeof("Random number lock"));
+    patient_count_mutex = Lock_Create("patient count mutex", sizeof("patient count mutex"));
+    receptionist_break_cv = Condition_Create("Receptionist break CV", sizeof("Receptionist break CV"));
+    receptionist_line_lock = Lock_Create("receptionist line lock", sizeof("receptionist line lock"));
+    receptionist_token_access_lock = Lock_Create("receptionist token access lock", sizeof("receptionist token access lock"));
+    doorboy_break_cv = Condition_Create("Door-boy break CV", sizeof("Door-boy break CV"));
+    doctor_doorboy_lock = Lock_Create("Doctor door-boy lock", sizeof("Doctor door-boy lock"));
+    doorboy_line_lock = Lock_Create("Door-boy line lock", sizeof("Door-boy line lock"));
+    patient_read_next_available_doctor_cv = Condition_Create("Patient read next available doctor CV", sizeof("Patient read next available doctor CV"));
+	doorboy_line_empty_cv = Condition_Create("Door-boy line empty CV", sizeof("Door-boy line empty CV"));
+	doorboy_line_full_cv = Condition_Create("Door-boy line full CV", sizeof("Door-boy line full CV"));
+	doctor_available_cv = Condition_Create("Doctor available CV", sizeof("Doctor available CV"));
+	cashier_break_cv = Condition_Create("Cashier break CV", sizeof("Cashier break CV"));
+	cashier_payment_lock = Lock_Create("Cashier payment lock", sizeof("Cashier payment lock"));
+	cashier_line_lock = Lock_Create("Cashier line lock", sizeof("Cashier line lock"));
+	cashier_line_empty_cv = Condition_Create("Cashier line empty CV", sizeof("Cashier line empty CV"));
+	pharmacist_break_cv = Condition_Create("Pharmacist break CV", sizeof("Pharmacist break CV"));
+	pharmacist_payment_lock = Lock_Create("Pharmacist payment lock", sizeof("Pharmacist payment lock"));
+	pharmacist_line_empty_cv = Condition_Create("Pharmacist line empty CV", sizeof("Pharmacist line empty CV"));
+	pharmacist_line_lock = Lock_Create("Pharmacist line lock", sizeof("Pharmacist line lock"));
 }
 
 void log(char *output_message) {
@@ -253,7 +255,9 @@ wait until a resource producing thread (producer)
 notifies them it is safe to continue.*/
 
 void receptionist(const int receptionist_index) {
-    printf("Receptionist [%d] is ready to work.\n", receptionist_index);
+    char name_text[40]; 
+    sprintf(name_text, "Receptionist [%d] is ready to work.\n", receptionist_index);
+    Print_F(name_text, sizeof(name_text));
     while(true) {
         /*let's check if there is someone in line
         if there is we will tell them we are available
@@ -261,23 +265,25 @@ void receptionist(const int receptionist_index) {
         Lock_Acquire(receptionist_line_lock);
         while(receptionist_line_length[receptionist_index] == 0) {
             /*no one is available, let's go to sleep*/
-            printf("Receptionist [%d] no one here, going to bed.\n", receptionist_index);
+            sprintf(name_text, "Receptionist [%d] no one here, going to bed.\n", receptionist_index);
+            Print_F(name_text, sizeof(name_text));
             receptionist_state[receptionist_index] = 0;
             condition_Wait(receptionist_line_empty_cv[receptionist_index], receptionist_line_lock);
         }
         
         /*someone is waiting in our line. Let's tell them we're ready*/
         receptionist_state[receptionist_index] = 1;
-        printf("Receptionist [%d] has signaled a Patient.\n", receptionist_index);
+        sprintf(name_text, "Receptionist [%d] has signaled a Patient.\n", receptionist_index);
+        Print_F(name_text, sizeof(name_text));
         Condition_Signal(receptionist_line_full_cv[receptionist_index], receptionist_line_lock);
         Lock_Release(receptionist_line_lock);
         
-        receptionist_lock[receptionist_index]->Acquire();
+        Lock_Acquire(receptionist_lock[receptionist_index]);
         /*now we need to go get a token to give to the patient. However we need
         to be sure that bucket used to store the token is empty.*/
         while(receptionist_token_bucket[receptionist_index] != -1) {
-            printf("We really shouldn't be getting here....\n");
-            receptionist_cv[receptionist_index]->Wait(receptionist_lock[receptionist_index]);
+            /*printf("We really shouldn't be getting here....\n");*/
+            Condition_Wait(receptionist_cv[receptionist_index], receptionist_lock[receptionist_index]);
         }
 
        
@@ -289,21 +295,23 @@ void receptionist(const int receptionist_index) {
 
         /*we need to ensure our customer has gotten their token before we can continue*/
         while(receptionist_token_bucket[receptionist_index] != -1) {
-            printf("Receptionist [%d] waiting for customer to take token.\n", receptionist_index);
+            sprintf(name_text, "Receptionist [%d] waiting for customer to take token.\n", receptionist_index);
+            Print_F(name_text, sizeof(name_text));
             Condition_Wait(receptionist_cv[receptionist_index], receptionist_lock[receptionist_index]);
         }
 
-        receptionist_lock[receptionist_index]->Release();
         Lock_Release(receptionist_lock[receptionist_index]);
 
         Lock_Acquire(receptionist_line_lock);
         /*let's check if we can go on break*/
         if(receptionist_line_length == 0) {
             receptionist_state[receptionist_index] = 2;
-            printf("Receptionist [%d] is going on break.\n", receptionist_index);
-            receptionist_break_cv->Wait(receptionist_line_lock);
+            sprintf(name_text, "Receptionist [%d] is going on break.\n", receptionist_index);
+            Print_F(name_text, sizeof(name_text));
+            Condition_Wait(receptionist_break_cv, receptionist_line_lock);
             receptionist_state[receptionist_index] = 1;
-            printf("Receptionist [%d] is coming off break.\n", receptionist_index);
+            sprintf(name_text, "Receptionist [%d] is coming off break.\n", receptionist_index);
+            Print_F(name_text, sizeof(name_text));
         }
         
         Lock_Release(receptionist_line_lock);
@@ -311,19 +319,25 @@ void receptionist(const int receptionist_index) {
 }
 
 void patient(const int patient_index) {
+    int my_medicine;
+    int my_medicine_cost;
     int my_patient_diagnosis = -2;
     int my_doctor_index = -2;
     int my_patient_token = -2;
     int my_pharmacist_index = -2;
     int my_cashier_index = -2;
-
-    printf("Patient [%d] has arrived at the hospital.\n", patient_index);
+    int shortest_line_length = receptionist_line_length[0];
+    int my_receptionist_index = 0;
+    int my_consultation_fee;
+    int i;
+    char name_text[40]; 
 
     /*let's find the shortest line available to us*/
     Lock_Acquire(receptionist_line_lock);
-    int shortest_line_length = receptionist_line_length[0];
-    int my_receptionist_index = 0;
-    for(int i = 0; i < NUMBER_OF_RECEPTIONISTS; i++) {
+
+    sprintf(name_text, "Patient [%d] has arrived at the hospital.\n", patient_index);
+    Print_F(name_text, sizeof(name_text));
+    for(i = 0; i < NUMBER_OF_RECEPTIONISTS; i++) {
         if (receptionist_line_length[i] == 0) {
             /*why bother checking anymore?
             we aren't going to find a shorter line*/
@@ -340,8 +354,8 @@ void patient(const int patient_index) {
     this enforces our service policy that a service requesting thread must
     always wait on a service producing thread.*/
     receptionist_line_length[my_receptionist_index] ++;
-    printf("Patient [%d] is waiting for Receptionist [%d].\n", patient_index, my_receptionist_index);
-    
+    sprintf(name_text,"Patient [%d] is waiting for Receptionist [%d].\n", patient_index, my_receptionist_index);
+    Print_F(name_text, sizeof(name_text));
     /*According to our logic, the receptionist could be busy
     with another patient or could be waiting for a patient.
     If the receptionist is waiting for a patient, the signal
@@ -362,7 +376,8 @@ void patient(const int patient_index) {
     we will wait while the token we are looking for is -1. As soon as it's not, we know the receptionist
     delivered a token to us.*/
     while(receptionist_token_bucket[my_receptionist_index] == -1) {
-        printf("Patient [%d] is waiting on receptionist [%d]\n", patient_index, my_receptionist_index);
+        sprintf(name_text,"Patient [%d] is waiting on receptionist [%d]\n", patient_index, my_receptionist_index);
+        Print_F(name_text, sizeof(name_text));
         Condition_Wait(receptionist_cv[my_receptionist_index], receptionist_lock[my_receptionist_index]);
     }
 
@@ -376,15 +391,16 @@ void patient(const int patient_index) {
 
     Lock_Release(receptionist_lock[my_receptionist_index]);
 
-    printf("Patient [%d] has received Token [%d] from receptionist [%d].\n", 
+    sprintf(name_text,"Patient [%d] has received Token [%d] from receptionist [%d].\n", 
         patient_index, my_patient_token, my_receptionist_index);
-    
+    Print_F(name_text, sizeof(name_text));    
     /*now we are going to get in line with the door-boy
     always waiting in doctor's offices aren't we?*/
     
     Lock_Acquire(doorboy_line_lock);
     number_of_patients_in_doorboy_line++;
-    printf("Patient [%d] is waiting on a DoorBoy\n", my_patient_token);
+    sprintf(name_text,"Patient [%d] is waiting on a DoorBoy\n", my_patient_token);
+    Print_F(name_text, sizeof(name_text));
     Condition_Signal(doorboy_line_full_cv, doorboy_line_lock);
     
     Condition_Wait(doorboy_line_empty_cv, doorboy_line_lock);
@@ -400,14 +416,16 @@ void patient(const int patient_index) {
 
     /*we should never get to this point and my_doctor_index be == -2*/
     assert(my_doctor_index != -2);
-    printf("Patient [%d] has been told by Door Boy to go to examining room [%d].\n", 
+    sprintf(name_text,"Patient [%d] has been told by Door Boy to go to examining room [%d].\n", 
         my_patient_token, my_doctor_index);
+    Print_F(name_text, sizeof(name_text));
     
 
     /*let's tell our doctor we're coming to him.*/
     Lock_Acquire(doctor_lock[my_doctor_index]);
-    printf("Patient [%d] is going to examining room [%d].\n", 
+    sprintf(name_text,"Patient [%d] is going to examining room [%d].\n", 
         my_patient_token, my_doctor_index);
+    Print_F(name_text, sizeof(name_text));
     Condition_Signal(doctor_cv[my_doctor_index], doctor_lock[my_doctor_index]);
 
     /*we are now with the doctor. let's give him
@@ -415,25 +433,29 @@ void patient(const int patient_index) {
     since we hold the doctor_lock right now, we know the
     doctor will always see our token in the bucket.*/
     patient_doctor_bucket[my_doctor_index] = my_patient_token;
-    printf("Patient [%d] is waiting to be examined by the doctor in Examining Room [%d].\n", 
+    sprintf(name_text,"Patient [%d] is waiting to be examined by the doctor in Examining Room [%d].\n", 
         patient_index, my_doctor_index);
+    Print_F(name_text, sizeof(name_text));
     Condition_Wait(doctor_cv[my_doctor_index], doctor_lock[my_doctor_index]);
 
-    printf("Patient [%d] is done with a consultation.\n", patient_index);
+    sprintf(name_text,"Patient [%d] is done with a consultation.\n", patient_index);
+    Print_F(name_text, sizeof(name_text));
 
     /*the doctor has finished his consultation with me now.
     let's pick our diagnosis and then go pay the cashier
     for the consultation*/
     my_patient_diagnosis = patient_doctor_bucket[my_doctor_index];
-    printf("Patient [%d] [%s] in examining room [%d]",
+    sprintf(name_text,"Patient [%d] [%s] in examining room [%d]",
         patient_index, diseases[my_patient_diagnosis], my_doctor_index);
+    Print_F(name_text, sizeof(name_text));
     patient_doctor_bucket[my_doctor_index] = -2;
     
     /*inform the doctor we are leaving*/
     Condition_Signal(doctor_cv[my_doctor_index], doctor_lock[my_doctor_index]);
     Lock_Release(doctor_lock[my_doctor_index]);
 
-    printf("Patient [%d] is leaving examining room [%d]", patient_index, my_doctor_index);
+    sprintf(name_text,"Patient [%d] is leaving examining room [%d]", patient_index, my_doctor_index);
+    Print_F(name_text, sizeof(name_text));
 
    /* we're off to see the wizard!
     the wonderful Wizard of OZZ :)
@@ -455,7 +477,7 @@ void patient(const int patient_index) {
     number_of_patients_in_cashier_line--;
 
     /*let's go find our free cashier*/
-    for(int i = 0; i < CASHIERS_COUNT; i++) {
+    for(i = 0; i < CASHIERS_COUNT; i++) {
         if(cashier_state[i] == 0) {
             my_cashier_index = i;
             cashier_state[i] = 1;
@@ -466,8 +488,8 @@ void patient(const int patient_index) {
 
     assert(my_cashier_index != -2);
 
-    printf("Patient [%d] is waiting to see cashier. [%d]\n", patient_index, my_cashier_index);
-
+    sprintf(name_text,"Patient [%d] is waiting to see cashier. [%d]\n", patient_index, my_cashier_index);
+    Print_F(name_text, sizeof(name_text));
     Lock_Release(cashier_line_lock);
     
     /*let's go talk to our cashier*/
@@ -477,27 +499,28 @@ void patient(const int patient_index) {
     /*let's give the cashier our data and wait*/
     patient_cashier_bucket[my_cashier_index] = my_patient_token;
     Condition_Wait(cashier_cv[my_cashier_index], cashier_lock[my_cashier_index]);
-    
-    const int my_consultation_fee = patient_cashier_bucket[my_cashier_index];
+    my_consultation_fee = patient_cashier_bucket[my_cashier_index];
     patient_cashier_bucket[my_cashier_index] = -2;
 
-    printf("Patient [%d] is paying their consultancy fees of [%d]",
+    sprintf(name_text,"Patient [%d] is paying their consultancy fees of [%d]",
         patient_index, my_consultation_fee);
+    Print_F(name_text, sizeof(name_text));
 
     Condition_Signal(cashier_cv[my_cashier_index], cashier_lock[my_cashier_index]);
     Lock_Release(cashier_lock[my_cashier_index]);
 
 
-    printf("Patient [%d] is leaving Cashier [%d]",
+    sprintf(name_text,"Patient [%d] is leaving Cashier [%d]",
         patient_index, my_cashier_index);
+    Print_F(name_text, sizeof(name_text));
 
 
     /*let's go off to the pharmacy*/
-    pharmacist_line_lock->Acquire();
     Lock_Acquire(pharmacist_line_lock);
     
     pharmacist_line_length++;
-    printf("Patient [%d] is in line at the pharmacy.\n", patient_index);
+    sprintf(name_text,"Patient [%d] is in line at the pharmacy.\n", patient_index);
+    Print_F(name_text, sizeof(name_text));
 
     /*let's see if there is an available pharmacist
     if there is, we'll find him, else we'll have to wait*/
@@ -510,7 +533,7 @@ void patient(const int patient_index) {
     pharmacist_line_length--;
 
     /*let's go find our free pharmacist*/
-    for(int i = 0; i < NUMBER_OF_PHARMACISTS; i++) {
+    for(i = 0; i < NUMBER_OF_PHARMACISTS; i++) {
         if(pharmacist_status[i] == 0) {
             my_pharmacist_index = i;
             pharmacist_status[i] = 1;
@@ -521,8 +544,9 @@ void patient(const int patient_index) {
 
     assert(my_pharmacist_index != -2);
 
-    printf("Patient [%d] is waiting to see pharmacy clerk. [%d]\n", 
+    sprintf(name_text,"Patient [%d] is waiting to see pharmacy clerk. [%d]\n", 
         patient_index, my_pharmacist_index);
+    Print_F(name_text, sizeof(name_text));
 
     Lock_Release(pharmacist_line_lock);
 
@@ -535,14 +559,15 @@ void patient(const int patient_index) {
     to_pharmacist_prescription_bucket[my_pharmacist_index] = my_patient_diagnosis;
     Condition_Wait(pharmacist_cv[my_pharmacist_index], pharmacist_lock[my_pharmacist_index]);
 
-    const int my_medicine = to_patient_medicine_bucket[my_pharmacist_index];
-    const int my_medicine_cost = to_patient_medicine_bill_bucket[my_pharmacist_index];
+    my_medicine = to_patient_medicine_bucket[my_pharmacist_index];
+    my_medicine_cost = to_patient_medicine_bill_bucket[my_pharmacist_index];
 
-    printf("Patient [%d] is paying their prescription fees of [%d].\n", 
+    sprintf(name_text,"Patient [%d] is paying their prescription fees of [%d].\n", 
         patient_index, my_medicine_cost);
+    Print_F(name_text, sizeof(name_text));
     
     /*clear the buckets*/
-    to_patient_medicine_bucket[my_pharmacist_index] = NULL;
+    to_patient_medicine_bucket[my_pharmacist_index] = 0;
     to_patient_medicine_bill_bucket[my_pharmacist_index] = -2;
 
     /*let's pay the pharmacist and be on our way*/
@@ -550,20 +575,23 @@ void patient(const int patient_index) {
 
     Condition_Signal(pharmacist_cv[my_pharmacist_index], pharmacist_lock[my_pharmacist_index]);
 
-    printf("Patient [%d] is leaving pharmacy clerk [%d].\n", 
+    sprintf(name_text,"Patient [%d] is leaving pharmacy clerk [%d].\n", 
         patient_index, my_pharmacist_index);
+    Print_F(name_text, sizeof(name_text));
     
     Lock_Release(pharmacist_lock[my_pharmacist_index]);
 
     /*that's it
     we are now free to leave the hospital!!*/
 
-    printf("Patient [%d] is leaving the Hospital.\n", patient_index);
+    sprintf(name_text,"Patient [%d] is leaving the Hospital.\n", patient_index);
+    Print_F(name_text, sizeof(name_text));
 
     Lock_Acquire(patient_count_mutex);
     patients_in_system--;
     if(patients_in_system == 0) {
-        printf("\nALL PATIENTS EXITED THE SIMULATION\n\n");
+        sprintf(name_text,"\nALL PATIENTS EXITED THE SIMULATION\n\n");
+        Print_F(name_text, sizeof(name_text));
     }
     Lock_Release(patient_count_mutex);
 
@@ -592,6 +620,8 @@ doctor is free). The patient will then identify the available doctor and
 directly signal the doctor the doctor to wake up.*/
 
 void doorboy(const int doorboy_index) {
+    char name_text[40]; 
+    int available_doctor;
     /*if the number of patients in the door-boy line is 0
     the door-boy will wait on the doorboy_line_empty_cv 
     for a patient to show up. Once a patient is available,
@@ -599,29 +629,33 @@ void doorboy(const int doorboy_index) {
     doctors. If there are, he will send the patient through.
     Otherwise, the door-boy will wait on the doctor_available_cv
     until a doctor becomes available.*/
-    printf("Door-boy [%d] is ready to work.\n", doorboy_index);
+    sprintf(name_text,"Door-boy [%d] is ready to work.\n", doorboy_index);
+    Print_F(name_text, sizeof(name_text));
     while(true) {
+        int i;
         Lock_Acquire(doorboy_line_lock);
 
         while(number_of_patients_in_doorboy_line == 0) {
-            printf("Door-boy [%d] waiting for a patient to arrive.\n", doorboy_index);
-            doorboy_line_full_cv->Wait(doorboy_line_lock);
+            sprintf(name_text,"Door-boy [%d] waiting for a patient to arrive.\n", doorboy_index);
+            Print_F(name_text, sizeof(name_text));
+            Condition_Wait(doorboy_line_full_cv,doorboy_line_lock);
         }
         number_of_patients_in_doorboy_line--;       /*// we are reserving a patient so another
                                                     // door-boy won't try and find the same
                                                     // patient a doctor as well.*/
         Lock_Release(doorboy_line_lock);
 
-        printf("Door-boy [%d] acquired a patient.\n", doorboy_index);
+        sprintf(name_text,"Door-boy [%d] acquired a patient.\n", doorboy_index);
+        Print_F(name_text, sizeof(name_text));
         /*we now have a patient in our grasp muahahaha >;)*/
-        doctor_doorboy_lock->Acquire();
+        Lock_Acquire(doctor_doorboy_lock);
         while(number_of_available_doctors == 0) {
             Condition_Wait(doctor_available_cv, doctor_doorboy_lock);
         }
 
         /*now we need to find a free doctor*/
-        int available_doctor = -2;
-        for(int i = 0; i < DOCTORS_COUNT; i++) {
+        available_doctor = -2;
+        for(i = 0; i < DOCTORS_COUNT; i++) {
             if(doctor_state[i] == 0) {
                 available_doctor = i;
                 doctor_state[i] = 1;
@@ -630,7 +664,8 @@ void doorboy(const int doorboy_index) {
             }
         }
         assert(available_doctor != -2);
-        printf("Door-boy [%d] acquired doctor [%d].\n", doorboy_index, available_doctor);
+        sprintf(name_text,"Door-boy [%d] acquired doctor [%d].\n", doorboy_index, available_doctor);
+        Print_F(name_text, sizeof(name_text));
 
         /*now we need a guarantee that no other door-boy will alter the
         value of next_available_doctor while we wait for the next patient
@@ -663,7 +698,14 @@ void doorboy(const int doorboy_index) {
 
 
 void doctor(const int doctor_index) {
-    printf("Doctor [%d] is ready to work.\n", doctor_index);
+    char name_text[40]; 
+    int i;
+    int patient_token;
+    int consultation_time;
+    int patient_sickness;
+    int take_break;
+    sprintf(name_text,"Doctor [%d] is ready to work.\n", doctor_index);
+    Print_F(name_text, sizeof(name_text));
     while(true) {
         /*first we need to set the doctor state without 
         other threads getting in the way*/
@@ -673,34 +715,38 @@ void doctor(const int doctor_index) {
         number_of_available_doctors++;
         Condition_Signal(doctor_available_cv, doctor_doorboy_lock);
         
-        printf("Doctor [%d] acquiring doctor_lock.\n", doctor_index);       
+        sprintf(name_text,"Doctor [%d] acquiring doctor_lock.\n", doctor_index);    
+        Print_F(name_text, sizeof(name_text));   
         Lock_Acquire(doctor_lock[doctor_index]); /*// we need to ensure that this doctor  */  
         Lock_Release(doctor_doorboy_lock); /*// will actually be waiting for their patient*/
         
-        printf("Doctor [%d] waiting for a patient.\n", doctor_index);
+        sprintf(name_text,"Doctor [%d] waiting for a patient.\n", doctor_index);
+        Print_F(name_text, sizeof(name_text));
         Condition_Wait(doctor_cv[doctor_index], doctor_lock[doctor_index]);
 
-        int patient_token = patient_doctor_bucket[doctor_index];    /*// we will not clear out this value since we going to 
+        patient_token = patient_doctor_bucket[doctor_index];    /*// we will not clear out this value since we going to 
                                                                     // write back to the bucket before we give up the lock.*/
         
-        printf("Doctor [%d] is examining a Patient with Token [%d].\n", doctor_index, patient_token);
-
+        sprintf(name_text,"Doctor [%d] is examining a Patient with Token [%d].\n", doctor_index, patient_token);
+        Print_F(name_text, sizeof(name_text));
         Lock_Acquire(random_number_lock);
-        int consultation_time = (rand() % 20) + 10;
-        int patient_sickness = (rand() % 5);
-        int take_break = (rand() % 2);
+        consultation_time = (rand() % 20) + 10;
+        patient_sickness = (rand() % 5);
+        take_break = (rand() % 2);
         Lock_Release(random_number_lock);
 
         /*now that we have a patient, let's examine them*/
-        for(int i = 0; i < consultation_time; i++) {
+        for(i = 0; i < consultation_time; i++) {
         	Yield();
         }
 
-        printf("Doctor [%d] has determined that the Patient with Token [%d] [%s].\n",
+        sprintf(name_text,"Doctor [%d] has determined that the Patient with Token [%d] [%s].\n",
             doctor_index, patient_token, diseases[patient_sickness]);
+        Print_F(name_text, sizeof(name_text));
         if(patient_sickness != 0) {
-            printf("Doctor [%d] is prescribing [%s] to the Patient with Token [%d].\n",
+            sprintf(name_text,"Doctor [%d] is prescribing [%s] to the Patient with Token [%d].\n",
                 doctor_index, medicines[patient_sickness], patient_token);
+            Print_F(name_text, sizeof(name_text));
         }
 
         /*put the patient sickness in the patient_illness_bucket
@@ -725,10 +771,13 @@ void doctor(const int doctor_index) {
 
 
 void cashier(const int cashier_index){
-    printf("Cashier [%d] is ready to work.\n", cashier_index);
+    char name_text[40]; 
+    int my_patient_token = -2;
+    int total_consultation_fee;
+    sprintf(name_text,"Cashier [%d] is ready to work.\n", cashier_index);
+    Print_F(name_text, sizeof(name_text));
     while(true){
 
-        int my_patient_token = -2;
 
         /*the cashier line mechanism is the same as the
         pharmacists. Consult the comments for the 
@@ -743,7 +792,8 @@ void cashier(const int cashier_index){
 
         cashier_state[cashier_index] = 0;
         cashier_available_count++;
-        printf("Cashier [%d] has signaled a Patient", cashier_index);
+        sprintf(name_text,"Cashier [%d] has signaled a Patient", cashier_index);
+        Print_F(name_text, sizeof(name_text));
         Condition_Signal(cashier_line_empty_cv, cashier_line_lock);
 
         /*transition to the next critical
@@ -756,12 +806,13 @@ void cashier(const int cashier_index){
         /*let's gather the patient data*/
         my_patient_token = patient_cashier_bucket[cashier_index];
         assert(my_patient_token != -2);
-        printf("Cashier [%d] gets Token [%d] from a Patient.\n", cashier_index, my_patient_token);
-        
+        sprintf(name_text,"Cashier [%d] gets Token [%d] from a Patient.\n", cashier_index, my_patient_token);
+        Print_F(name_text, sizeof(name_text));
         /*let's send this data back to the patient*/
-        int total_consultation_fee = patient_consultancy_fee[my_patient_token];
+        total_consultation_fee = patient_consultancy_fee[my_patient_token];
         patient_cashier_bucket[cashier_index] = total_consultation_fee;
-        printf("Cashier [%d] tells Patient with Token [%d] they owe $%d\n", cashier_index, my_patient_token, total_consultation_fee);
+        sprintf(name_text,"Cashier [%d] tells Patient with Token [%d] they owe $%d\n", cashier_index, my_patient_token, total_consultation_fee);
+        Print_F(name_text, sizeof(name_text));
         Condition_Signal(cashier_cv[cashier_index], cashier_lock[cashier_index]);
 
         /*to ensure the patient saw the amount, we are going
@@ -775,7 +826,8 @@ void cashier(const int cashier_index){
 
         Lock_Acquire(cashier_payment_lock);
         total_cashier_fee += total_consultation_fee;
-        printf("Cashier [%d] receives fees from Patient with Token [%d] from a Patient.\n", cashier_index, my_patient_token);
+        sprintf(name_text,"Cashier [%d] receives fees from Patient with Token [%d] from a Patient.\n", cashier_index, my_patient_token);
+        Print_F(name_text, sizeof(name_text));
         Lock_Release(cashier_payment_lock);
         /*we're now done with this customer     */   
         Lock_Release(cashier_lock[cashier_index]);
@@ -784,7 +836,13 @@ void cashier(const int cashier_index){
 
 
 void pharmacist(const int pharmacist_index) {
-    printf("Pharmacist [%d] is ready to work.\n", pharmacist_index);
+    char name_text[40]; 
+    int payment_for_medicine;
+    char *patient_medicine;
+    int patient_medicine_cost;
+    int my_patient_prescription;
+    sprintf(name_text,"Pharmacist [%d] is ready to work.\n", pharmacist_index);
+    Print_F(name_text, sizeof(name_text));
     while(true) {
 
         int my_patient_token = -2;
@@ -804,8 +862,7 @@ void pharmacist(const int pharmacist_index) {
 
         pharmacist_status[pharmacist_index] = 0;
         pharmacist_available_count++;
-        pharmacist_line_empty_cv->Signal(pharmacist_line_lock); /*// in case there was a patient already waiting in line*/
-        
+        Condition_Signal(pharmacist_line_empty_cv, pharmacist_line_lock);
         /*we need to make sure that we are ready for the
         patient's signal before it is issued. Therefore
         we need to enter the second critical section
@@ -820,21 +877,24 @@ void pharmacist(const int pharmacist_index) {
         we also have a guarantee that the patient diagnosis is
         waiting for us in our bucket.*/
         my_patient_token = to_pharmacist_patient_token_bucket[pharmacist_index];
-        const int my_patient_prescription = to_pharmacist_prescription_bucket[pharmacist_index];
-        const char *patient_medicine = medicines[my_patient_prescription];
-        const int patient_medicine_cost = medicine_costs[my_patient_prescription];
+        my_patient_prescription = to_pharmacist_prescription_bucket[pharmacist_index];
+        *patient_medicine = medicines[my_patient_prescription];
+        patient_medicine_cost = medicine_costs[my_patient_prescription];
 
         assert(my_patient_token != -2);
 
         /*clear the buckets*/
         to_pharmacist_prescription_bucket[pharmacist_index] = -2;
 
-        printf("Pharmacist [%d] got prescription [%s] from patient with token [%d].\n", 
+        sprintf(name_text,"Pharmacist [%d] got prescription [%s] from patient with token [%d].\n", 
             pharmacist_index, patient_medicine, my_patient_token);
-        printf("Pharmacist [%d] gives prescription [%s] to patient with token [%d].\n", 
+        Print_F(name_text, sizeof(name_text));
+        sprintf(name_text,"Pharmacist [%d] gives prescription [%s] to patient with token [%d].\n", 
             pharmacist_index, patient_medicine, my_patient_token);
-        printf("Pharmacist [%d] tells patient with token [%d] they owe [%d].\n", 
+        Print_F(name_text, sizeof(name_text));
+        sprintf(name_text,"Pharmacist [%d] tells patient with token [%d] they owe [%d].\n", 
             pharmacist_index, my_patient_token, patient_medicine_cost);
+        Print_F(name_text, sizeof(name_text));
 
         /*let's send this data back to the patient*/
         to_patient_medicine_bucket[pharmacist_index] = my_patient_prescription;
@@ -843,18 +903,20 @@ void pharmacist(const int pharmacist_index) {
         /*now we let the patient know we're done
         and we wait for the payment response.*/
         Condition_Signal(pharmacist_cv[pharmacist_index], pharmacist_lock[pharmacist_index]);
-        Condition_Wait(harmacist_cv[pharmacist_index], pharmacist_lock[pharmacist_index]);
+        Condition_Wait(pharmacist_cv[pharmacist_index], pharmacist_lock[pharmacist_index]);
 
-        printf("Pharmacist [%d] received a response from patient [%d].\n",
+        sprintf(name_text,"Pharmacist [%d] received a response from patient [%d].\n",
             pharmacist_index, my_patient_token);
+        Print_F(name_text, sizeof(name_text));
         
         /*we now have a response from the patient with their payment*/
         Lock_Acquire(pharmacist_payment_lock);
-        const int payment_for_medicine = to_pharmacist_medicine_payment_bucket[pharmacist_index];
+        payment_for_medicine = to_pharmacist_medicine_payment_bucket[pharmacist_index];
         assert(payment_for_medicine != -2);
 
-        printf("Pharmacist [%d] gets money from patient with token [%d].\n", 
+        sprintf(name_text,"Pharmacist [%d] gets money from patient with token [%d].\n", 
             pharmacist_index, my_patient_token);
+        Print_F(name_text, sizeof(name_text));
 
         total_pharmacsit_money_collected += payment_for_medicine;
         to_pharmacist_medicine_payment_bucket[pharmacist_index] = -2;
@@ -865,17 +927,21 @@ void pharmacist(const int pharmacist_index) {
 }
 
 void hospital_manager(const int hospital_manager_index) {
-    bool continue_running = true;
+    char name_text[40]; 
+    int continue_running = true;
+    int wait_time;
+    int request_total_cashier_sales;
+    int request_total_pharmacy_sales;
     while(true) {
-
+        int i;
         /*pick a random amount of time to wait*/
         Lock_Acquire(random_number_lock);
-        const int wait_time = (rand() % 75) + 25;
-        const bool request_total_cashier_sales = ((rand() % 2) == 0);
-        const bool request_total_pharmacy_sales = ((rand() % 2) == 0);
+        wait_time = (rand() % 75) + 25;
+        request_total_cashier_sales = ((rand() % 2) == 0);
+        request_total_pharmacy_sales = ((rand() % 2) == 0);
         Lock_Release(random_number_lock);
         
-        for(int i = 0; i < wait_time; i++) {
+        for(i = 0; i < wait_time; i++) {
             Yield();
         }
 
@@ -898,23 +964,26 @@ void hospital_manager(const int hospital_manager_index) {
 
         if(request_total_pharmacy_sales) {
             Lock_Acquire(pharmacist_payment_lock);
-            printf("HospitalManager reports total sales in pharmacy are [%d].\n", total_pharmacsit_money_collected);
+            sprintf(name_text,"HospitalManager reports total sales in pharmacy are [%d].\n", total_pharmacsit_money_collected);
+            Print_F(name_text, sizeof(name_text));
             Lock_Release(pharmacist_payment_lock);
         }
 
         if(request_total_cashier_sales) {
             Lock_Acquire(cashier_payment_lock);
-            printf("Hospital manager reports total consultancy fees are [%d].\n.", total_cashier_fee);
+            sprintf(name_text,"Hospital manager reports total consultancy fees are [%d].\n.", total_cashier_fee);
+            Print_F(name_text, sizeof(name_text));
             Lock_Release(cashier_payment_lock);
         }
 
         /*let's check if there is someone waiting in line for the receptionist*/
         Lock_Acquire(receptionist_line_lock);
-        for(int i = 0; i < NUMBER_OF_RECEPTIONISTS; i++) {
+        for(i = 0; i < NUMBER_OF_RECEPTIONISTS; i++) {
             if(receptionist_line_length[i] > 2) {
                 /*signal all the receptionists to come off break*/
-                receptionist_break_cv->Signal(receptionist_line_lock);
-                printf("HospitalManager signaled a Receptionist to come off break.\n");
+                Condition_Signal(receptionist_break_cv, receptionist_line_lock);
+                sprintf(name_text,"HospitalManager signaled a Receptionist to come off break.\n");
+                Print_F(name_text, sizeof(name_text));
             }
         }
         Lock_Release(receptionist_line_lock);
@@ -923,8 +992,9 @@ void hospital_manager(const int hospital_manager_index) {
         Lock_Acquire(doorboy_line_lock);
         if(number_of_patients_in_doorboy_line != 0) {
             /*signal all the door-boys to off break*/
-            doorboy_break_cv->Signal(doorboy_line_lock);
-            printf("HospitalManager signaled a DoorBoy to come off break.\n");
+            Condition_Signal(doorboy_break_cv, doorboy_line_lock);
+            sprintf(name_text,"HospitalManager signaled a DoorBoy to come off break.\n");
+            Print_F(name_text, sizeof(name_text));
         }
         Lock_Release(doorboy_line_lock);
 
@@ -932,8 +1002,9 @@ void hospital_manager(const int hospital_manager_index) {
         Lock_Acquire(cashier_line_lock);
         if(number_of_patients_in_cashier_line != 0) {
             /*signal all the cashiers to come off break*/
-            cashier_break_cv->Signal(cashier_line_lock);
-            printf("HospitalManager signaled a Cashier to come off break.\n");
+            Condition_Signal(cashier_break_cv, cashier_line_lock);
+            sprintf(name_text,"HospitalManager signaled a Cashier to come off break.\n");
+            Print_F(name_text, sizeof(name_text));
         }
         Lock_Release(cashier_line_lock);
 
@@ -942,7 +1013,8 @@ void hospital_manager(const int hospital_manager_index) {
         if(pharmacist_line_length != 0) {
            /* signal all the pharmacists to come off break*/
             Condition_Signal(pharmacist_break_cv, pharmacist_line_lock);
-            printf("HospitalManager signaled a PharmacyClerk to come off break.\n");
+            sprintf(name_text,"HospitalManager signaled a PharmacyClerk to come off break.\n");
+            Print_F(name_text, sizeof(name_text));
         }
         Lock_Release(pharmacist_line_lock);
     }
@@ -951,56 +1023,64 @@ void hospital_manager(const int hospital_manager_index) {
 
 
 void HmSimulation() {
+    int i;
+    char name_text[40];
+    char hm_name[32]; 
     initialize();
-    printf("Number of Receptionists = [%d]\n", NUMBER_OF_RECEPTIONISTS);
-    printf("Number of Doctors = [%d]\n", DOCTORS_COUNT);
-    printf("Number of DoorBoys = [%d]\n", DOORBOYS_COUNT);
-    printf("Number of Cashiers = [%d]\n", CASHIERS_COUNT);
-    printf("Number of PharmacyClerks = [%d]\n", NUMBER_OF_PHARMACISTS);
-    printf("Number of Patients = [%d]\n", NUMBER_OF_PATIENTS);
+    sprintf(name_text,"Number of Receptionists = [%d]\n", NUMBER_OF_RECEPTIONISTS);
+    Print_F(name_text, sizeof(name_text));
+    sprintf(name_text,"Number of Doctors = [%d]\n", DOCTORS_COUNT);
+    Print_F(name_text, sizeof(name_text));
+    sprintf(name_text,"Number of DoorBoys = [%d]\n", DOORBOYS_COUNT);
+    Print_F(name_text, sizeof(name_text));
+    sprintf(name_text,"Number of Cashiers = [%d]\n", CASHIERS_COUNT);
+    Print_F(name_text, sizeof(name_text));
+    sprintf(name_text,"Number of PharmacyClerks = [%d]\n", NUMBER_OF_PHARMACISTS);
+    Print_F(name_text, sizeof(name_text));
+    sprintf(name_text,"Number of Patients = [%d]\n", NUMBER_OF_PATIENTS);
+    Print_F(name_text, sizeof(name_text));
 
     /*all shared data has been initialized at this point
     the initialize function solves the issue of threads
     accessing shared data before it has all been initialized*/
 
     
-    for(int i = 0; i < NUMBER_OF_RECEPTIONISTS; i++) {
+    for(i = 0; i < NUMBER_OF_RECEPTIONISTS; i++) {
         char thread_name[32];
         sprintf(thread_name, "Receptionist function %d", i);
-        (new Thread(thread_name))->Fork((VoidFunctionPtr)receptionist, i);
+        Fork(receptionist, thread_name, sizeof(thread_name));
     }
 
-    for(int i = 0; i < DOORBOYS_COUNT; i++) {
+    for(i = 0; i < DOORBOYS_COUNT; i++) {
         char thread_name[32];
         sprintf(thread_name, "Door-boy function %d", i);
-        (new Thread(thread_name))->Fork((VoidFunctionPtr)doorboy, i);
+        Fork(doorboy, thread_name, sizeof(thread_name));
     }
 
-    for(int i = 0; i < DOCTORS_COUNT; i++) {
+    for(i = 0; i < DOCTORS_COUNT; i++) {
         char thread_name[32];
         sprintf(thread_name, "Doctor function %d", i);
-        (new Thread(thread_name))->Fork((VoidFunctionPtr)doctor, i);
+        Fork(doctor, thread_name, sizeof(thread_name));
     }
 
-    for(int i = 0; i < CASHIERS_COUNT; i++){
+    for(i = 0; i < CASHIERS_COUNT; i++){
         char thread_name[32];
         sprintf(thread_name, "Cashier function %d", i);
-        (new Thread(thread_name))->Fork((VoidFunctionPtr)cashier, i);
+        Fork(cashier, thread_name, sizeof(thread_name));
     }
 
-    for(int i = 0; i < NUMBER_OF_PHARMACISTS; i++) {
+    for(i = 0; i < NUMBER_OF_PHARMACISTS; i++) {
         char thread_name[32];
         sprintf(thread_name, "Pharmacist function %d", i);
-        (new Thread(thread_name))->Fork((VoidFunctionPtr)pharmacist, i);
+        Fork(pharmacist, thread_name, sizeof(thread_name));
     }
-
-    char hm_name[32];
+    
     sprintf(hm_name, "HospitalManager function");
-    (new Thread(hm_name))->Fork((VoidFunctionPtr)hospital_manager, 0);
+    Fork(hospital_manager, hm_name, sizeof(hm_name));
 
-    for(int i = 0; i < NUMBER_OF_PATIENTS; i++) {
+    for(i = 0; i < NUMBER_OF_PATIENTS; i++) {
         char thread_name[32];
         sprintf(thread_name, "Patient function %d", i);
-        (new Thread(thread_name))->Fork((VoidFunctionPtr)patient, i);
+        Fork(patient, thread_name, sizeof(thread_name));
     }
 }

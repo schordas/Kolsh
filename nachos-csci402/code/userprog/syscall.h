@@ -252,7 +252,7 @@ int Condition_Broadcast(int condition_index, int lock_index);
 int Condition_Delete(int condition_index);
 
 void Print_F(char* buf, int size);
-
+void sprinf(char* mychar, char* text, int i));
 #endif /* IN_ASM */
 
 #endif /* SYSCALL_H */

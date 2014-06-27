@@ -210,6 +210,14 @@ Print_F:
     j   $31
     .end Print_F
 
+    .globl  sprintf 
+    .ent    sprintf
+sprintf:
+    addiu $2,$0,SC_Sprintf
+    syscall
+    j   $31
+    .end sprintf 
+
 /* dummy function to keep gcc happy */
         .globl  __main
         .ent    __main

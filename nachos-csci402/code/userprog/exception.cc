@@ -547,6 +547,12 @@ int exit_syscall(unsigned int status){
 }
 
 
+void sprintf_syscall(char* mychar, char* text, int i){
+
+
+}
+
+
 void ExceptionHandler(ExceptionType which) {
     int type = machine->ReadRegister(2);    // Which syscall?
     int rv = 0;                             // the return value from a syscall
@@ -649,6 +655,12 @@ void ExceptionHandler(ExceptionType which) {
                 DEBUG('a', "Print F sys call.\n");
                 print_f_syscall(machine->ReadRegister(4),
                                     machine->ReadRegister(5));
+                break;
+            case SC_Sprintf;
+                DEBUG('a', "Sprintf sys call.\n");
+                sprintf_syscall(machine->ReadRegister(4),
+                                    machine->ReadRegister(5),
+                                        machine->ReadRegister(6));
                 break;
         }
         // Put in the return value and increment the PC
