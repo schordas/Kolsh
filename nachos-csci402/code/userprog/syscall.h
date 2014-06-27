@@ -148,8 +148,6 @@ int Fork(void (*func), char* name, int name_buffer_size);
  */
 void Yield();
 
-/* exit the current executing process in the cpu*/
-void Exit(int status);
 
 
 /*******************************************************************************************\

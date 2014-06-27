@@ -194,6 +194,7 @@ printf("Code: %d bytes, initData: %d bytes, uninitData: %d bytes.\n",
 
 int AddrSpace::newStack(){
     //Update numPages to include 8 new pages of stack
+    printf("allocating new stack pages\n");
     Lock newStackLock("NewStackLock");
     newStackLock.Acquire();
     int ppn;
@@ -207,7 +208,7 @@ int AddrSpace::newStack(){
         NewPageTable[i].use = pageTable[i].use;
         NewPageTable[i].dirty = pageTable[i].dirty;
         NewPageTable[i].readOnly = pageTable[i].readOnly;
-            printf("Copying pageTable[%d] to NewPageTable with ppn: %d\n", i, pageTable[i].physicalPage);
+            //printf("Copying pageTable[%d] to NewPageTable with ppn: %d\n", i, pageTable[i].physicalPage);
     }
     //Remove the old table to free up resources
     delete pageTable;
@@ -219,7 +220,7 @@ int AddrSpace::newStack(){
             printf("Error, all memory occupied\n");
             interrupt->Halt();
         }
-        printf("Assigning new Stack Pages [%d] with ppn : [%d]\n", i, ppn);
+        //printf("Assigning new Stack Pages [%d] with ppn : [%d]\n", i, ppn);
         NewPageTable[i].virtualPage = i;
         NewPageTable[i].physicalPage = ppn;
         NewPageTable[i].valid = TRUE;
@@ -253,7 +254,7 @@ void AddrSpace::removeStack(int stack){
         NewPageTable[i].use = pageTable[i].use;
         NewPageTable[i].dirty = pageTable[i].dirty;
         NewPageTable[i].readOnly = pageTable[i].readOnly;
-            printf("Copying pageTable[%d] to NewPageTable with ppn: %d\n", i, pageTable[i].physicalPage);
+           // printf("Copying pageTable[%d] to NewPageTable with ppn: %d\n", i, pageTable[i].physicalPage);
     }
     //Free up physical memory space
     for(unsigned int i = stack_page - 8; i < stack_page; i++){
@@ -270,7 +271,7 @@ void AddrSpace::removeStack(int stack){
         NewPageTable[i].dirty = pageTable[stack_page].dirty;
         NewPageTable[i].readOnly = pageTable[stack_page].readOnly;
         stack_page++;
-            printf("Copying pageTable[%d] to NewPageTable[%d] with ppn: %d\n", stack_page, i, pageTable[i].physicalPage);
+           // printf("Copying pageTable[%d] to NewPageTable[%d] with ppn: %d\n", stack_page, i, pageTable[i].physicalPage);
     }
     //Remove the old table
     delete pageTable;
