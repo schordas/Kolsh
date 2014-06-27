@@ -177,9 +177,11 @@ printf("Code: %d bytes, initData: %d bytes, uninitData: %d bytes.\n",
 		if(i < NotStackPages){
 			printf("PageTable[%d]\n", i);
 			printf("\tPageTable.physicalPage : %d\n", ppn);
-			printf("\tReading from file address : %d\n", noffH.code.inFileAddr + i*PageSize);
 			executable->ReadAt(&(machine->mainMemory[ppn*PageSize]),
 				PageSize, noffH.code.inFileAddr + i*PageSize);}
+        else{
+            printf("Assigning Stack to PageTable[%d] with physicalPage:%d\n", i, ppn)
+        }
     }
 
 

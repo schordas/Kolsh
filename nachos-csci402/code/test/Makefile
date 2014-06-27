@@ -11,17 +11,14 @@
 #
 # If you are running on SunOS 5.x machines, uncomment the next line
 GCCDIR = /auto/home-scf-22/csci402/testgnu/decstation-ultrix/bin/
-LDFLAGS = -T newscript -N 
-ASFLAGS = -mips1 
-CPPFLAGS = $(INCDIR) 
-
+LDFLAGS = -T newscript -N
+ASFLAGS = -mips1
+CPPFLAGS = $(INCDIR)
 # if you aren't cross-compiling:
 # GCCDIR =
 # LDFLAGS = -N -T 0
 # ASFLAGS =
 # CPPFLAGS = -P $(INCDIR)
-
-
 CC = $(GCCDIR)gcc
 AS = $(GCCDIR)as
 LD = $(GCCDIR)ld
