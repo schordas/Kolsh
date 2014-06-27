@@ -8,7 +8,7 @@
 #include "syscall.h"
 
 int forked(){
-	my_printf("In forked function, now going to exit\n", 40);
+	Print_F("In forked function, now going to exit\n", 40);
 	Exit(0);
 }
 
@@ -18,9 +18,9 @@ main()
 	int return_id;
 	char *name = "Forked Func";
 	/* Positive Test */
-	my_printf("In userprogram, going to fork\n", 40);
-    Fork(forked, name);
-	my_printf("In userprogram, after fork\n", 40);
+	Print_F("In userprogram, going to fork\n", 40);
+    Fork(forked, name, sizeof(name));
+	Print_F("In userprogram, after fork\n", 40);
 	/* Negative Test */
 
     /* not reached */

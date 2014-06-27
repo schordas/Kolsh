@@ -11,26 +11,22 @@
 #
 # If you are running on SunOS 5.x machines, uncomment the next line
 GCCDIR = /auto/home-scf-22/csci402/testgnu/decstation-ultrix/bin/
-LDFLAGS = -T newscript -N 
-ASFLAGS = -mips1 
-CPPFLAGS = $(INCDIR) 
-
+LDFLAGS = -T newscript -N
+ASFLAGS = -mips1
+CPPFLAGS = $(INCDIR)
 # if you aren't cross-compiling:
 # GCCDIR =
 # LDFLAGS = -N -T 0
 # ASFLAGS =
 # CPPFLAGS = -P $(INCDIR)
-
-
 CC = $(GCCDIR)gcc
 AS = $(GCCDIR)as
 LD = $(GCCDIR)ld
 CPP = $(GCCDIR)cpp
-
 INCDIR =-I../userprog -I../threads
 CFLAGS = -G 0 -c $(INCDIR)
 
-all: halt matmult sort testfiles yield fork exec exit
+all: halt matmult sort testfiles yield fork exec exit hmSimulation
 
 start.o: start.s ../userprog/syscall.h
 	$(CPP) $(CPPFLAGS) start.s > strt.s
@@ -43,6 +39,12 @@ halt.o: halt.c
 halt: halt.o start.o
 	$(LD) $(LDFLAGS) start.o halt.o -o halt.coff
 	../bin/coff2noff halt.coff halt
+
+hmSimulation.o: hmSimulation.c
+	$(CC) $(CFLAGS) -c hmSimulation.c
+hmSimulation: hmSimulation.o start.o
+	$(LD) $(LDFLAGS) start.o hmSimulation.o -o hmSimulation.coff
+	../bin/coff2noff hmSimulation.coff hmSimulation	
 
 exit.o: exit.c
 	$(CC) $(CFLAGS) -c exit.c
