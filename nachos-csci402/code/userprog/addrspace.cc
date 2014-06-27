@@ -15,10 +15,10 @@
 // All rights reserved.  See copyright.h for copyright notice and limitation 
 // of liability and disclaimer of warranty provisions.
 
-#include <assert.h>
 #include "copyright.h"
 #include "system.h"
 #include "addrspace.h"
+#include "noff.h"
 #include "table.h"
 #include "synch.h"
 
@@ -116,117 +116,76 @@ static void SwapHeader(NoffHeader *noffH) {
 //      constructed set to false.
 //----------------------------------------------------------------------
 
-AddrSpace::AddrSpace(OpenFile *executable, int process_id) : fileTable(MaxOpenFiles) {
+AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
+    Lock bitmap_lock("bitmap_lock");
+    bitmap_lock.Acquire();
     NoffHeader noffH;
-    int ppn;
-    int process_address_space_size_in_bytes;
-
-    // we can't construct an address space without a valid process_id
-    // we take it that the caller has done their due diligence
-    // to ensure that is a valid process id. We have no way of checking.
-    this->process_id = process_id;
+    unsigned int i, size;
+    //### Declare virtual, physical page number to read file
+    int vpn, ppn;
+    unsigned int NotStackPages;
+    //###Lock for bit map
 
     // Don't allocate the input or output to disk files
     fileTable.Put(0);
     fileTable.Put(0);
 
+    
     executable->ReadAt((char *)&noffH, sizeof(noffH), 0);
     if((noffH.noffMagic != NOFFMAGIC) && (WordToHost(noffH.noffMagic) == NOFFMAGIC)) {
         SwapHeader(&noffH);
     }
     ASSERT(noffH.noffMagic == NOFFMAGIC);
+printf("Code: %d bytes, initData: %d bytes, uninitData: %d bytes.\n", 
+    noffH.code.size, noffH.initData.size, noffH.uninitData.size) ;
+    size = noffH.code.size + noffH.initData.size + noffH.uninitData.size ;
 
-    
-    printf("Code: %d bytes, initData: %d bytes, uninitData: %d bytes.\n", 
-        noffH.code.size, noffH.initData.size, noffH.uninitData.size);
-    
-    if(noffH.code.size <= 0) {
-        // ERROR, how can you have an executable with 0 code?
-        // TODO: no code executable error handler
-        printf("How can you have 0 code in your executable?\n");
-        assert(FALSE);
-    }
-    code_vaddr_fence = noffH.code.size;
-
-    // when creating a new user process, we allocate stack for one thread only.
-    // TODO: make the thread allocation process more efficient by allocating stacks in blocks of 8.
-    process_address_space_size_in_bytes = noffH.code.size + noffH.initData.size + noffH.uninitData.size + USER_STACK_SIZE;
-    numPages = divRoundUp(process_address_space_size_in_bytes, PageSize);
+    numPages = divRoundUp(size, PageSize) + divRoundUp(UserStackSize,PageSize);
+    NotStackPages = divRoundUp(size, PageSize);
+                                                // we need to increase the size
+                                                // to leave room for the stack
+    size = numPages * PageSize;
 
     ASSERT(numPages <= NumPhysPages);       // check we're not trying
                                             // to run anything too big --
                                             // at least until we have
                                             // virtual memory
 
-    DEBUG('a', "Initializing address space, num pages %d, process_address_space_size_in_bytes %d\n with one thread stack.",
-                    numPages, process_address_space_size_in_bytes);
+    DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
+                    numPages, size);
                     
-        
-    // request all the physical pages required by the user-program
-    // if we don't have enough physical memory to load the program,
-    // release the pages we have already requested, and notify the
-    // caller that we can't complete their request due to a lack of
-    // memory. Initialize all the page entries to their initial conditions.
-    pageTable = new TranslationEntry[numPages];
-<<<<<<< HEAD
-    for (i = 0; i < numPages; i++) {
-		//Find an available physical page
-		ppn = memory_map->Find(); 
-		if(ppn == -1){
-            //Error, all memory occupied
-			printf("Error, all memory occupied\n");
-            interrupt->Halt();
-		}
-        //Clear the space one page at a time
-		bzero(&machine->mainMemory[ppn*PageSize], PageSize);
-		pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
-		pageTable[i].physicalPage = ppn;
-		pageTable[i].valid = TRUE;
-		pageTable[i].use = FALSE;
-		pageTable[i].dirty = FALSE;
-		pageTable[i].readOnly = FALSE;  // if the code segment was entirely on 
-						// a separate page, we could set its 
-						// pages to be read-only
-		if(i < NotStackPages){
-			printf("PageTable[%d]\n", i);
-			printf("\tPageTable.physicalPage : %d\n", ppn);
-			printf("\tReading from file address : %d\n", noffH.code.inFileAddr + i*PageSize);
-			executable->ReadAt(&(machine->mainMemory[ppn*PageSize]),
-				PageSize, noffH.code.inFileAddr + i*PageSize);
-        }
-    }
     
-    // we have now allocated all the pages we need in memory.
-    // we can go ahead and copy the relevant sections from
-    // the executable into main memory.
-    const int num_executable_pages = divRoundUp(noffH.code.size + noffH.initData.size, PageSize);
-    const int last_code_page = divRoundUp(noffH.code.size, PageSize);
-    for(int vpn = 0; vpn < num_executable_pages; vpn++) {
-        ppn = pageTable[vpn].physicalPage;
-        // we can't mark the last code page as read only because
-        // it might be split with the data section.
-        if(vpn < last_code_page) {
-            pageTable[vpn].readOnly = TRUE;
+    pageTable = new TranslationEntry[numPages];
+    for (i = 0; i < numPages; i++) {
+        //Find an available physical page
+        ppn = memory_map->Find(); 
+        if(ppn == -1){
+            //Error, all memory occupied
+            printf("Error, all memory occupied\n");
+            interrupt->Halt();
         }
-        executable->ReadAt(&(machine->mainMemory[ppn*PageSize]), PageSize, noffH.code.inFileAddr + vpn*PageSize);
-        
-        // print out the executable read from file
-        // this does not print the executable header.
-        if(DEBUG_BUILD && (DEBUG_VERBOSITY_LEVEL >= 3)) {
-            char *machine_main_mem = (machine->mainMemory)+(ppn*PageSize);
-            for(int c = 0; c < PageSize; c+=2) {
-                if(c % 16 == 0) {
-                    printf("\n");
-                }
-                printf("%02x", *(machine_main_mem+c) & 0xff);
-                printf("%02x ", *(machine_main_mem+c+1) & 0xff);
-            }
-        }
-
+        //Clear the space one page at a time
+        bzero(&machine->mainMemory[ppn*PageSize], PageSize);
+        pageTable[i].virtualPage = i;   // for now, virtual page # = phys page #
+        pageTable[i].physicalPage = ppn;
+        pageTable[i].valid = TRUE;
+        pageTable[i].use = FALSE;
+        pageTable[i].dirty = FALSE;
+        pageTable[i].readOnly = FALSE;  // if the code segment was entirely on 
+                        // a separate page, we could set its 
+                        // pages to be read-only
+        if(i < NotStackPages){
+            printf("PageTable[%d]\n", i);
+            printf("\tPageTable.physicalPage : %d\n", ppn);
+            printf("\tReading from file address : %d\n", noffH.code.inFileAddr + i*PageSize);
+            executable->ReadAt(&(machine->mainMemory[ppn*PageSize]),
+                PageSize, noffH.code.inFileAddr + i*PageSize);}
     }
-    printf("\n\n");
 
-    printf("Address space constructed\n");
+
+
+    printf("Going out of AddrSpace constructor\n");
+    bitmap_lock.Release();
 }
 
 //------------------------
@@ -234,7 +193,7 @@ AddrSpace::AddrSpace(OpenFile *executable, int process_id) : fileTable(MaxOpenFi
 //------------------------
 
 int AddrSpace::newStack(){
-//Update numPages to include 8 new pages of stack
+    //Update numPages to include 8 new pages of stack
     Lock newStackLock("NewStackLock");
     newStackLock.Acquire();
     int ppn;
@@ -353,16 +312,16 @@ AddrSpace::~AddrSpace() {
 //----------------------------------------------------------------------
 // AddrSpace::checkAddr
 //
-//	Check the virtual address passed in is within the boundary
+//  Check the virtual address passed in is within the boundary
 //----------------------------------------------------------------------
 bool AddrSpace::checkAddr(unsigned int vaddr){
-	if(vaddr < numPages*PageSize && vaddr >= 0){
-		//vaddr is in boundary
-		return true;
-	}else{
-	
-		return false;
-	}
+    if(vaddr < numPages*PageSize && vaddr >= 0){
+        //vaddr is in boundary
+        return true;
+    }else{
+    
+        return false;
+    }
 
 
 }
@@ -419,12 +378,3 @@ void AddrSpace::RestoreState() {
     machine->pageTable = pageTable;
     machine->pageTableSize = numPages;
 }
-
-int AddrSpace::get_process_id() {
-    return 0;
-}
-
-bool AddrSpace::is_invalid_code_address(unsigned int vaddr) {
-    return vaddr <= 0 || vaddr >= code_vaddr_fence;
-}
-

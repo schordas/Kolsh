@@ -317,11 +317,18 @@ void print_f_syscall(unsigned int vaddr, int length) {
     delete output_buffer;
 }
 
-class ThreadData {
-public:
-    void (*function_to_execute);
-    unsigned int stack_start_address;
+class func_info_class {
+    public:
+        void (*func);
+        char *name;
 };
+
+//-----------------------
+//
+//   Fork SysCall
+//
+//----------------------------
+
 
 void kernel_thread(int value){
         printf("\t######   Fork SysCall kernel_thread:   ######\n");
@@ -360,36 +367,36 @@ void kernel_thread(int value){
     //write to the stack register , the starting postion of the stack for this thread.
     machine->WriteRegister(StackReg, start_point-16);
     machine->Run();
+
 }
 
-int Fork_Syscall(void (*func), unsigned int vaddr, int length) {
-    printf("Fork_Syscall:\n");
-    Thread *new_thread;
-    ThreadData *new_thread_data;
-    char *thread_name;
 
-    // validate input parameters
-    if(currentThread->space->is_invalid_code_address((unsigned int)func) || vaddr <= 0 || length <= 0) {
-        printf("@exception.cc\nInvalid input.\n");
+int Fork_Syscall(void (*func), unsigned int vaddr, int length){
+    printf("Fork_Syscall:\n");
+    //Check if the address is within boundary
+    if(!currentThread->space->checkAddr((int) func)){
+        printf("Error: Trying to fork to an invalid address: %d\n", (int) func);
         return -1;
     }
-
-    thread_name = read_into_new_buffer(vaddr, length);
-    new_thread = new Thread(thread_name);
-    new_thread_data = new ThreadData();
-
-    new_thread->space = currentThread->space;
-
-    new_thread_data->function_to_execute = func;
-    new_thread_data->stack_start_address = currentThread->space->newStack();
-
-    printf("Forking new thread...\n");
-    printf("\tname: [%s]\n", thread_name);
-    printf("\tfunc: [0x%p]\n", func);
-    
-    new_thread->Fork((VoidFunctionPtr) kernel_fork_boilerplate, (int)new_thread_data);
+    //Store the name of the function
+    char *name = read_into_new_buffer(vaddr, length);
+    if(func == NULL){
+        return -1;
+    }
+    func_info_class *info_ptr = new func_info_class();
+        printf("func: 0x%p\n", func);
+        printf("name: %s\n", name);
+    info_ptr->func = func;
+    info_ptr->name = name;
+    Thread *t = new Thread(name);
+    //Forked thread have the same addrSpace as currentThread
+        printf("Current Thread: %s\n", currentThread->getName());
+    t->space = currentThread->space;
+    t->Fork((VoidFunctionPtr) kernel_thread, (int)info_ptr);
+    //machine->Run();
     currentThread->Yield();
     return 0;
+
 }
 
 //----------------------------
@@ -471,13 +478,7 @@ int exec_syscall(unsigned int vaddr, int size){
        return -1;
     }
     //Create a new thread with the address space of the file
-    int process_id = process_table->assign_new_process_id();
-    if(process_id < 0) {
-        printf("The system does not have resources to exec a new process. Aborting.\n");
-        return -1;
-    }
-    AddrSpace *file_space = new AddrSpace(user_executable, process_id);
-    process_table->bind_address_space(process_id, file_space);
+    AddrSpace *file_space = new AddrSpace(user_executable);
 
     Thread *exec_thread = new Thread("exec_thread");
     exec_thread->space = file_space;
@@ -540,27 +541,6 @@ int exit_syscall(unsigned int status){
     return 0;
 }
 
-int Exit_Syscall(int status){
-    int number_of_processes = process_table->get_number_of_running_processes();
-
-    if(number_of_processes == 1 /*&& last thread*/){
-        interrupt->Halt();
-        return 0;
-    }
-    else if(number_of_processes > 1 /*&& last thread*/){
-        // reclaim all memory
-        process_table->release_process_id(currentThread->space->get_process_id());
-        // reclaim all locks/CVs
-        return 0;
-    }
-    else if(FALSE/*!last thread*/){
-        // reclaim 8 stack pages,
-        return 0;
-    }
-
-    return -1;
-}
-
 
 void ExceptionHandler(ExceptionType which) {
     int type = machine->ReadRegister(2);    // Which syscall?
@@ -614,8 +594,8 @@ void ExceptionHandler(ExceptionType which) {
                 rv = exec_syscall(machine->ReadRegister(4),machine->ReadRegister(5));
                 break; 
             case SC_Exit:
-                DEBUG('a', "Print F sys call.\n"); 
-                rv = Exit_Syscall(machine->ReadRegister(4));
+                DEBUG('a',"Exit.\n");
+                rv = exit_syscall(machine->ReadRegister(4));
                 break;  
             // LOCK SYSTEM CALLS
             case SC_LOCK_CREATE:

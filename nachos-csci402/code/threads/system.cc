@@ -199,7 +199,6 @@ void Cleanup() {
     delete memory_map;
     delete memory_map_mutex;
     delete synchronization_lut;
-    delete process_table;
 #endif
 
 #ifdef FILESYS_NEEDED

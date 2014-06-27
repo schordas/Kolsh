@@ -35,10 +35,6 @@ void StartProcess(char *filename) {
     currentThread->space = space;
 
 
-    space = new AddrSpace(executable, process_id);
-    currentThread->space = space;
-    process_table->bind_address_space(process_id, space);
-    
     delete executable;          // close file
 
     space->InitRegisters();     // set the initial register values
