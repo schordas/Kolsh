@@ -9,6 +9,7 @@
 
 
 int myfunc() {
+<<<<<<< HEAD
     my_printf("hello world from a thread.\n", sizeof("hello world from a thread.\n"));
     return 0;
 }
@@ -23,4 +24,16 @@ int main() {
     Fork(myfunc, "Thread 4");
     
     return 0;
+=======
+	return 0;
+}
+
+int main() {
+
+    Print_F("hello world.\n", sizeof("hello world.\n"));
+    
+    Fork(myfunc, "Hello", sizeof("Hello"));
+    
+	return 0;
+>>>>>>> 2c7e4ca9fd82f8722f3b60bfe48ba04ff0d8f3e9
 }

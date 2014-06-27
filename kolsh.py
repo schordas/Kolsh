@@ -132,7 +132,7 @@ def pull(remoteWorkingDirectory):
 def push(remoteWorkingDirectory):
     exe = ExecutionContext(True)
     print "syncing changes with aludra"
-    exe.execute('rsync -rtvz -C --delete --exclude-from=excludes.txt * aludra:'+remoteWorkingDirectory)
+    exe.execute('rsync -avz -C --delete --include-from=includes.txt --exclude-from=excludes.txt * aludra:'+remoteWorkingDirectory)
 
 def watch(remoteWorkingDirectory):
 
@@ -146,7 +146,7 @@ def watch(remoteWorkingDirectory):
 
     class FSEventHandler(PatternMatchingEventHandler):
         def __init__(self):
-            ignore_patterns = [".git"]
+            ignore_patterns = [".git", "*.s", "bin"]
             patterns = ["*"]
             super(FSEventHandler, self).__init__(ignore_patterns=ignore_patterns, patterns=patterns)
 
