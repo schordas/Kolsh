@@ -20,5 +20,5 @@
 *.out
 *.app
 
-.json
+*.json
 .cshrc
