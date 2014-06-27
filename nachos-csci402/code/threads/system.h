@@ -16,6 +16,7 @@
 #include "scheduler.h"
 #include "interrupt.h"
 #include "stats.h"
+#include "../userprog/addrspace.h"
 #include "timer.h"
 
 // Initialization and cleanup routines
@@ -27,6 +28,7 @@ extern void Cleanup();              // Cleanup, called when
 //Struct for ProcessTable
 #define Ptable_MaxProcess 10
 #define Ptable_MaxThread 100
+
 struct ThreadEntry{
 	int firstStackPage;
 	Thread *myThread;
