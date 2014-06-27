@@ -14,8 +14,7 @@
 #define ADDRSPACE_H
 
 #include "copyright.h"
-#include "filesys.h"
-#include "noff.h"
+#include "../filesys/filesys.h"
 #include "table.h"
 #include "translate.h"
 
@@ -47,8 +46,12 @@ class AddrSpace {
 	bool checkAddr(unsigned int vaddr);			        // Check if the virtual address is within this addrSpace
     int getnumPages(){return numPages;}                 // Return the numPages variable
     
-    bool is_invalid_code_address(unsigned int vaddr);   // return if vaddr is an invalid code address
-
+    int newStack();             //Allocate new stack pages for Fork syscall
+	bool checkAddr(unsigned int vaddr);			//Check if the virtual address is within this addrSpace
+    int getnumPages(){return numPages;} //Return the numPages variable
+    int ProcessID;
+    void returnMemory();
+    void removeStack(int stack);
  private:
     TranslationEntry *pageTable;    // Assume linear page table translation
     unsigned int numPages;          // Number of pages in the virtual 

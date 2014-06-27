@@ -2,6 +2,10 @@
 *switch.s
 *swtch.s
 .git/
+.gitignore*.o
+*switch.s
+*swtch.s
+.git/
 .gitignore
 */bin
 */nachos

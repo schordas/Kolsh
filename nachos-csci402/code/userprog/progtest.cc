@@ -31,11 +31,9 @@ void StartProcess(char *filename) {
        return;
     }
    
-    int process_id = process_table->assign_new_process_id();
-    if(process_id < 0) {
-        printf("The system does not have resources to exec a new process. Aborting.\n");
-        return;
-    }
+    space = new AddrSpace(executable);
+    currentThread->space = space;
+
 
     space = new AddrSpace(executable, process_id);
     currentThread->space = space;
@@ -45,6 +43,18 @@ void StartProcess(char *filename) {
 
     space->InitRegisters();     // set the initial register values
     space->RestoreState();      // load page table register
+
+    //Set ProcessTable
+    ProcessTable[Process_counter].as = space;
+    currentThread->space->ProcessID = Process_counter;
+
+    int ptr = ProcessTable[Process_counter].threadCount;
+    currentThread->thread_ID = ptr;
+    ProcessTable[Process_counter].threads[ptr].myThread = currentThread;
+    ProcessTable[Process_counter].threads[ptr].firstStackPage = machine->pageTableSize * PageSize;
+    ProcessTable[Process_counter].threadCount++;
+    Process_counter++;
+
 
     machine->Run();             // jump to the user program
     ASSERT(FALSE);              // machine->Run never returns;
