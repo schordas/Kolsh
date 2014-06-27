@@ -1,3 +1,15 @@
 *.o
 .git/
+.gitignore*.o
+*switch.s
+*swtch.s
+.git/
 .gitignore
+*/bin
+*/nachos
+*.coff
+
+nachos-csci402/code/test/*
+
+/**Makefile
+/**makedep
