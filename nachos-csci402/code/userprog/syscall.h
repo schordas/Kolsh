@@ -44,6 +44,7 @@
 #define SC_CONDITION_DELETE     19
 
 #define SC_Print_F              20
+#define SC_Sprintf				21
 
 #define MAXFILENAME 256
 
@@ -252,7 +253,9 @@ int Condition_Broadcast(int condition_index, int lock_index);
 int Condition_Delete(int condition_index);
 
 void Print_F(char* buf, int size);
-void sprinf(char* mychar, char* text, int i));
+
+void Sprin_F(char* mychar, char* text, int i);
+
 #endif /* IN_ASM */
 
 #endif /* SYSCALL_H */

@@ -547,9 +547,47 @@ int exit_syscall(unsigned int status){
 }
 
 
-void sprintf_syscall(char* mychar, char* text, int i){
+int sprintf_syscall(unsigned int mychar, unsigned int text, int i){
+    unsigned int vpn, offset;
+    TranslationEntry *entry;
+    unsigned int physAddr;
+    unsigned int pageFrame;
 
-
+    vpn = (unsigned) text / PageSize;
+    offset = (unsigned) text % PageSize;
+    if (vpn >= machine->pageTableSize) {
+        DEBUG('a', "virtual page # %d too large for page table size %d!\n", 
+            text, machine->pageTableSize);
+        printf("virtual page # %d too large for page table size %d!\n", 
+            text, machine->pageTableSize);
+        return 1;
+    }
+    entry = &machine->pageTable[vpn];
+    pageFrame = entry->physicalPage;
+    if (pageFrame >= NumPhysPages) { 
+        DEBUG('a', "*** frame %d > %d!\n", pageFrame, NumPhysPages);
+        printf( "*** frame %d > %d!\n", pageFrame, NumPhysPages);
+        return 1;
+    } 
+    entry->use = TRUE;
+    physAddr = pageFrame * PageSize + offset;
+    unsigned int adder = physAddr;
+    char buf = 'a';
+    int text_count = 0;
+    while(buf != '\0'){
+        buf = machine->mainMemory[adder];
+        adder++;
+        text_count++;
+    }
+    char* Input_text = read_into_new_buffer(physAddr, text_count);
+    char* output_char = new char[40];
+    sprintf(output_char, Input_text, i);
+    char nextchar = output_char[0];
+    for(int j = 0; nextchar != '\0'; j++){
+        nextchar = output_char[j];
+        copyout(mychar++, 1, &nextchar);
+    }
+    return 0;
 }
 
 
@@ -656,7 +694,7 @@ void ExceptionHandler(ExceptionType which) {
                 print_f_syscall(machine->ReadRegister(4),
                                     machine->ReadRegister(5));
                 break;
-            case SC_Sprintf;
+            case SC_Sprintf:
                 DEBUG('a', "Sprintf sys call.\n");
                 sprintf_syscall(machine->ReadRegister(4),
                                     machine->ReadRegister(5),
