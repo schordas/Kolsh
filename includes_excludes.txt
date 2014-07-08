@@ -1,0 +1,21 @@
++ */
++ *.h
++ *.c
++ *.cc
+
++ docs/**
+
++ nachos-csci402/nachos.ps
++ nachos-csci402/code/GROUPNAME
+
++ nachos-csci402/code/Makefile
++ nachos-csci402/code/Makefile.common
++ nachos-csci402/code/Makefile.dep
+
++ nachos-csci402/code/test/Makefile
++ nachos-csci402/code/test/nachos.ld
++ nachos-csci402/code/test/newscript
++ nachos-csci402/code/test/script
++ nachos-csci402/code/test/start.as
+
+- *
