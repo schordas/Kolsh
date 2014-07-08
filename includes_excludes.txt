@@ -16,6 +16,6 @@
 + nachos-csci402/code/test/nachos.ld
 + nachos-csci402/code/test/newscript
 + nachos-csci402/code/test/script
-+ nachos-csci402/code/test/start.as
++ nachos-csci402/code/test/start.s
 
 - *
