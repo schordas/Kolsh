@@ -249,7 +249,10 @@ int AddrSpace::newStack() {
 
     //Assign new stack to the new table
     memory_map_mutex->Acquire();
-    for(unsigned int i = last_allocated_virtual_page; i < number_of_new_stack_pages; i++) {
+    for(unsigned int i = last_allocated_virtual_page; 
+            i < last_allocated_virtual_page + number_of_new_stack_pages; 
+            i++) {
+        
         const int ppn = memory_map->Find();   // Find an available physical memory page
         if(ppn == -1) {
             // Error, all memory occupied
