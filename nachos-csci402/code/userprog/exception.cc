@@ -81,6 +81,25 @@ int copyout(unsigned int vaddr, int len, char *buf) {
     return n;
 }
 
+char* read_into_new_buffer(unsigned int vaddr, int len) {
+    char *buf = new char[len+1];            // Kernel buffer to put string in
+
+    if(!buf) {
+        return NULL;
+    }
+
+    if(copyin(vaddr, len, buf) == -1) {
+        printf("%s","Read into buffer received an invalid character array.\n");
+        delete buf;
+        return NULL;
+    }
+
+    // null terminate the string
+    buf[len]='\0';
+
+    return buf;
+}
+
 void Create_Syscall(unsigned int vaddr, int len) {
     // Create the file with the name in the user buffer pointed to by
     // vaddr.  The file name is at most MAXFILENAME chars long.  No
@@ -231,8 +250,14 @@ void Close_Syscall(int fd) {
     }
 }
 
-void fork_syscall(const unsigned int vaddr) {
+void sc_fork(const unsigned int vaddr) {
     printf("fork syscall: [%d]\n", vaddr);
+}
+
+void sc_print_f(const unsigned int vaddr, const unsigned int buff_length) {
+    char* output_buffer = read_into_new_buffer(vaddr, buff_length);
+    printf("%s", output_buffer);
+    delete output_buffer;
 }
 
 void ExceptionHandler(ExceptionType which) {
@@ -245,7 +270,7 @@ void ExceptionHandler(ExceptionType which) {
                 DEBUG('a', "Unknown syscall - shutting down.\n");
             case SC_Fork:
                 DEBUG('a', "Fork syscall.\n");
-                fork_syscall(machine->ReadRegister(4));
+                sc_fork(machine->ReadRegister(4));
                 break;
             case SC_Halt:
                 DEBUG('a', "Shutdown, initiated by user program.\n");
@@ -274,6 +299,11 @@ void ExceptionHandler(ExceptionType which) {
             case SC_Close:
                 DEBUG('a', "Close syscall.\n");
                 Close_Syscall(machine->ReadRegister(4));
+                break;
+            case SC_Print_F:
+                DEBUG('a', "Print_F system call.\n");
+                sc_print_f(machine->ReadRegister(4),
+                            machine->ReadRegister(5));
                 break;
         }
 

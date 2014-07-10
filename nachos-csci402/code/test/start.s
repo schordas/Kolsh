@@ -140,6 +140,15 @@ Yield:
 	.end Yield
 
 
+	.globl Print_F
+	.ent	Print_F
+Print_F:
+	addiu $2,$0,SC_Print_F
+	syscall
+	j	$31
+	.end Print_F
+
+
 /* dummy function to keep gcc happy */
         .globl  __main
         .ent    __main

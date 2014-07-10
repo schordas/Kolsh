@@ -10,6 +10,9 @@ void my_thread() {
 }
 
 int main() {
+
+    Print_F("hello from a user-program\n", sizeof("hello from a user-program\n"));
+
     Fork(my_thread);
     Halt();
 }
