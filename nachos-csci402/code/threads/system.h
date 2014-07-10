@@ -47,6 +47,7 @@ extern Timer *timer;                    // the hardware alarm clock
 extern Machine* machine;                        // user program memory and registers
 extern BitMap *memory_map;                      // memory bitmap
 extern Lock *memory_map_mutex;                  // mutex for memory map
+extern Lock *forkInitializationLock;
 extern SynchronizationLut *synchronization_lut; // user program synchronization lock lookup table
 extern ProcessTable *process_table;             // data structure that records all running system process.
 #endif

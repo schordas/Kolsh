@@ -152,7 +152,7 @@ AddrSpace::AddrSpace(OpenFile *executable, int in_process_id) : fileTable(MaxOpe
     // in the constructor. There is a separate allocate and de-allocate function
     // to handle AddressSpace Stack management.
     process_address_space_size_in_bytes = noffH.code.size + noffH.initData.size + noffH.uninitData.size;
-    numPages = divRoundUp(process_address_space_size_in_bytes, PageSize);
+    numPages = divRoundUp(process_address_space_size_in_bytes, PageSize) + 8;
 
     ASSERT(numPages <= NumPhysPages);       // check we're not trying
                                             // to run anything too big --
@@ -216,25 +216,74 @@ AddrSpace::AddrSpace(OpenFile *executable, int in_process_id) : fileTable(MaxOpe
                 printf("%02x ", *(process_memory+c+1) & 0xff);
             }
         }
-
     }
     printf("\n\n");
 
-    DEBUG('t', "pre stack address space, num pages %d, process_address_space_size_in_bytes %d\n with one thread stack.\n",
-                    numPages, process_address_space_size_in_bytes);
     addrspace_mutex = new Lock("AddressSpace Lock");
-    newStack();
 
-    DEBUG('t', "Initialized address space, num pages %d, process_address_space_size_in_bytes %d\n with one thread stack.\n",
-                    numPages, process_address_space_size_in_bytes);
+    printf("\n\n");
+    DEBUG('t', "Initialized address space, num pages %d with one thread stack.\n", numPages);
     printf("Address space constructed\n");
+}
+
+int AddrSpace :: newStack()
+{
+    
+    addrspace_mutex -> Acquire();
+
+
+        TranslationEntry *newPageTable=new TranslationEntry[numPages + 8];
+      
+    for(unsigned int x=0; x < numPages; x++)
+        {
+            newPageTable[x].virtualPage = pageTable[x].virtualPage;
+            newPageTable[x].physicalPage = pageTable[x].physicalPage;
+            newPageTable[x].valid = pageTable[x].valid;
+            newPageTable[x].use = pageTable[x].use;
+            newPageTable[x].dirty = pageTable[x].dirty;
+            newPageTable[x].readOnly = pageTable[x].readOnly;
+    }
+
+
+    ASSERT(numPages <= NumPhysPages);
+
+
+    //Initializing the new 8 pages for the process's thread
+
+    for (unsigned int x = numPages; x < numPages + 8; x++) 
+    {           
+        newPageTable[x].virtualPage = x;    
+        newPageTable[x].physicalPage = memory_map->Find();    //Returns a Free Page
+        ASSERT(newPageTable[x].physicalPage != -1)          //Returns -1, if no free page available
+
+        newPageTable[x].valid = TRUE;
+        newPageTable[x].use = FALSE;
+        newPageTable[x].dirty = FALSE;
+        newPageTable[x].readOnly = FALSE;   // if the code segment was entirely on 
+                            // a separate page, we could set its 
+                            // pages to be read-only
+        }
+
+
+    numPages+=8;                    //Now the 8 pages for stack are also included
+
+    delete[] pageTable;
+    pageTable=newPageTable;
+
+    machine -> pageTable=pageTable;
+//  machine -> pageTableSize = numPages;
+
+    
+
+    addrspace_mutex -> Release();
+    return 0;
 }
 
 /**
  * Allocate a new stack space for the current process. Thread safe.
  *
  * @return int - the starting virtual address of the new stack space
- */
+ *
 int AddrSpace::newStack() {
     addrspace_mutex->Acquire();
 
@@ -276,9 +325,11 @@ int AddrSpace::newStack() {
     this->numPages = numPages_updated;
     this->pageTable = new_pageTable;
 
+    printf("pages: [%d]\n", this->numPages);
+
     addrspace_mutex->Release();
     return (this->numPages * PageSize) - 16;
-}
+}*/
 
 
 //----------------------------------------------------------------------

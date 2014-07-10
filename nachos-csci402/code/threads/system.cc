@@ -34,6 +34,7 @@ SynchDisk   *synchDisk;
 #ifdef USER_PROGRAM                         // requires either FILESYS or FILESYS_STUB
 Machine *machine;                           // user program memory and registers
 Lock *memory_map_mutex;
+Lock *forkInitializationLock;
 BitMap *memory_map;
 SynchronizationLut *synchronization_lut;    // user program synchronization lock lookup table
 ProcessTable *process_table;                // data structure that records all running system process.
@@ -157,6 +158,7 @@ void Initialize(int argc, char **argv) {
     machine = new Machine(debugUserProg);               // this must come first
 	memory_map = new BitMap(NumPhysPages);
     memory_map_mutex = new Lock("Memory map mutex.");
+    forkInitializationLock = new Lock("forkInitializationLock");
     synchronization_lut = new SynchronizationLut();
     process_table = new ProcessTable();
 #endif
@@ -188,6 +190,7 @@ void Cleanup() {
     delete machine;
     delete memory_map;
     delete memory_map_mutex;
+    delete forkInitializationLock;
     delete synchronization_lut;
     delete process_table;
 #endif

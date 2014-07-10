@@ -13,7 +13,20 @@
 #include "syscall.h"
 
 int main() {
+    int sum = 0;
+    int divisible = 5;
+    int result = 0;
+    int i = 0;
+    
     Print_F("In userprogram, going to halt\n", sizeof("In userprogram, going to halt\n"));
+    
+    for(i = 0; i < 10000; i++) {
+        sum = sum + i;
+        result = sum / divisible;
+    }
+
+    Print_F("In userprogram, going to halt 2\n", sizeof("In userprogram, going to halt 2\n"));
+
     Halt();
     /* not reached */
 }

@@ -38,6 +38,7 @@ void StartProcess(char *filename) {
     }
 
     space = new AddrSpace(executable, process_id);
+
     currentThread->space = space;
     process_table->bind_address_space(process_id, space);
     

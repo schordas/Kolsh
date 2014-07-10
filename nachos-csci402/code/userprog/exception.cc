@@ -326,14 +326,23 @@ void print_f_syscall(unsigned int vaddr, int length) {
  *                      in_params[1] vaddr of start of thread stack
  *
  */
-void kernel_fork_handler(const int *in_params) {
+void kernel_fork_handler(unsigned int vaddr) {
     // TODO perform input validation 
+    printf("called kernel_fork_handler\n");
+    forkInitializationLock -> Acquire();
     printf("kernel_fork_handler\n");
+    currentThread->space->newStack();
 
-    machine->WriteRegister(PCReg, in_params[0]);
-    machine->WriteRegister(NextPCReg, in_params[0]+4);
-    machine->WriteRegister(StackReg, in_params[1]);
+    machine->WriteRegister(PCReg, vaddr);
+    machine->WriteRegister(NextPCReg, vaddr+4);
 
+    currentThread->space->RestoreState();
+
+    machine -> WriteRegister(StackReg, PageSize * (currentThread -> space -> numPages) - 16);
+
+    forkInitializationLock -> Release();
+
+    printf("currentThread: [%s]\n", currentThread->getName());
     printf("kernel_fork_handler_prior machine->run()\n");    
     machine->Run();
 }
@@ -355,20 +364,20 @@ int fork_syscall(const unsigned int vaddr,
     // must be within the current processes address space
 
     // function variables
-    unsigned int stack_start_address;
-    unsigned int *thread_data = new unsigned int[2];
+    //unsigned int stack_start_address;
+    //unsigned int *thread_data = new unsigned int[2];
     Thread *kernel_thread = new Thread("new forked thread");
 
     kernel_thread->space = currentThread->space;
-    stack_start_address = currentThread->space->newStack();
+    //stack_start_address = currentThread->space->newStack();
     
     // TODO ensure stack_start_address is not -1
     // if -1 we can't fork a new thread
 
-    thread_data[0] = vaddr;
-    thread_data[1] = stack_start_address;
+    //thread_data[0] = vaddr;
+    //thread_data[1] = stack_start_address;
 
-    kernel_thread->Fork((VoidFunctionPtr)kernel_fork_handler, (int)thread_data);
+    kernel_thread->Fork((VoidFunctionPtr)kernel_fork_handler, vaddr);
     printf("kernel_thread post fork\n");
 
     return 0;

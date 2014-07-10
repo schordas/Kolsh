@@ -49,9 +49,9 @@ class AddrSpace {
     int getnumPages(){return numPages;}                 // Return the numPages variable
     
     bool is_invalid_code_address(unsigned int vaddr);   // return if vaddr is an invalid code address
-
- private:
     unsigned int numPages;          // Number of pages in the address space
+    
+ private:
     int process_id;                 // process_id for this address space
 
     TranslationEntry *pageTable;    // Assume linear page table translation

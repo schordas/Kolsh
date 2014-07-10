@@ -15,13 +15,12 @@ int myfunc() {
 
 int main() {
     
-    Print_F("hello world.\n", sizeof("hello world.\n"));
-    Print_F(myfunc, sizeof(int));
+    Print_F("hello world from a userprog.\n", sizeof("hello world from a userprog.\n"));
     
     Fork(myfunc, "Thread 1", sizeof("Thread 1"));
-    Fork(myfunc, "Thread 2", sizeof("Thread 2"));
+    /*Fork(myfunc, "Thread 2", sizeof("Thread 2"));
     Fork(myfunc, "Thread 3", sizeof("Thread 3"));
-    Fork(myfunc, "Thread 4", sizeof("Thread 4"));
+    Fork(myfunc, "Thread 4", sizeof("Thread 4")); */
     
     return 0;
 }
