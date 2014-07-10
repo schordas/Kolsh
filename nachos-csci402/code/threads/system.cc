@@ -29,6 +29,10 @@ SynchDisk   *synchDisk;
 
 #ifdef USER_PROGRAM	// requires either FILESYS or FILESYS_STUB
 Machine *machine;	// user program memory and registers
+BitMap *pageBitMap;
+Lock *page_table_lock;
+Lock *forkInitializationLock;
+Lock *memLock;
 #endif
 
 #ifdef NETWORK
@@ -149,6 +153,10 @@ Initialize(int argc, char **argv)
     
 #ifdef USER_PROGRAM
     machine = new Machine(debugUserProg);	// this must come first
+    pageBitMap = new BitMap(NumPhysPages);
+    forkInitializationLock = new Lock("forkInitializationLock");
+    page_table_lock = new Lock("page_table_lock");
+    memLock = new Lock("memLock");
 #endif
 
 #ifdef FILESYS
@@ -178,6 +186,10 @@ Cleanup()
     
 #ifdef USER_PROGRAM
     delete machine;
+    delete pageBitMap;
+    delete forkInitializationLock;
+    delete page_table_lock;
+    delete memLock;
 #endif
 
 #ifdef FILESYS_NEEDED

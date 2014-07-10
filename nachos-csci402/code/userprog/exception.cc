@@ -250,8 +250,34 @@ void Close_Syscall(int fd) {
     }
 }
 
-void sc_fork(const unsigned int vaddr) {
+void kernel_thread_function(unsigned int vaddr) {
+    printf("kernel_thread_function: [%d]\n", vaddr);
+    forkInitializationLock->Acquire();
+    
+    currentThread->space->updatePageTable();
+    
+    machine->WriteRegister(PCReg, vaddr);
+    machine->WriteRegister(NextPCReg, vaddr+4);
+
+    currentThread->space->RestoreState();
+
+    machine->WriteRegister(StackReg, PageSize * (currentThread->space->numPages) - 16);
+
+    forkInitializationLock->Release();
+
+    printf("kernel_thread_function going to call machine->Run()\n");
+    printf("[%s]\n", currentThread->getName());
+    machine->Run();
+}
+
+void sc_fork(unsigned int vaddr) {
     printf("fork syscall: [%d]\n", vaddr);
+
+    Thread *kernel_thread = new Thread("Kernel Thread");
+    kernel_thread->space = currentThread->space;
+    kernel_thread->Fork((VoidFunctionPtr)kernel_thread_function, vaddr);
+
+    currentThread->Yield();
 }
 
 void sc_print_f(const unsigned int vaddr, const unsigned int buff_length) {
