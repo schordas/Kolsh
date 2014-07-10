@@ -16,6 +16,7 @@ int myfunc() {
 int main() {
     
     Print_F("hello world.\n", sizeof("hello world.\n"));
+    Print_F(myfunc, sizeof(int));
     
     Fork(myfunc, "Thread 1", sizeof("Thread 1"));
     Fork(myfunc, "Thread 2", sizeof("Thread 2"));

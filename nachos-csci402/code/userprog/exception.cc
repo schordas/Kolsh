@@ -318,6 +318,64 @@ void print_f_syscall(unsigned int vaddr, int length) {
     delete output_buffer;
 }
 
+/**
+ * Initializes system registers for a newly forked thread.
+ *
+ * @param in_params - a pointer to an int array
+ *                      in_params[0] vaddr of function to be forked
+ *                      in_params[1] vaddr of start of thread stack
+ *
+ */
+void kernel_fork_handler(const int *in_params) {
+    // TODO perform input validation 
+    printf("kernel_fork_handler\n");
+
+    machine->WriteRegister(PCReg, in_params[0]);
+    machine->WriteRegister(NextPCReg, in_params[0]+4);
+    machine->WriteRegister(StackReg, in_params[1]);
+
+    printf("kernel_fork_handler_prior machine->run()\n");    
+    machine->Run();
+}
+
+/**
+ * Process a fork system call. The function to be forked must
+ * reside within the callers address space and must be a valid
+ * pointer to a code address. If unable to fork a new thread,
+ * returns -1 else 0.
+ *
+ * @param vaddr virtual address of function to be forked
+ * @return int  0 on success, -1 otherwise
+ */
+int fork_syscall(const unsigned int vaddr, 
+                    const unsigned int name_vaddr, 
+                    const unsigned int buffer_length) {
+    // TODO perform validation on vaddr
+    // must be a valid code ptr
+    // must be within the current processes address space
+
+    // function variables
+    unsigned int stack_start_address;
+    unsigned int *thread_data = new unsigned int[2];
+    Thread *kernel_thread = new Thread("new forked thread");
+
+    kernel_thread->space = currentThread->space;
+    stack_start_address = currentThread->space->newStack();
+    
+    // TODO ensure stack_start_address is not -1
+    // if -1 we can't fork a new thread
+
+    thread_data[0] = vaddr;
+    thread_data[1] = stack_start_address;
+
+    kernel_thread->Fork((VoidFunctionPtr)kernel_fork_handler, (int)thread_data);
+    printf("kernel_thread post fork\n");
+
+    return 0;
+}
+
+
+
 class ThreadData {
 public:
     void (*function_to_execute);
@@ -498,13 +556,14 @@ void ExceptionHandler(ExceptionType which) {
                 break;
             case SC_Fork:
                 DEBUG('a', "Fork.\n");
-                rv = Fork_Syscall( (void*) (machine->ReadRegister(4)), 
-                                                machine->ReadRegister(5),
-                                                machine->ReadRegister(6));
+                rv = fork_syscall(machine->ReadRegister(4), 
+                                    machine->ReadRegister(5),
+                                    machine->ReadRegister(6));
                 break;
             case SC_Exec:
                 DEBUG('a',"Exec.\n");
-                rv = exec_syscall(machine->ReadRegister(4),machine->ReadRegister(5));
+                rv = exec_syscall(machine->ReadRegister(4),
+                                    machine->ReadRegister(5));
                 break; 
             case SC_Exit:
                 DEBUG('a', "Print F sys call.\n"); 

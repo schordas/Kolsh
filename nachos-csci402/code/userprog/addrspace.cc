@@ -16,11 +16,12 @@
 // of liability and disclaimer of warranty provisions.
 
 #include <assert.h>
+#include <stdio.h>
 #include "copyright.h"
 #include "system.h"
 #include "addrspace.h"
 #include "table.h"
-#include "synch.h"
+
 
 extern "C" { int bzero(char *, int); };
 
@@ -116,7 +117,7 @@ static void SwapHeader(NoffHeader *noffH) {
 //      constructed set to false.
 //----------------------------------------------------------------------
 
-AddrSpace::AddrSpace(OpenFile *executable, int process_id) : fileTable(MaxOpenFiles) {
+AddrSpace::AddrSpace(OpenFile *executable, int in_process_id) : fileTable(MaxOpenFiles) {
     NoffHeader noffH;
     int ppn;
     int process_address_space_size_in_bytes;
@@ -124,7 +125,7 @@ AddrSpace::AddrSpace(OpenFile *executable, int process_id) : fileTable(MaxOpenFi
     // we can't construct an address space without a valid process_id
     // we take it that the caller has done their due diligence
     // to ensure that is a valid process id. We have no way of checking.
-    this->process_id = process_id;
+    this->process_id = in_process_id;
 
     // Don't allocate the input or output to disk files
     fileTable.Put(0);
@@ -146,11 +147,11 @@ AddrSpace::AddrSpace(OpenFile *executable, int process_id) : fileTable(MaxOpenFi
         printf("How can you have 0 code in your executable?\n");
         assert(FALSE);
     }
-    code_vaddr_fence = noffH.code.size;
 
-    // when creating a new user process, we allocate stack for one thread only.
-    // TODO: make the thread allocation process more efficient by allocating stacks in blocks of 8.
-    process_address_space_size_in_bytes = noffH.code.size + noffH.initData.size + noffH.uninitData.size + USER_STACK_SIZE;
+    // we will not allocate a new stack space for the process threads directly
+    // in the constructor. There is a separate allocate and de-allocate function
+    // to handle AddressSpace Stack management.
+    process_address_space_size_in_bytes = noffH.code.size + noffH.initData.size + noffH.uninitData.size;
     numPages = divRoundUp(process_address_space_size_in_bytes, PageSize);
 
     ASSERT(numPages <= NumPhysPages);       // check we're not trying
@@ -174,6 +175,8 @@ AddrSpace::AddrSpace(OpenFile *executable, int process_id) : fileTable(MaxOpenFi
         if(ppn == -1) {
             // Error, all memory occupied
             // TODO: release all requested memory back to the OS
+            printf("FATAL ERROR:\n");
+            printf("AddrSpace::AddrSpace out of system memory.\n");
             assert(FALSE);
         }
         
@@ -204,70 +207,74 @@ AddrSpace::AddrSpace(OpenFile *executable, int process_id) : fileTable(MaxOpenFi
         // print out the executable read from file
         // this does not print the executable header.
         if(DEBUG_BUILD && (DEBUG_VERBOSITY_LEVEL >= 3)) {
-            char *machine_main_mem = (machine->mainMemory)+(ppn*PageSize);
+            char *process_memory = (machine->mainMemory)+(ppn*PageSize);
             for(int c = 0; c < PageSize; c+=2) {
                 if(c % 16 == 0) {
                     printf("\n");
                 }
-                printf("%02x", *(machine_main_mem+c) & 0xff);
-                printf("%02x ", *(machine_main_mem+c+1) & 0xff);
+                printf("%02x", *(process_memory+c) & 0xff);
+                printf("%02x ", *(process_memory+c+1) & 0xff);
             }
         }
 
     }
     printf("\n\n");
 
+    DEBUG('t', "pre stack address space, num pages %d, process_address_space_size_in_bytes %d\n with one thread stack.\n",
+                    numPages, process_address_space_size_in_bytes);
+    addrspace_mutex = new Lock("AddressSpace Lock");
+    newStack();
+
+    DEBUG('t', "Initialized address space, num pages %d, process_address_space_size_in_bytes %d\n with one thread stack.\n",
+                    numPages, process_address_space_size_in_bytes);
     printf("Address space constructed\n");
 }
 
-//------------------------
-//Update the pageTable to include new stack pages
-//------------------------
+/**
+ * Allocate a new stack space for the current process. Thread safe.
+ *
+ * @return int - the starting virtual address of the new stack space
+ */
+int AddrSpace::newStack() {
+    addrspace_mutex->Acquire();
 
-int AddrSpace::newStack(){
-    //Update numPages to include 8 new pages of stack
-    int ppn;
-    unsigned int newNumPages = numPages + 8;
-    int Stack_top;
-    TranslationEntry *NewPageTable = new TranslationEntry[newNumPages];
-    //Copy the old page table to the new one
-    for(unsigned int i = 0; i < numPages; i++) {
-        NewPageTable[i].virtualPage = pageTable[i].virtualPage;
-        NewPageTable[i].physicalPage = pageTable[i].physicalPage;
-        NewPageTable[i].valid = pageTable[i].valid;
-        NewPageTable[i].use = pageTable[i].use;
-        NewPageTable[i].dirty = pageTable[i].dirty;
-        NewPageTable[i].readOnly = pageTable[i].readOnly;
-        printf("Copying pageTable[%d] to NewPageTable\n", i);
-    }
-    
-    //Remove the old table to free up resources
-    delete pageTable;
-    
+    const unsigned int number_of_new_stack_pages = 8;
+    const unsigned int numPages_updated = this->numPages + number_of_new_stack_pages;
+    const unsigned int last_allocated_virtual_page = this->numPages;
+    TranslationEntry *new_pageTable = new TranslationEntry[numPages_updated];
+
+    // Copy old page table to new one
+    const unsigned int size_of_page_table = sizeof(TranslationEntry) * this->numPages;
+    memcpy(new_pageTable, pageTable, size_of_page_table);
+
     //Assign new stack to the new table
     memory_map_mutex->Acquire();
-    for(unsigned int i = numPages; i < newNumPages; i++){
-        ppn = memory_map->Find(); 
-        printf("Assigning new Stack Pages [%d] with ppn : [%d]\n", i, ppn);
-        if(ppn == -1){
-            printf("Error, all memory occupied\n");
-            //Error, all memory occupied
+    for(unsigned int i = last_allocated_virtual_page; i < number_of_new_stack_pages; i++) {
+        const int ppn = memory_map->Find();   // Find an available physical memory page
+        if(ppn == -1) {
+            // Error, all memory occupied
+            // TODO: release all requested memory back to the OS
+            printf("FATAL ERROR:\n");
+            printf("AddrSpace::newStack out of system memory.\n");
+            assert(FALSE);
         }
-        NewPageTable[i].virtualPage = i;
-        NewPageTable[i].physicalPage = ppn;
-        NewPageTable[i].valid = TRUE;
-        NewPageTable[i].use = FALSE;
-        NewPageTable[i].dirty = FALSE;
-        NewPageTable[i].readOnly = FALSE;
+        
+        bzero((machine->mainMemory) + (PageSize * ppn), PageSize); // clear the returned page
+        new_pageTable[i].virtualPage = i;
+        new_pageTable[i].physicalPage = ppn;
+        new_pageTable[i].valid = TRUE;
+        new_pageTable[i].use = FALSE;
+        new_pageTable[i].dirty = FALSE;
+        new_pageTable[i].readOnly = FALSE;
     }
+    memory_map_mutex->Release();
 
-    //update numPages and pageTable and store the starting position of stack
-    Stack_top = numPages;
-    numPages = newNumPages;
-    pageTable = NewPageTable;
-    memory_map_mutex->Acquire();
+    // update class values
+    this->numPages = numPages_updated;
+    this->pageTable = new_pageTable;
 
-    return newNumPages*PageSize;
+    addrspace_mutex->Release();
+    return (this->numPages * PageSize) - 16;
 }
 
 
@@ -277,9 +284,9 @@ int AddrSpace::newStack(){
 //  Deallocate an address space.  release pages, page tables, files
 //  and file tables
 //----------------------------------------------------------------------
-
 AddrSpace::~AddrSpace() {
     delete pageTable;
+    delete addrspace_mutex;
 }
 
 //----------------------------------------------------------------------
@@ -357,6 +364,6 @@ int AddrSpace::get_process_id() {
 }
 
 bool AddrSpace::is_invalid_code_address(unsigned int vaddr) {
-    return vaddr <= 0 || vaddr >= code_vaddr_fence;
+    return FALSE;
 }
 

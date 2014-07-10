@@ -18,6 +18,7 @@
 #include "noff.h"
 #include "table.h"
 #include "translate.h"
+#include "synch.h"
 
 #define USER_STACK_SIZE         1024    // Stack size in bytes. With
                                         // current system settings,
@@ -50,11 +51,11 @@ class AddrSpace {
     bool is_invalid_code_address(unsigned int vaddr);   // return if vaddr is an invalid code address
 
  private:
-    TranslationEntry *pageTable;    // Assume linear page table translation
-    unsigned int numPages;          // Number of pages in the virtual 
-                                    // address space
+    unsigned int numPages;          // Number of pages in the address space
     int process_id;                 // process_id for this address space
-    unsigned int code_vaddr_fence;  // last virtual address in the code section of memory
+
+    TranslationEntry *pageTable;    // Assume linear page table translation
+    Lock *addrspace_mutex;          // Mutex for AddressSpace data
 };
 
 #endif // ADDRSPACE_H
