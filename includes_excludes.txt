@@ -12,6 +12,8 @@
 + nachos-csci402/code/Makefile.common
 + nachos-csci402/code/Makefile.dep
 
++ nachos-csci402/code/bin/coff2noff
+
 + nachos-csci402/code/test/Makefile
 + nachos-csci402/code/test/nachos.ld
 + nachos-csci402/code/test/newscript

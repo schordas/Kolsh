@@ -50,6 +50,7 @@ Halt:
 	j	$31
 	.end Halt
 
+
 	.globl Exit
 	.ent	Exit
 Exit:
@@ -57,6 +58,7 @@ Exit:
 	syscall
 	j	$31
 	.end Exit
+
 
 	.globl Exec
 	.ent	Exec
@@ -66,6 +68,7 @@ Exec:
 	j	$31
 	.end Exec
 
+
 	.globl Join
 	.ent	Join
 Join:
@@ -73,6 +76,7 @@ Join:
 	syscall
 	j	$31
 	.end Join
+
 
 	.globl Create
 	.ent	Create
@@ -82,6 +86,7 @@ Create:
 	j	$31
 	.end Create
 
+
 	.globl Open
 	.ent	Open
 Open:
@@ -90,6 +95,7 @@ Open:
 	j	$31
 	.end Open
 
+
 	.globl Read
 	.ent	Read
 Read:
@@ -97,6 +103,7 @@ Read:
 	syscall
 	j	$31
 	.end Read
+
 
 	.globl Write
 	.ent	Write
@@ -114,6 +121,7 @@ Close:
 	j	$31
 	.end Close
 
+
 	.globl Fork
 	.ent	Fork
 Fork:
@@ -122,6 +130,7 @@ Fork:
 	j	$31
 	.end Fork
 
+
 	.globl Yield
 	.ent	Yield
 Yield:
@@ -129,6 +138,7 @@ Yield:
 	syscall
 	j	$31
 	.end Yield
+
 
 /* dummy function to keep gcc happy */
         .globl  __main
