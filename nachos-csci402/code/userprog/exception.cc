@@ -251,7 +251,7 @@ void Close_Syscall(int fd) {
 }
 
 void kernel_thread_function(unsigned int vaddr) {
-    printf("kernel_thread_function: [%d]\n", vaddr);
+    //printf("kernel_thread_function: [%d]\n", vaddr);
     forkInitializationLock->Acquire();
     
     currentThread->space->updatePageTable();
@@ -265,13 +265,13 @@ void kernel_thread_function(unsigned int vaddr) {
 
     forkInitializationLock->Release();
 
-    printf("kernel_thread_function going to call machine->Run()\n");
-    printf("[%s]\n", currentThread->getName());
+    //printf("kernel_thread_function going to call machine->Run()\n");
+    //printf("[%s]\n", currentThread->getName());
     machine->Run();
 }
 
 void sc_fork(unsigned int vaddr) {
-    printf("fork syscall: [%d]\n", vaddr);
+    //printf("fork syscall: [%d]\n", vaddr);
 
     Thread *kernel_thread = new Thread("Kernel Thread");
     kernel_thread->space = currentThread->space;
@@ -285,6 +285,11 @@ void sc_print_f(const unsigned int vaddr, const unsigned int buff_length) {
     printf("%s", output_buffer);
     delete output_buffer;
 }
+
+void sc_exit(const int exit_status) {
+    printf("thread: [%s] finishing\n", currentThread->getName());
+    currentThread->Finish();
+};
 
 void ExceptionHandler(ExceptionType which) {
     int type = machine->ReadRegister(2);    // Which syscall?
@@ -301,6 +306,10 @@ void ExceptionHandler(ExceptionType which) {
             case SC_Halt:
                 DEBUG('a', "Shutdown, initiated by user program.\n");
                 interrupt->Halt();
+                break;
+            case SC_Exit:
+                DEBUG('a', "Exit Syscall.\n");
+                sc_exit(machine->ReadRegister(4));
                 break;
             case SC_Create:
                 DEBUG('a', "Create syscall.\n");

@@ -245,7 +245,6 @@ void AddrSpace :: allocateStack() {
  * allocate another stack for a new thread
  */
 void AddrSpace :: updatePageTable() {
-    printf("update page table\n");
     page_table_lock -> Acquire();
 
 
@@ -263,8 +262,7 @@ void AddrSpace :: updatePageTable() {
 
 
     ASSERT(numPages <= NumPhysPages);
-
-
+    
     //Initializing the new 8 pages for the process's thread
 
     for (unsigned int x = numPages; x < numPages + 8; x++) 

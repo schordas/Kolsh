@@ -115,18 +115,17 @@ bool Lock::isHeldByCurrentThread() {
 void Lock::Acquire() {
 	IntStatus oldLevel = interrupt->SetLevel(IntOff);
 	//if the current thread holds the lock we do not need ot continue
-	if (isHeldByCurrentThread()){
+	if(isHeldByCurrentThread()) {
 		interrupt->SetLevel(oldLevel);
 		return;
 	}
 	//if the lock is not busy, we make it busy and make the current thread the owner
-	if (isBusy == false){
+	if(isBusy == false) {
 		isBusy = true;
 		ownerThread = currentThread;
 	}
-	else{ //the lock is busy in which case we put the thread into the wait queue and put it to sleep 
-		//TODO: add to wait queue
-        printf("putting thread [%s] on wait queue for lock [%s]", currentThread->getName(), this->name);
+	else { 
+        //the lock is busy in which case we put the thread into the wait queue and put it to sleep 
 		waitQueue->Append((void *)currentThread);
 		currentThread->Sleep();	
 	}
