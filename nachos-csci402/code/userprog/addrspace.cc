@@ -118,7 +118,6 @@ static void SwapHeader(NoffHeader *noffH) {
 
 AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     Lock bitmap_lock("bitmap_lock");
-    bitmap_lock.Acquire();
     NoffHeader noffH;
     unsigned int i, size;
     //### Declare virtual, physical page number to read file
@@ -136,7 +135,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
         SwapHeader(&noffH);
     }
     ASSERT(noffH.noffMagic == NOFFMAGIC);
-printf("Code: %d bytes, initData: %d bytes, uninitData: %d bytes.\n", 
+    printf("Code: %d bytes, initData: %d bytes, uninitData: %d bytes.\n", 
     noffH.code.size, noffH.initData.size, noffH.uninitData.size) ;
     size = noffH.code.size + noffH.initData.size + noffH.uninitData.size ;
 
@@ -154,7 +153,7 @@ printf("Code: %d bytes, initData: %d bytes, uninitData: %d bytes.\n",
     DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
                     numPages, size);
                     
-    
+    bitmap_lock.Acquire();
     pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
         //Find an available physical page
@@ -166,7 +165,7 @@ printf("Code: %d bytes, initData: %d bytes, uninitData: %d bytes.\n",
         }
         //Clear the space one page at a time
         bzero(&machine->mainMemory[ppn*PageSize], PageSize);
-        pageTable[i].virtualPage = i;   // for now, virtual page # = phys page #
+        pageTable[i].virtualPage = i;
         pageTable[i].physicalPage = ppn;
         pageTable[i].valid = TRUE;
         pageTable[i].use = FALSE;
@@ -179,12 +178,14 @@ printf("Code: %d bytes, initData: %d bytes, uninitData: %d bytes.\n",
             printf("\tPageTable.physicalPage : %d\n", ppn);
             printf("\tReading from file address : %d\n", noffH.code.inFileAddr + i*PageSize);
             executable->ReadAt(&(machine->mainMemory[ppn*PageSize]),
-                PageSize, noffH.code.inFileAddr + i*PageSize);}
+                PageSize, noffH.code.inFileAddr + i*PageSize);
+        }
+        else {
+            //Assigning Stack pages
+            printf("PageTable[%d]\n", i);
+            printf("\tPageTable.physicalPage : %d\n", ppn);
+        }
     }
-
-
-
-    printf("Going out of AddrSpace constructor\n");
     bitmap_lock.Release();
 }
 
@@ -201,33 +202,35 @@ int AddrSpace::newStack(){
     unsigned int newNumPages = numPages + 8;
     TranslationEntry *NewPageTable = new TranslationEntry[newNumPages];
     //Copy the old page table to the new one
-    for(unsigned int i = 0; i < numPages; i++){
-        NewPageTable[i].virtualPage = pageTable[i].virtualPage;
-        NewPageTable[i].physicalPage = pageTable[i].physicalPage;
-        NewPageTable[i].valid = pageTable[i].valid;
-        NewPageTable[i].use = pageTable[i].use;
-        NewPageTable[i].dirty = pageTable[i].dirty;
-        NewPageTable[i].readOnly = pageTable[i].readOnly;
-            //printf("Copying pageTable[%d] to NewPageTable with ppn: %d\n", i, pageTable[i].physicalPage);
+    for(unsigned int i = 0; i < newNumPages; i++){
+        if (i < numPages){
+            NewPageTable[i].virtualPage = pageTable[i].virtualPage;
+            NewPageTable[i].physicalPage = pageTable[i].physicalPage;
+            NewPageTable[i].valid = pageTable[i].valid;
+            NewPageTable[i].use = pageTable[i].use;
+            NewPageTable[i].dirty = pageTable[i].dirty;
+            NewPageTable[i].readOnly = pageTable[i].readOnly;
+        }
+        else{
+            //New Stack Pages Here
+            ppn = memory_map->Find(); 
+            if(ppn == -1){
+                //Error, all memory occupied
+                printf("Error, all memory occupied\n");
+                interrupt->Halt();
+            }
+            bzero(&machine->mainMemory[ppn*PageSize], PageSize);
+            printf("Assigning new Stack Pages [%d] with ppn : [%d]\n", i, ppn);
+            NewPageTable[i].virtualPage = i;
+            NewPageTable[i].physicalPage = ppn;
+            NewPageTable[i].valid = TRUE;
+            NewPageTable[i].use = FALSE;
+            NewPageTable[i].dirty = FALSE;
+            NewPageTable[i].readOnly = FALSE;
+        }
     }
     //Remove the old table to free up resources
     delete pageTable;
-    //Assign new stack to the new table
-    for(unsigned int i = numPages; i < newNumPages; i++){
-        ppn = memory_map->Find(); 
-        if(ppn == -1){
-            //Error, all memory occupied
-            printf("Error, all memory occupied\n");
-            interrupt->Halt();
-        }
-        //printf("Assigning new Stack Pages [%d] with ppn : [%d]\n", i, ppn);
-        NewPageTable[i].virtualPage = i;
-        NewPageTable[i].physicalPage = ppn;
-        NewPageTable[i].valid = TRUE;
-        NewPageTable[i].use = FALSE;
-        NewPageTable[i].dirty = FALSE;
-        NewPageTable[i].readOnly = FALSE;
-    }
     //update numPages and pageTable and store the starting position of stack
     numPages = newNumPages;
     pageTable = NewPageTable;

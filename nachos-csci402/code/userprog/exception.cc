@@ -447,10 +447,10 @@ void exec_kernel_function(int i){
         interrupt->Halt();
     } 
     //Assign values to the Process Table
-    ProcessTable[P_ID].as = currentThread->space;
+    printf("Found ProcessID: %d, threadID: %d FirstStackPage: %d\n",P_ID, ptr, machine->pageTableSize * PageSize);
     currentThread->space->ProcessID = P_ID;
-    printf("Found ProcessID: %d, threadID: %d\n",P_ID, ptr);
     currentThread->thread_ID = ptr;
+    ProcessTable[P_ID].as = currentThread->space;
     ProcessTable[P_ID].threads[ptr].myThread = currentThread;
     ProcessTable[P_ID].threads[ptr].firstStackPage = machine->pageTableSize * PageSize;
     machine->Run();
@@ -511,16 +511,21 @@ int exit_syscall(unsigned int status){
     int P_ID = currentThread->space->ProcessID;
     int ptr = currentThread->thread_ID;
     //Print out the debugging message
-        printf("\tProcess Count: %d\n", Process_counter);
-        printf("\tProcessTable[%d].ThreadCount: %d\n", P_ID, ProcessTable[P_ID].threadCount);
+        printf("\tProcess Count: %d, Thread Count: %d\n", Process_counter, ProcessTable[P_ID].threadCount);
+        printf("\tProcessTable[%d]\t Thread_ID: %d, ThreadCount: %d\n", P_ID, ptr);
         printf("CurrentThread: %s, ProcessTable[%d]\n", currentThread->getName(), P_ID);
     if(ProcessTable[P_ID].threadCount > 1){
+            printf("Going to Remove Stack\n");
         //Child threads exist, reclaim 8 stack pages and go to sleep
         int stack_start = ProcessTable[P_ID].threads[ptr].firstStackPage;
-            printf("Going to Remove Stack\n");
+        if(stack_start == 0){
+            printf("Error: Trying to remove stack page 0\n");
+            return -1;
+        }
+        currentThread->space->removeStack(stack_start);
         ProcessTable[P_ID].threadCount--;
         ProcessTable[P_ID].threads[ptr].myThread = NULL;
-        currentThread->space->removeStack(stack_start);
+        ProcessTable[P_ID].threads[ptr].firstStackPage = 0;
         exitLock.Release();
         currentThread->Finish();
     }
@@ -530,6 +535,8 @@ int exit_syscall(unsigned int status){
         //Reclaim all memory
         currentThread->space->returnMemory();
         //Recliam all locks
+
+        ProcessTable[P_ID].as = NULL;
         ProcessTable[P_ID].threads[ptr].myThread = NULL;
         ProcessTable[P_ID].threadCount--;
         exitLock.Release();

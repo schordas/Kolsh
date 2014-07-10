@@ -167,6 +167,7 @@ void Initialize(int argc, char **argv) {
         ProcessTable[i].threadCount = 0;
         for(int j = 0; j < Ptable_MaxThread; j++){
             ProcessTable[i].threads[j].myThread = NULL;
+            ProcessTable[i].threads[j].firstStackPage = 0;
         }
     }
 #endif
