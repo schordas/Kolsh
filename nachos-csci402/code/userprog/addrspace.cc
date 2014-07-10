@@ -145,10 +145,10 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
                                                 // to leave room for the stack
     size = numPages * PageSize;
 
-    ASSERT(numPages <= NumPhysPages);       // check we're not trying
-                                            // to run anything too big --
-                                            // at least until we have
-                                            // virtual memory
+    // ASSERT(numPages <= NumPhysPages);       // check we're not trying
+                                             // to run anything too big --
+                                             // at least until we have
+                                             // virtual memory
 
     DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
                     numPages, size);
@@ -379,6 +379,6 @@ void AddrSpace::SaveState() {}
 //----------------------------------------------------------------------
 
 void AddrSpace::RestoreState() {
-    machine->pageTable = pageTable;
+    //machine->pageTable = pageTable;
     machine->pageTableSize = numPages;
 }

@@ -715,8 +715,11 @@ void ExceptionHandler(ExceptionType which) {
         machine->WriteRegister(NextPCReg,machine->ReadRegister(PCReg)+4);
         return;
     }else if(which == PageFaultException) {
+        //When TLB missed
         printf("UserMode Exception: [PageFaultException]\n");
         interrupt->Halt();
+
+        
     }else if(which == ReadOnlyException) {
         printf("UserMode Exception: [ReadOnlyException]\n");
         interrupt->Halt();
