@@ -23,34 +23,38 @@
 #define MaxOpenFiles 256
 #define MaxChildSpaces 256
 
+#define MAX_PROCESS_THREADS 100
+
 class Lock;
 
 class AddrSpace {
   public:
-    AddrSpace(OpenFile *executable);    // Create an address space,
-                                        // initializing it with the program
-                                        // stored in the file "executable"
+    AddrSpace(OpenFile *executable);        // Create an address space,
+                                            // initializing it with the program
+                                            // stored in the file "executable"
     
-    ~AddrSpace();                       // De-allocate an address space
+    ~AddrSpace();                           // De-allocate an address space
 
-    void InitRegisters();               // Initialize user-level CPU registers,
-                                        // before jumping to user code
+    void InitRegisters();                   // Initialize user-level CPU registers,
+                                            // before jumping to user code
 
-    void SaveState();                   // Save/restore address space-specific
-    void RestoreState();                // info on a context switch
-    Table fileTable;                    // Table of openfiles
+    void SaveState();                       // Save/restore address space-specific
+    void RestoreState();                    // info on a context switch
+    Table fileTable;                        // Table of openfiles
 
-    unsigned int address_space_size;    // returns numPages * PageSize
-    unsigned int numPages;              // Number of pages in the virtual 
-                                        // address space
+    unsigned int address_space_size;        // returns numPages * PageSize
+    unsigned int numPages;                  // Number of pages in the virtual 
+                                            // address space
     
-    int allocate_new_thread_stack();    // allocate a new thread stack
-                                        // returns the start address of the stack
+    int allocate_new_thread_stack();        // allocate a new thread stack
+                                            // returns the start address of the stack
+    void decrement_running_thread_count();  // thread safe decrement of number_of_running_threads
 
  private:
     TranslationEntry *pageTable;        // Assume linear page table translation
                                         // for now!
     Lock *address_space_mutex;          // mutex for address space operations
+    int number_of_running_threads;
     
 };
 

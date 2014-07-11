@@ -137,11 +137,7 @@ Thread::CheckOverflow()
 //  NOTE: we disable interrupts, so that we don't get a time slice 
 //  between setting threadToBeDestroyed, and going to sleep.
 //----------------------------------------------------------------------
-
-//
-void
-Thread::Finish ()
-{
+void Thread::Finish () {
     (void) interrupt->SetLevel(IntOff);     
     ASSERT(this == currentThread);
     

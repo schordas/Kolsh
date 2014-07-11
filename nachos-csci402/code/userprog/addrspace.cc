@@ -117,6 +117,11 @@ SwapHeader (NoffHeader *noffH)
 //      constructed set to false.
 //----------------------------------------------------------------------
 AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
+    
+    // initialize class private data
+    address_space_mutex = new Lock("address_space_mutex");
+    number_of_running_threads = 1;      // we start with the main thread running.
+
     NoffHeader noffH;
 
     // Don't allocate the input or output to disk files
@@ -176,21 +181,26 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
         executable->ReadAt(&(machine -> mainMemory[pageTable[i].physicalPage * PageSize]),
         PageSize, noffH.code.inFileAddr + i * PageSize);
     }
-
-    address_space_mutex = new Lock("address_space_mutex");
 }
 
 /**
- * allocate another stack for a new thread
+ * Allocate another thread stack.
  */
 int AddrSpace::allocate_new_thread_stack() {
+    address_space_mutex->Acquire();
+
+    if(number_of_running_threads == MAX_PROCESS_THREADS) {
+        // the process has reached its thread limit. Reject
+        // the fork request.
+        printf("OVER MAX PROCESS THREADS. FAILING REQUEST");
+        return -1;
+    }
+
     // TODO ensure we have the pages available for a new thread stack
     TranslationEntry *new_page_table = new TranslationEntry[numPages + 8];
-    
-    address_space_mutex->Acquire();
     // copy old page table to new page table
     memcpy(new_page_table, pageTable, numPages * sizeof(TranslationEntry));
-    
+
     //Initializing the new 8 pages for the process's thread
     memory_map_mutex->Acquire();
     for(unsigned int x = numPages; x < numPages + 8; x++) {           
@@ -218,12 +228,22 @@ int AddrSpace::allocate_new_thread_stack() {
 
     numPages += 8;
     pageTable = new_page_table;
+    number_of_running_threads++;
     address_space_size = numPages * PageSize;
     machine->pageTable=pageTable;
     
     address_space_mutex->Release();
 
     return address_space_size - 16;
+}
+
+/**
+ *
+ */
+void AddrSpace::decrement_running_thread_count() {
+    address_space_mutex->Acquire();
+    number_of_running_threads--;
+    address_space_mutex->Release();
 }
 
 //----------------------------------------------------------------------

@@ -254,6 +254,10 @@ void kernel_thread_function(unsigned int vaddr) {
     forkInitializationLock->Acquire();
     
     int stack_start = currentThread->space->allocate_new_thread_stack();
+    if(stack_start == -1) {
+      // process has reached its thread limit.
+      // the fork request cannot be completed
+    }
     
     machine->WriteRegister(PCReg, vaddr);
     machine->WriteRegister(NextPCReg, vaddr+4);
@@ -284,7 +288,7 @@ void sc_print_f(const unsigned int vaddr, const unsigned int buff_length) {
 }
 
 void sc_exit(const int exit_status) {
-    printf("thread: [%s] finishing\n", currentThread->getName());
+    //printf("thread: [%s] finishing\n", currentThread->getName());
     currentThread->Finish();
 };
 
