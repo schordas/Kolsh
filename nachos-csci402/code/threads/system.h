@@ -33,9 +33,9 @@ extern Timer *timer;                        // the hardware alarm clock
 #ifdef USER_PROGRAM
 #include "machine.h"
 extern Machine* machine;                    // user program memory and registers
-extern BitMap *pageBitMap;                  // memory map
+extern BitMap *memory_map;                  // memory map
 extern Lock *forkInitializationLock;
-extern Lock *page_table_lock;
+extern Lock *memory_map_mutex;
 extern Lock *memLock;
 #endif
 

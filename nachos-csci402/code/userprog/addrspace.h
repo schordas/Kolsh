@@ -16,11 +16,14 @@
 #include "copyright.h"
 #include "filesys.h"
 #include "table.h"
+#include "synch.h"
 
 #define UserStackSize       1024    // increase this as necessary!
 
 #define MaxOpenFiles 256
 #define MaxChildSpaces 256
+
+class Lock;
 
 class AddrSpace {
   public:
@@ -37,16 +40,17 @@ class AddrSpace {
     void RestoreState();                // info on a context switch
     Table fileTable;                    // Table of openfiles
 
-    unsigned int addressSpaceSize;      // returns numPages * PageSize
+    unsigned int address_space_size;    // returns numPages * PageSize
     unsigned int numPages;              // Number of pages in the virtual 
                                         // address space
     
-    void allocateStack();
-    void updatePageTable();
+    int allocate_new_thread_stack();    // allocate a new thread stack
+                                        // returns the start address of the stack
 
  private:
     TranslationEntry *pageTable;        // Assume linear page table translation
                                         // for now!
+    Lock *address_space_mutex;          // mutex for address space operations
     
 };
 

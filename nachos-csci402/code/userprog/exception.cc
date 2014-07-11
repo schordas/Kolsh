@@ -251,22 +251,19 @@ void Close_Syscall(int fd) {
 }
 
 void kernel_thread_function(unsigned int vaddr) {
-    //printf("kernel_thread_function: [%d]\n", vaddr);
     forkInitializationLock->Acquire();
     
-    currentThread->space->updatePageTable();
+    int stack_start = currentThread->space->allocate_new_thread_stack();
     
     machine->WriteRegister(PCReg, vaddr);
     machine->WriteRegister(NextPCReg, vaddr+4);
 
     currentThread->space->RestoreState();
 
-    machine->WriteRegister(StackReg, PageSize * (currentThread->space->numPages) - 16);
+    machine->WriteRegister(StackReg, stack_start);
 
     forkInitializationLock->Release();
 
-    //printf("kernel_thread_function going to call machine->Run()\n");
-    //printf("[%s]\n", currentThread->getName());
     machine->Run();
 }
 

@@ -118,180 +118,112 @@ SwapHeader (NoffHeader *noffH)
 //----------------------------------------------------------------------
 AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     NoffHeader noffH;
-    unsigned int i, size;
 
     // Don't allocate the input or output to disk files
     fileTable.Put(0);
     fileTable.Put(0);
 
     executable->ReadAt((char *)&noffH, sizeof(noffH), 0);
-    if ((noffH.noffMagic != NOFFMAGIC) && 
-        (WordToHost(noffH.noffMagic) == NOFFMAGIC))
+    if((noffH.noffMagic != NOFFMAGIC) && (WordToHost(noffH.noffMagic) == NOFFMAGIC)) {
         SwapHeader(&noffH);
+    }
     ASSERT(noffH.noffMagic == NOFFMAGIC);
 
-    size = noffH.code.size + noffH.initData.size + noffH.uninitData.size ;
+    int executable_size = noffH.code.size + noffH.initData.size + noffH.uninitData.size ;
    
+    // Total No. of physical pages required by the process to accomodate
+    // Code, Initialized Data and Unitialized Data. Left The Stack Alone
+    numPages=divRoundUp(executable_size, PageSize) + 8;
 
+    address_space_size = numPages * PageSize;
+
+    ASSERT(numPages <= NumPhysPages);   // check we're not trying
+                                        // to run anything too big --
+                                        // at least until we have
+                                        // virtual memory
+
+    DEBUG('a', "Initializing address space, num pages %d, size %d\n", numPages, address_space_size);
+        
+    pageTable = new TranslationEntry[numPages + 8]; // Size is pages for Code, initData, uninitData
+                                                    // and 8 for the first thread in the process
+    memory_map_mutex -> Acquire();
+    for (unsigned int i = 0; i < numPages; i++) {
+        int physical_page_number = memory_map->Find();   // Find an available physical memory page
+        if(physical_page_number == -1) {
+            // Error, all memory occupied
+            // TODO: release all requested memory back to the OS
+            printf("FATAL ERROR:\n");
+            printf("AddrSpace::AddrSpace out of system memory.\n");
+            assert(FALSE);
+        }
+
+        pageTable[i].physicalPage = physical_page_number;
+        pageTable[i].virtualPage = i;
+        pageTable[i].valid = TRUE;
+        pageTable[i].use = FALSE;
+        pageTable[i].dirty = FALSE;
+        pageTable[i].readOnly = FALSE;  // if the code segment was entirely on 
+                                        // a separate page, we could set its 
+                                        // pages to be read-only
+
+        bzero(&machine -> mainMemory[PageSize * pageTable[i].physicalPage], PageSize);
+    }
+    memory_map_mutex -> Release();
     
-
-    numPages=divRoundUp(size, PageSize);        //Total No. of physical pages required by the process to accomodate
-                            //Code, Initialized Data and Unitialized Data. Left The Stack Alone
-
-//  numPages = divRoundUp(size, PageSize) + divRoundUp(UserStackSize,PageSize);
-                                                // we need to increase the size
-                        // to leave room for the stack
-    size = numPages * PageSize;
-
-
-    addressSpaceSize=numPages * PageSize;
-
-
-
-    //CHECK WHETHER TO KEEP THIS *************************
-   ASSERT(numPages <= NumPhysPages);        // check we're not trying
-                        // to run anything too big --
-                        // at least until we have
-                        // virtual memory
-
-    DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
-                    numPages, size);
-// first, set up the translation 
-
-
-    page_table_lock -> Acquire();
-    
-    
-    pageTable = new TranslationEntry[numPages + 8]; //Size is pages for Code, initData, uninitData
-                            //and 8 for the first thread in the process                         
-    for (i = 0; i < numPages; i++) {            
-    pageTable[i].virtualPage = i;   // for now, virtual page # = phys page #
-    
-    pageTable[i].physicalPage = pageBitMap -> Find();   //Returns a Free Page
-    ASSERT(pageTable[i].physicalPage != -1)         //Returns -1, if no free page available
-
-    pageTable[i].valid = TRUE;
-    pageTable[i].use = FALSE;
-    pageTable[i].dirty = FALSE;
-    pageTable[i].readOnly = FALSE;  // if the code segment was entirely on 
-                    // a separate page, we could set its 
-                    // pages to be read-only
+    // read the executable to main memory
+    unsigned int executable_pages = divRoundUp(executable_size, PageSize);
+    for (unsigned int i=0; i < executable_pages; i++) {
+        executable->ReadAt(&(machine -> mainMemory[pageTable[i].physicalPage * PageSize]),
+        PageSize, noffH.code.inFileAddr + i * PageSize);
     }
 
-    page_table_lock -> Release();
-
-
-    memLock -> Acquire();
-    
-// zero out the entire address space, to zero the unitialized data segment 
-// and the stack segment
-//    bzero(machine->mainMemory, size);
-
-    for(unsigned int x=0; x < numPages; x++)
-        bzero(&machine -> mainMemory[PageSize * pageTable[x].physicalPage], PageSize);
-        //Zeroes out the address space consisting of Code, Initialized Data and Uninitialized data
-
-
-// then, copy in the code and data segments into memory
-
-    //Copying 'Code' right now
-
-    unsigned int pagesReqd=divRoundUp(noffH.code.size + noffH.initData.size, PageSize); //No. of pages to copy code section                                                     //& init data section into
-    
-    if (noffH.code.size > 0 || noffH.initData.size > 0)
-        for (unsigned int x=0; x < pagesReqd; x++)
-            executable -> ReadAt(&(machine -> mainMemory[pageTable[x].physicalPage * PageSize]),
-            PageSize, noffH.code.inFileAddr + x * PageSize);
-
-    memLock -> Release();
-    
+    address_space_mutex = new Lock("address_space_mutex");
 }
-
-
-void AddrSpace :: allocateStack() {
-    printf("allocate stack\n");
-    page_table_lock -> Acquire();
-
-    ASSERT(numPages <= NumPhysPages);
-
-    for (unsigned int x=numPages; x < numPages + 8; x++)
-    {
-        pageTable[x].virtualPage = x;
-        pageTable[x].physicalPage = pageBitMap -> Find();   //Returns a Free Page
-        ASSERT(pageTable[x].physicalPage != -1)         //Returns -1, if no free page available
-        pageTable[x].valid = TRUE;
-        pageTable[x].use = FALSE;
-        pageTable[x].dirty = FALSE;
-        pageTable[x].readOnly = FALSE;  // if the code segment was entirely on 
-                        // a separate page, we could set its 
-                        // pages to be read-only
-    }       
-
-    //update numPages to now include 8 pages for the allocated stack;
-
-    numPages+=8;
-
-    addressSpaceSize+=8 * PageSize;
-
-//  machine -> pageTableSize = numPages;
-
-    
-    page_table_lock -> Release();
-
-}
-
 
 /**
  * allocate another stack for a new thread
  */
-void AddrSpace :: updatePageTable() {
-    page_table_lock -> Acquire();
-
-
-        TranslationEntry *newPageTable=new TranslationEntry[numPages + 8];
-      
-    for(unsigned int x=0; x < numPages; x++)
-        {
-            newPageTable[x].virtualPage = pageTable[x].virtualPage;
-            newPageTable[x].physicalPage = pageTable[x].physicalPage;
-            newPageTable[x].valid = pageTable[x].valid;
-            newPageTable[x].use = pageTable[x].use;
-            newPageTable[x].dirty = pageTable[x].dirty;
-            newPageTable[x].readOnly = pageTable[x].readOnly;
-    }
-
-
-    ASSERT(numPages <= NumPhysPages);
+int AddrSpace::allocate_new_thread_stack() {
+    // TODO ensure we have the pages available for a new thread stack
+    TranslationEntry *new_page_table = new TranslationEntry[numPages + 8];
+    
+    address_space_mutex->Acquire();
+    // copy old page table to new page table
+    memcpy(new_page_table, pageTable, numPages * sizeof(TranslationEntry));
     
     //Initializing the new 8 pages for the process's thread
-
-    for (unsigned int x = numPages; x < numPages + 8; x++) 
-    {           
-        newPageTable[x].virtualPage = x;    
-        newPageTable[x].physicalPage = pageBitMap -> Find();    //Returns a Free Page
-        ASSERT(newPageTable[x].physicalPage != -1)          //Returns -1, if no free page available
-
-        newPageTable[x].valid = TRUE;
-        newPageTable[x].use = FALSE;
-        newPageTable[x].dirty = FALSE;
-        newPageTable[x].readOnly = FALSE;   // if the code segment was entirely on 
-                            // a separate page, we could set its 
-                            // pages to be read-only
+    memory_map_mutex->Acquire();
+    for(unsigned int x = numPages; x < numPages + 8; x++) {           
+        int physical_page_number = memory_map->Find();   // Find an available physical memory page
+        if(physical_page_number == -1) {
+            // Error, all memory occupied
+            // TODO: release all requested memory back to the OS
+            printf("FATAL ERROR:\n");
+            printf("AddrSpace::AddrSpace out of system memory.\n");
+            assert(FALSE);
         }
 
-
-    numPages+=8;                    //Now the 8 pages for stack are also included
+        new_page_table[x].physicalPage = physical_page_number;
+        new_page_table[x].virtualPage = x;
+        new_page_table[x].valid = TRUE;
+        new_page_table[x].use = FALSE;
+        new_page_table[x].dirty = FALSE;
+        new_page_table[x].readOnly = FALSE;     // if the code segment was entirely on 
+                                                // a separate page, we could set its 
+                                                // pages to be read-only
+    }
+    memory_map_mutex->Release();
 
     delete[] pageTable;
-    pageTable=newPageTable;
 
-    machine -> pageTable=pageTable;
-//  machine -> pageTableSize = numPages;
-
+    numPages += 8;
+    pageTable = new_page_table;
+    address_space_size = numPages * PageSize;
+    machine->pageTable=pageTable;
     
+    address_space_mutex->Release();
 
-    page_table_lock -> Release();
-
+    return address_space_size - 16;
 }
 
 //----------------------------------------------------------------------
