@@ -38,6 +38,12 @@ BitMap *memory_map;
 SynchronizationLut *synchronization_lut;    // user program synchronization lock lookup table
 ProcessEntry *ProcessTable;
 int Process_counter;
+//--------------------------
+// Virtual memory management
+//--------------------------
+InvertedPageTable *IPT;         // Inverted Page Table, Physical address to virtual address
+bool isFIFO;
+ExtendedTranslationEntry *ExPT; //ExtendPageTable, 1 for each process
 #endif
 
 
@@ -170,6 +176,11 @@ void Initialize(int argc, char **argv) {
             ProcessTable[i].threads[j].firstStackPage = 0;
         }
     }
+    //--------------------------
+    // Virtual memory management
+    //--------------------------
+    IPT = new InvertedPageTable[NumPhysPages];
+    ExPT = new ExtendedTranslationEntry[Ptable_MaxProcess];
 #endif
 
 #ifdef FILESYS

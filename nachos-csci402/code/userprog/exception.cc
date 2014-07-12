@@ -311,10 +311,11 @@ int condition_delete_syscall(int condition_index) {
     return synchronization_lut->condition_delete(condition_index);
 }
 
-void print_f_syscall(unsigned int vaddr, int length) {
+int print_f_syscall(unsigned int vaddr, int length) {
     char* output_buffer = read_into_new_buffer(vaddr, length);
     printf("%s", output_buffer);
     delete output_buffer;
+    return 0;
 }
 
 class func_info_class {
@@ -512,7 +513,7 @@ int exit_syscall(unsigned int status){
     int ptr = currentThread->thread_ID;
     //Print out the debugging message
         printf("\tProcess Count: %d, Thread Count: %d\n", Process_counter, ProcessTable[P_ID].threadCount);
-        printf("\tProcessTable[%d]\t Thread_ID: %d, ThreadCount: %d\n", P_ID, ptr);
+        printf("\tProcessTable[%d]\t Thread_ID: %d\n", P_ID, ptr);
         printf("CurrentThread: %s, ProcessTable[%d]\n", currentThread->getName(), P_ID);
     if(ProcessTable[P_ID].threadCount > 1){
             printf("Going to Remove Stack\n");
@@ -595,6 +596,42 @@ int sprintf_syscall(unsigned int mychar, unsigned int text, int i){
         copyout(mychar++, 1, &nextchar);
     }
     return 0;
+}
+
+//-----------------------------------------------
+//             Handle IPT Misses
+//
+// If IPT missed during the PageFault Exception
+// Perfrom this function and it will return the proper
+// Physical Page number
+//-----------------------------------------------
+
+int handleIPTMiss(int vpn){
+    //define the range of vpn that is within the executable
+    int vpn_range = divRoundUp(currentThread->space->file_size, PageSize);
+    int ppn, P_ID;
+    P_ID = currentThread->space->ProcessID;
+    if(vpn > vpn_range){
+        //The virtual Page is NOT in executable
+        //Error
+    }
+    else{
+        //Virtual Page is in the executable
+        ppn = memory_map->find();
+        if(ppn == -1){
+            //All memory occupied,  evict a page
+
+        }
+        //Clear the space one page at a time
+        bzero(&machine->mainMemory[ppn*PageSize], PageSize);
+        ExPT[i].virtualPage = i;
+        ExPT[i].physicalPage = ppn;
+        ExPT[i].valid = TRUE;
+        ExPT[i].use = FALSE;
+        ExPT[i].dirty = FALSE;
+        ExPT[i].readOnly = FALSE
+        
+    }
 }
 
 
@@ -698,12 +735,12 @@ void ExceptionHandler(ExceptionType which) {
                 break;
             case SC_Print_F:
                 DEBUG('a', "Print F sys call.\n");
-                print_f_syscall(machine->ReadRegister(4),
+                rv = print_f_syscall(machine->ReadRegister(4),
                                     machine->ReadRegister(5));
                 break;
             case SC_Sprintf:
                 DEBUG('a', "Sprintf sys call.\n");
-                sprintf_syscall(machine->ReadRegister(4),
+                rv = sprintf_syscall(machine->ReadRegister(4),
                                     machine->ReadRegister(5),
                                         machine->ReadRegister(6));
                 break;
@@ -715,11 +752,41 @@ void ExceptionHandler(ExceptionType which) {
         machine->WriteRegister(NextPCReg,machine->ReadRegister(PCReg)+4);
         return;
     }else if(which == PageFaultException) {
-        //When TLB missed
         printf("UserMode Exception: [PageFaultException]\n");
-        interrupt->Halt();
+        //Set the interrupts off when Exception occurs
+        IntStatus oldLevel = interrupt->SetLevel(IntOff);
 
-        
+        int ppn = -1;
+        int P_ID = currentThread->space->ProcessID;
+        //Record the virtual address that throw this error in vpn
+        int vpn = (machine->ReadRegister(BadVAddrReg))/PageSize;
+
+        //Check all the pages stored in IPT for the 3 parameters
+        for (int i = 0; i < NumPhysPages; i++){
+            if(IPT[i].valid == TRUE && IPT[i].virtualPage == vpn && IPT[i].ProcessID == P_ID ){
+                ppn = i;
+                //Perform algorithms for choosing what TLB page to be replaced
+                machine->tlb[0].virtualPage = vpn;
+                machine->tlb[0].physicalPage = i;
+                machine->tlb[0].valid = TRUE;
+                machine->tlb[0].dirty = FALSE;
+                machine->tlb[0].use = FALSE;
+                machine->tlb[0].readOnly = TRUE;
+                break;
+            }
+        }
+        if(ppn == -1){
+            //IPT missed
+            ppn = handleIPTMiss(vpn);
+        }
+        // Put in the return value and increment the PC
+        machine->WriteRegister(2,rv);
+        machine->WriteRegister(PrevPCReg,machine->ReadRegister(PCReg));
+        machine->WriteRegister(PCReg,machine->ReadRegister(NextPCReg));
+        machine->WriteRegister(NextPCReg,machine->ReadRegister(PCReg)+4);
+        (void) interrupt->SetLevel(oldLevel);
+        return;
+
     }else if(which == ReadOnlyException) {
         printf("UserMode Exception: [ReadOnlyException]\n");
         interrupt->Halt();

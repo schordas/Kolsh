@@ -59,12 +59,50 @@ extern Timer *timer;                    // the hardware alarm clock
 #include "machine.h"
 #include "bitmap.h"
 #include "synchronization_lut.h"
+extern bool isFIFO;
 extern Machine* machine;            // user program memory and registers
 extern BitMap *memory_map;
 extern ProcessEntry *ProcessTable;
 extern SynchronizationLut *synchronization_lut; // user program synchronization lock lookup table
 extern int Process_counter;
+//--------------------------
+// Virtual Memory Management
+//--------------------------
+class InvertedPageTable {
+  public:
+    int virtualPage;        // The page number in virtual memory.
+    int physicalPage;       // The page number in real memory (relative to the
+                            //  start of "mainMemory"
+    bool valid;             // If this bit is set, the translation is ignored.
+                            // (In other words, the entry hasn't been initialized.)
+    int ProcessID;
+    
+    bool use;               // This bit is set by the hardware every time the
+                            // page is referenced or modified.
+    bool dirty;             // This bit is set by the hardware every time the
+                            // page is modified.
+};
+class ExtendedTranslationEntry {
+  public:
+    int virtualPage;        // The page number in virtual memory.
+    int physicalPage;       // The page number in real memory (relative to the
+                            //  start of "mainMemory"
+    bool valid;             // If this bit is set, the translation is ignored.
+                            // (In other words, the entry hasn't been initialized.)
+    bool readOnly;          // If this bit is set, the user program is not allowed
+                            // to modify the contents of the page.
+    bool use;               // This bit is set by the hardware every time the
+                            // page is referenced or modified.
+    bool dirty;             // This bit is set by the hardware every time the
+                            // page is modified.
+    int diskLocation;       // The location for the current page
+                            // 0 = execuatable, 1 = swap file, 2 = neither
+    int byteoffset;
+};
+
+extern InvertedPageTable *IPT;
 #endif
+
 
 #ifdef FILESYS_NEEDED                   // FILESYS or FILESYS_STUB 
 #include "filesys.h"

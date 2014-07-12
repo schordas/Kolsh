@@ -119,7 +119,7 @@ static void SwapHeader(NoffHeader *noffH) {
 AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     Lock bitmap_lock("bitmap_lock");
     NoffHeader noffH;
-    unsigned int i, size;
+    unsigned int i;
     //### Declare virtual, physical page number to read file
     int vpn, ppn;
     unsigned int NotStackPages;
@@ -129,7 +129,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     fileTable.Put(0);
     fileTable.Put(0);
 
-    
+    file_ptr = executable; //Store the executable pointer
     executable->ReadAt((char *)&noffH, sizeof(noffH), 0);
     if((noffH.noffMagic != NOFFMAGIC) && (WordToHost(noffH.noffMagic) == NOFFMAGIC)) {
         SwapHeader(&noffH);
@@ -137,9 +137,10 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     ASSERT(noffH.noffMagic == NOFFMAGIC);
     printf("Code: %d bytes, initData: %d bytes, uninitData: %d bytes.\n", 
     noffH.code.size, noffH.initData.size, noffH.uninitData.size) ;
-    size = noffH.code.size + noffH.initData.size + noffH.uninitData.size ;
+    file_size = noffH.code.size + noffH.initData.size + noffH.uninitData.size ;
 
-    numPages = divRoundUp(size, PageSize) + divRoundUp(UserStackSize,PageSize);
+    numPages = divRoundUp(file_size, PageSize) + divRoundUp(UserStackSize,PageSize);
+    /*
     NotStackPages = divRoundUp(size, PageSize);
                                                 // we need to increase the size
                                                 // to leave room for the stack
@@ -187,6 +188,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
         }
     }
     bitmap_lock.Release();
+    */
 }
 
 //------------------------
