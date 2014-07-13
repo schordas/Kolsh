@@ -121,7 +121,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     NoffHeader noffH;
     unsigned int i;
     //### Declare virtual, physical page number to read file
-    int vpn, ppn;
+    int vpn, ppn, size;
     unsigned int NotStackPages;
     //###Lock for bit map
 
@@ -137,9 +137,11 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     ASSERT(noffH.noffMagic == NOFFMAGIC);
     printf("Code: %d bytes, initData: %d bytes, uninitData: %d bytes.\n", 
     noffH.code.size, noffH.initData.size, noffH.uninitData.size) ;
-    file_size = noffH.code.size + noffH.initData.size + noffH.uninitData.size ;
+    size = noffH.code.size + noffH.initData.size + noffH.uninitData.size ;
 
-    numPages = divRoundUp(file_size, PageSize) + divRoundUp(UserStackSize,PageSize);
+    numPages = divRoundUp(size, PageSize) + divRoundUp(UserStackSize,PageSize);
+    file_size = numPages;
+    pageTable = new ExtendedTranslationEntry[numPages];
     /*
     NotStackPages = divRoundUp(size, PageSize);
                                                 // we need to increase the size

@@ -46,11 +46,11 @@ class AddrSpace {
     int ProcessID;
     int file_size;                  // The size of the file opened
     OpenFile * file_ptr;            // The executable, or the file opened
+    ExtendedTranslationEntry *pageTable;    // Assume linear page table translation
+                                    // for now!
 
 
  private:
-    TranslationEntry *pageTable;    // Assume linear page table translation
-                                    // for now!
     unsigned int numPages;          // Number of pages in the virtual 
                                     // address space
 };

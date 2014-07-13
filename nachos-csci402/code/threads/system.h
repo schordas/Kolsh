@@ -102,7 +102,7 @@ class ExtendedTranslationEntry {
 
 extern InvertedPageTable *IPT;
 extern int currentTLB;
-extern ExtendedTranslationEntry *ExPT
+extern ExtendedTranslationEntry *ExPT;
 #endif
 
 
