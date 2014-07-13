@@ -27,6 +27,8 @@
 #include <iostream>
 
 using namespace std;
+extern "C" { int bzero(char *, int); };
+
 
 int copyin(unsigned int vaddr, int len, char *buf) {
     // Copy len bytes from the current thread's virtual address vaddr.
@@ -616,8 +618,11 @@ int handleIPTMiss(int vpn){
         //Error
     }
     else{
+        //The data is not in IPT, so we are loading the data into memory
+        IntStatus oldLevel = interrupt->SetLevel(IntOff);
+
         //Virtual Page is in the executable
-        ppn = memory_map->find();
+        ppn = memory_map->Find();
         if(ppn == -1){
             //All memory occupied,  evict a page
 
@@ -639,10 +644,22 @@ int handleIPTMiss(int vpn){
         IPT[ppn].valid = TRUE;
         IPT[ppn].use = FALSE;
         IPT[ppn].dirty = FALSE;
-        IPT[ppn].readOnly = FALSE
 
-        executable->ReadAt(&(machine->mainMemory[ppn*PageSize]),
-                PageSize, noffH.code.inFileAddr + vpn*PageSize);
+        machine->tlb[currentTLB].virtualPage = vpn;
+        machine->tlb[currentTLB].physicalPage = ppn;
+        machine->tlb[currentTLB].valid = TRUE;
+        machine->tlb[currentTLB].dirty = FALSE;
+        machine->tlb[currentTLB].use = FALSE;
+        machine->tlb[currentTLB].readOnly = TRUE;
+
+        //Update the TLB index
+        currentTLB = (currentTLB + 1) % TLBSize;
+
+        currentThread->space->file_ptr->ReadAt(&(machine->mainMemory[ppn*PageSize]),
+                PageSize, ExPT[vpn].byteoffset);
+
+        (void) interrupt->SetLevel(oldLevel);
+
     }
 }
 
@@ -771,19 +788,30 @@ void ExceptionHandler(ExceptionType which) {
         int ppn = -1;
         int P_ID = currentThread->space->ProcessID;
         //Record the virtual address that throw this error in vpn
-        int vpn = (machine->ReadRegister(BadVAddrReg))/PageSize;
+        int vpn = (machine->ReadRegister(BadVAddrReg)) / PageSize;
+
+        //Validate the vpn
+        int vpn_range = divRoundUp(currentThread->space->file_size, PageSize);
+        if(vpn > vpn_range){
+            //Invalid vpn
+            printf("Invalid vpn address\n");
+            interrupt->Halt();
+        }
 
         //Check all the pages stored in IPT for the 3 parameters
         for (int i = 0; i < NumPhysPages; i++){
             if(IPT[i].valid == TRUE && IPT[i].virtualPage == vpn && IPT[i].ProcessID == P_ID ){
                 ppn = i;
                 //Perform algorithms for choosing what TLB page to be replaced
-                machine->tlb[0].virtualPage = vpn;
-                machine->tlb[0].physicalPage = i;
-                machine->tlb[0].valid = TRUE;
-                machine->tlb[0].dirty = FALSE;
-                machine->tlb[0].use = FALSE;
-                machine->tlb[0].readOnly = TRUE;
+                machine->tlb[currentTLB].virtualPage = vpn;
+                machine->tlb[currentTLB].physicalPage = i;
+                machine->tlb[currentTLB].valid = TRUE;
+                machine->tlb[currentTLB].dirty = FALSE;
+                machine->tlb[currentTLB].use = FALSE;
+                machine->tlb[currentTLB].readOnly = TRUE;
+
+                //Update the TLB index
+                currentTLB = (currentTLB + 1) % TLBSize;
                 break;
             }
         }

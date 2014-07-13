@@ -44,6 +44,7 @@ int Process_counter;
 InvertedPageTable *IPT;         // Inverted Page Table, Physical address to virtual address
 bool isFIFO;
 ExtendedTranslationEntry *ExPT; //ExtendPageTable, 1 for each process
+int currentTLB;                 //Will be the index for the TLB, FIFO
 #endif
 
 
@@ -181,6 +182,7 @@ void Initialize(int argc, char **argv) {
     //--------------------------
     IPT = new InvertedPageTable[NumPhysPages];
     ExPT = new ExtendedTranslationEntry[Ptable_MaxProcess];
+    currentTLB = 0;
 #endif
 
 #ifdef FILESYS

@@ -41,11 +41,11 @@ void StartProcess(char *filename) {
     space->RestoreState();      // load page table register
 
     //Set ProcessTable
-    ProcessTable[Process_counter].as = space;
-    currentThread->space->ProcessID = Process_counter;
 
     int ptr = ProcessTable[Process_counter].threadCount;
+    currentThread->space->ProcessID = Process_counter;
     currentThread->thread_ID = ptr;
+    ProcessTable[Process_counter].as = space;
     ProcessTable[Process_counter].threads[ptr].myThread = currentThread;
     ProcessTable[Process_counter].threads[ptr].firstStackPage = machine->pageTableSize * PageSize;
     ProcessTable[Process_counter].threadCount++;
