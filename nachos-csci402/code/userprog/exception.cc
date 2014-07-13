@@ -624,13 +624,25 @@ int handleIPTMiss(int vpn){
         }
         //Clear the space one page at a time
         bzero(&machine->mainMemory[ppn*PageSize], PageSize);
-        ExPT[i].virtualPage = i;
-        ExPT[i].physicalPage = ppn;
-        ExPT[i].valid = TRUE;
-        ExPT[i].use = FALSE;
-        ExPT[i].dirty = FALSE;
-        ExPT[i].readOnly = FALSE
-        
+        //Update Translation Tables
+        ExPT[vpn].virtualPage = vpn;
+        ExPT[vpn].physicalPage = ppn;
+        ExPT[vpn].valid = TRUE;
+        ExPT[vpn].use = FALSE;
+        ExPT[vpn].dirty = FALSE;
+        ExPT[vpn].readOnly = FALSE
+        ExPT[vpn].byteoffset = 40 + vpn*PageSize;
+        ExPT[vpn].diskLocation = 0;
+
+        IPT[ppn].virtualPage = vpn;
+        IPT[ppn].physicalPage = ppn;
+        IPT[ppn].valid = TRUE;
+        IPT[ppn].use = FALSE;
+        IPT[ppn].dirty = FALSE;
+        IPT[ppn].readOnly = FALSE
+
+        executable->ReadAt(&(machine->mainMemory[ppn*PageSize]),
+                PageSize, noffH.code.inFileAddr + vpn*PageSize);
     }
 }
 
