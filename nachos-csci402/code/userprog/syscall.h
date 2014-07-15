@@ -30,7 +30,7 @@
 #define SC_Fork     9
 #define SC_Yield    10
 
-#define SC_Print_F  20
+#define SC_PrintF   20
 
 #define MAXFILENAME 256
 
@@ -118,10 +118,18 @@ void Close(OpenFileId id);
  * threads to run within a user program. 
  */
 
-/* Fork a thread to run a procedure ("func") in the *same* address space 
+/** 
+ * Fork a thread to run a procedure ("func") in the *same* address space 
  * as the current thread.
+ *
+ * @param void* func                    pointer to the function to fork
+ * @param const char* thread_name       pointer to thread name buffer. Can be NULL and a default
+ *                                      thread name will be provided.
+ * @param const int thread_name_length  length of thread_name buffer.
+ *
+ * @return int - 0 on success, -1 if the process cannot allocate anymore user threads, -2 otherwise.
  */
-void Fork(void (*func)());
+int Fork(void (*func)(), const char* thread_name, const int thread_name_length);
 
 /* Yield the CPU to another runnable thread, whether in this address space 
  * or not. 
@@ -131,7 +139,7 @@ void Yield();
 /**
  * Print a statement from a user-program
  */   
-void Print_F(char* buff, int buf_length);
+void PrintF(char* buff, int buf_length);
 
 #endif /* IN_ASM */
 

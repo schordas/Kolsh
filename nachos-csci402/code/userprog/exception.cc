@@ -256,9 +256,7 @@ void Close_Syscall(int fd) {
  * thread_data[0] = vaddr of fork function
  * thread_data[1] = stack start address of thread
  */
-void kernel_thread_function(unsigned int* thread_data) {
-    forkInitializationLock->Acquire();
-    
+void kernel_thread_function(const unsigned int* thread_data) {
     unsigned int vaddr = thread_data[0];
     unsigned int stack_start = thread_data[1];
     
@@ -269,24 +267,27 @@ void kernel_thread_function(unsigned int* thread_data) {
 
     machine->WriteRegister(StackReg, stack_start);
 
-    forkInitializationLock->Release();
-
     machine->Run();
 }
 
-unsigned int sc_fork(unsigned int vaddr) {
+int sc_fork(const unsigned int func_to_fork_vaddr,
+                const unsigned int char_buff,
+                const unsigned int buff_length) {
+
     int* thread_data = new int[2];
-    char buffer[50];
-    forkInitializationLock->Acquire();
-    sprintf(buffer, "Kernel Thread %d", thread_count);
-    thread_count++;
-    forkInitializationLock->Release();
-    Thread *kernel_thread = new Thread(buffer);
-    printf("forking - thread %s\n", kernel_thread->getName());
-    //printf("thread @location: [%d]\n", kernel_thread);
+    char *thread_name;
+
+    if(char_buff == NULL) {
+        thread_name = new char[sizeof("user thread")];
+        sprintf(thread_name, "user thread");
+    }else {
+        thread_name = read_into_new_buffer(char_buff, buff_length); // this is freed when delete 
+                                                                    // is called on the thread   
+    }
+
+    Thread *kernel_thread = new Thread(thread_name);
 
     kernel_thread->space = currentThread->space;
-    
     int stack_start = kernel_thread->space->allocate_new_thread_stack();
     if(stack_start == -1) {
         // process has reached its thread limit.
@@ -295,22 +296,24 @@ unsigned int sc_fork(unsigned int vaddr) {
         return 1;
     }
 
-    thread_data[0] = vaddr;
+    thread_data[0] = func_to_fork_vaddr;
     thread_data[1] = (unsigned int)stack_start;
 
+    DEBUG('t', "Preparing to fork thread [%s]\n", thread_name);
     kernel_thread->Fork((VoidFunctionPtr)kernel_thread_function, (int)thread_data);
 
     return 0;
 }
 
-void sc_print_f(const unsigned int vaddr, const unsigned int buff_length) {
+void sc_printf(const unsigned int vaddr,
+                const unsigned int buff_length) {
+
     char* output_buffer = read_into_new_buffer(vaddr, buff_length);
     printf("%s", output_buffer);
     delete output_buffer;
 }
 
 void sc_exit(const int exit_status) {
-    //printf("thread: [%s] finishing\n", currentThread->getName());
     currentThread->Finish();
 };
 
@@ -324,7 +327,9 @@ void ExceptionHandler(ExceptionType which) {
                 DEBUG('a', "Unknown syscall - shutting down.\n");
             case SC_Fork:
                 DEBUG('a', "Fork syscall.\n");
-                sc_fork(machine->ReadRegister(4));
+                rv = sc_fork(machine->ReadRegister(4),
+                                machine->ReadRegister(5),
+                                machine->ReadRegister(6));
                 break;
             case SC_Halt:
                 DEBUG('a', "Shutdown, initiated by user program.\n");
@@ -358,9 +363,9 @@ void ExceptionHandler(ExceptionType which) {
                 DEBUG('a', "Close syscall.\n");
                 Close_Syscall(machine->ReadRegister(4));
                 break;
-            case SC_Print_F:
+            case SC_PrintF:
                 DEBUG('a', "Print_F system call.\n");
-                sc_print_f(machine->ReadRegister(4),
+                sc_printf(machine->ReadRegister(4),
                             machine->ReadRegister(5));
                 break;
         }
