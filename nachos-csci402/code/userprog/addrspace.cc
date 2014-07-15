@@ -386,6 +386,9 @@ void AddrSpace::RestoreState() {
     //machine->pageTable = pageTable;
     //invalidate all the tlb entries on a context switch
     for (int i = 0; i < TLBSize; i++){
+        if(machine->tlb[i].valid == TRUE){
+            IPT[machine->tlb[i].physicalPage].dirty = TRUE;
+        }
         machine->tlb[i].valid = FALSE;
     }
     machine->pageTableSize = numPages;
