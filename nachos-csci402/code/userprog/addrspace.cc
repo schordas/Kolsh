@@ -140,7 +140,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     size = noffH.code.size + noffH.initData.size + noffH.uninitData.size ;
 
     numPages = divRoundUp(size, PageSize) + divRoundUp(UserStackSize,PageSize);
-    file_size = numPages;
+    file_size = divRoundUp(size, PageSize);
     ExPageTable = new ExtendedTranslationEntry[numPages];
     /*
     NotStackPages = divRoundUp(size, PageSize);
@@ -384,5 +384,9 @@ void AddrSpace::SaveState() {}
 
 void AddrSpace::RestoreState() {
     //machine->pageTable = pageTable;
+    //invalidate all the tlb entries on a context switch
+    for (int i = 0; i < TLBSize; i++){
+        machine->tlb[i].valid = FALSE;
+    }
     machine->pageTableSize = numPages;
 }

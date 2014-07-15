@@ -623,14 +623,21 @@ int handleMemoryFull(){
         //Use Random
         ppn = rand() % NumPhysPages;
     }
-    IPT[ppn].use = TRUE;
     vpn = IPT[ppn].virtualPage;
+    IPT[ppn].use = TRUE;
     currentThread->space->ExPageTable[vpn].use = TRUE;
     memFullLock->Release();
     if(IPT[ppn].dirty == TRUE){
         //Write to swap file
         int swapPage = swap_map->Find();
-        swap_file->WriteAt(&machine->mainMemory[ppn*PageSize],PageSize, swapPage*PageSize);
+        if(swapPage == -1){
+            printf("SwapFile full, Exiting program\n");
+            interrupt->Halt();
+        }
+        swap_file->WriteAt(&machine->mainMemory[ppn*PageSize],PageSize, 40 + swapPage*PageSize);
+        currentThread->space->ExPageTable[vpn].byteoffset = 40 + swapPage*PageSize;
+        currentThread->space->ExPageTable[vpn].diskLocation = 1;
+        currentThread->space->ExPageTable[vpn].valid = FALSE;
     }
 
     currentThread->space->ExPageTable[vpn].use = FALSE;
@@ -656,62 +663,71 @@ int handleIPTMiss(int vpn){
     P_ID = currentThread->space->ProcessID;
     if(vpn > vpn_range){
         printf("vpn not in the executable\n");
-        //The virtual Page is NOT in executable
-        //Error
+        currentThread->space->ExPageTable[vpn].diskLocation = 2;
+    }
+    //The data is not in IPT, so we are loading the data into memory
+    //Virtual Page is in the executable or swap file
+    ppn = memory_map->Find();
+    if(ppn == -1){
+        //All memory occupied,  evict a page
+        printf("Memory Full, evict a page\n");
+        ppn = handleMemoryFull();
     }
     else{
-        //The data is not in IPT, so we are loading the data into memory
-        //Virtual Page is in the executable
-        ppn = memory_map->Find();
         //Insert the page to the back of the FIFO list
         FIFO_list->Append((void*)ppn);
-
-        if(ppn == -1){
-            //All memory occupied,  evict a page
-            printf("Memory Full, evict a page\n");
-            ppn = handleMemoryFull();
-        }
-        printf("Found an available physical page: %d\n", ppn);
-        //Clear the space one page at a time
-        bzero(&(machine->mainMemory[ppn*PageSize]), PageSize);
-        // Update Translation Tables
-        // ExPageTable is the extended version of page table decalred in addrspace.h
-        currentThread->space->ExPageTable[vpn].virtualPage = vpn;
-        currentThread->space->ExPageTable[vpn].physicalPage = ppn;
-        currentThread->space->ExPageTable[vpn].valid = TRUE;
-        currentThread->space->ExPageTable[vpn].use = FALSE;
-        currentThread->space->ExPageTable[vpn].dirty = FALSE;
-        currentThread->space->ExPageTable[vpn].readOnly = FALSE;
-        currentThread->space->ExPageTable[vpn].byteoffset = 40 + vpn*PageSize;
-        currentThread->space->ExPageTable[vpn].diskLocation = 0;
-        //IPT is the inverted page table declared in system.h with size of MaxPhysPages
-        IPT[ppn].virtualPage = vpn;
-        IPT[ppn].physicalPage = ppn;
-        IPT[ppn].valid = TRUE;
-        IPT[ppn].ProcessID = currentThread->space->ProcessID;
-        IPT[ppn].use = FALSE;
-        IPT[ppn].dirty = FALSE;
-
-        machine->tlb[currentTLB].virtualPage = vpn;
-        machine->tlb[currentTLB].physicalPage = ppn;
-        machine->tlb[currentTLB].valid = TRUE;
-        machine->tlb[currentTLB].dirty = FALSE;
-        machine->tlb[currentTLB].use = FALSE;
-        machine->tlb[currentTLB].readOnly = FALSE;
-
-        //Update the TLB index
-        currentTLB = (currentTLB + 1) % TLBSize;
-
-        if(vpn < (vpn_range - divRoundUp(UserStackSize,PageSize))) {
-            printf("Writing into memory[%d]\n", ppn*PageSize);
-            currentThread->space->file_ptr->ReadAt(&(machine->mainMemory[ppn*PageSize]),
-                    PageSize, currentThread->space->ExPageTable[vpn].byteoffset);
-        }
-
     }
+    printf("Found an available physical page: %d\n", ppn);
+    //Clear the space one page at a time and write to memory
+    bzero(&(machine->mainMemory[ppn*PageSize]), PageSize);
+    if(currentThread->space->ExPageTable[vpn].diskLocation == 2){
+        //Do nothing
+    }
+    else if(currentThread->space->ExPageTable[vpn].diskLocation == 1){
+        //Read from the swap file
+        printf("Writing into mainMemoryPage#%d from swap file\n", ppn);
+        swap_file->ReadAt(&(machine->mainMemory[ppn*PageSize]),
+                PageSize, currentThread->space->ExPageTable[vpn].byteoffset);
+    }
+    else {
+        //Read from the executable
+        printf("Writing into physicalPage[%d]\n", ppn);
+        currentThread->space->file_ptr->ReadAt(&(machine->mainMemory[ppn*PageSize]),
+                PageSize, 40 + vpn*PageSize);
+    }
+    // Update Translation Tables
+    // ExPageTable is the extended version of page table decalred in addrspace.h
+    currentThread->space->ExPageTable[vpn].virtualPage = vpn;
+    currentThread->space->ExPageTable[vpn].physicalPage = ppn;
+    currentThread->space->ExPageTable[vpn].valid = TRUE;
+    currentThread->space->ExPageTable[vpn].use = FALSE;
+    currentThread->space->ExPageTable[vpn].readOnly = FALSE;
+    //currentThread->space->ExPageTable[vpn].dirty = FALSE;
+    //currentThread->space->ExPageTable[vpn].diskLocation = 0;
+
+    //IPT is the inverted page table declared in system.h with size of MaxPhysPages
+    IPT[ppn].virtualPage = vpn;
+    IPT[ppn].physicalPage = ppn;
+    IPT[ppn].valid = TRUE;
+    IPT[ppn].ProcessID = currentThread->space->ProcessID;
+    IPT[ppn].use = FALSE;
+    //IPT[ppn].dirty = FALSE;
+
+    machine->tlb[currentTLB].virtualPage = vpn;
+    machine->tlb[currentTLB].physicalPage = ppn;
+    machine->tlb[currentTLB].valid = TRUE;
+    //machine->tlb[currentTLB].dirty = FALSE;
+    machine->tlb[currentTLB].use = FALSE;
+    machine->tlb[currentTLB].readOnly = FALSE;
+
+    //Update the TLB index
+    currentTLB = (currentTLB + 1) % TLBSize;
+
+
+    
     (void) interrupt->SetLevel(oldLevel);
     return ppn;
-}
+}   
 
 
 void ExceptionHandler(ExceptionType which) {
@@ -835,14 +851,23 @@ void ExceptionHandler(ExceptionType which) {
         //Set the interrupts off when Exception occurs
         IntStatus oldLevel = interrupt->SetLevel(IntOff);
 
+        //Set the dirty bits
+        for (int i = 0; i < TLBSize; i++){
+            if(machine->tlb[i].dirty == TRUE){
+                //If the tlb is dirty, write to the corresponding IPT
+                IPT[machine->tlb[i].physicalPage].dirty = TRUE;
+            }
+        }
+
         int ppn = -1;
         int P_ID = currentThread->space->ProcessID;
         //Record the virtual address that throw this error in vpn
         int vpn = (machine->ReadRegister(BadVAddrReg)) / PageSize;
         //Validate the vpn
+        //currentThread->space->file_size returns file size in pages without stacks
         int vpn_range = currentThread->space->file_size;
             printf("BadVAddrReg: %d, P_ID: %d, vpn_range: %d\n", vpn, P_ID, vpn_range);
-        if(vpn > vpn_range){
+        if(vpn > (vpn_range + divRoundUp(UserStackSize,PageSize)) ){
             //Invalid vpn
             printf("Invalid vpn address\n");
             interrupt->Halt();
@@ -865,7 +890,7 @@ void ExceptionHandler(ExceptionType which) {
         machine->tlb[currentTLB].virtualPage = vpn;
         machine->tlb[currentTLB].physicalPage = ppn;
         machine->tlb[currentTLB].valid = TRUE;
-        machine->tlb[currentTLB].dirty = FALSE;
+        machine->tlb[currentTLB].dirty = IPT[ppn].dirty;
         machine->tlb[currentTLB].use = FALSE;
         machine->tlb[currentTLB].readOnly = FALSE;
         //Update the TLB index

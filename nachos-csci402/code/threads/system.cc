@@ -186,7 +186,7 @@ for(int i = 0; i < Ptable_MaxProcess; i++){
 IPT = new InvertedPageTable[NumPhysPages];
 currentTLB = 0;
 FIFO_list = new List;
-swap_map = new BitMap(1000);
+swap_map = new BitMap(4000);
 memFullLock = new Lock("memoryFullLock");
 
 #endif
@@ -203,7 +203,7 @@ memFullLock = new Lock("memoryFullLock");
     postOffice = new PostOffice(netname, rely, 10);
 #endif
     //Create a new swap file
-    if(!fileSystem->Create("swapfile", 3000)){
+    if(!fileSystem->Create("swapfile", 4000)){
         printf("Unable to create swap file\n");
         interrupt->Halt();
     }
