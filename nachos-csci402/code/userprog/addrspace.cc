@@ -187,17 +187,23 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
  * Allocate another thread stack.
  */
 int AddrSpace::allocate_new_thread_stack() {
-    address_space_mutex->Acquire();
+    // declare local variables
+    int return_value;
+    TranslationEntry *new_page_table;
 
-    if(number_of_running_threads == MAX_PROCESS_THREADS) {
-        // the process has reached its thread limit. Reject
-        // the fork request.
+    this->address_space_mutex->Acquire();
+
+    if(this->number_of_running_threads == MAX_PROCESS_THREADS) {
+        // the process has reached its thread limit. Reject the request
+        // TODO ensure we release any requested resources for this failed request
         printf("OVER MAX PROCESS THREADS. FAILING REQUEST");
+        this->address_space_mutex->Release();
         return -1;
     }
 
     // TODO ensure we have the pages available for a new thread stack
-    TranslationEntry *new_page_table = new TranslationEntry[numPages + 8];
+    new_page_table = new TranslationEntry[numPages + 8];
+    
     // copy old page table to new page table
     memcpy(new_page_table, pageTable, numPages * sizeof(TranslationEntry));
 
@@ -218,32 +224,30 @@ int AddrSpace::allocate_new_thread_stack() {
         new_page_table[x].valid = TRUE;
         new_page_table[x].use = FALSE;
         new_page_table[x].dirty = FALSE;
-        new_page_table[x].readOnly = FALSE;     // if the code segment was entirely on 
-                                                // a separate page, we could set its 
-                                                // pages to be read-only
+        new_page_table[x].readOnly = FALSE;
     }
     memory_map_mutex->Release();
 
     delete[] pageTable;
 
-    numPages += 8;
-    pageTable = new_page_table;
-    number_of_running_threads++;
-    address_space_size = numPages * PageSize;
+    this->numPages += 8;
+    this->pageTable = new_page_table;
+    this->number_of_running_threads++;
+    this->address_space_size = numPages * PageSize;
     machine->pageTable=pageTable;
-    
-    address_space_mutex->Release();
+    return_value = address_space_size - 16;
 
-    return address_space_size - 16;
+    this->address_space_mutex->Release();
+    return return_value;
 }
 
 /**
  *
  */
 void AddrSpace::decrement_running_thread_count() {
-    address_space_mutex->Acquire();
-    number_of_running_threads--;
-    address_space_mutex->Release();
+    this->address_space_mutex->Acquire();
+    this->number_of_running_threads--;
+    this->address_space_mutex->Release();
 }
 
 //----------------------------------------------------------------------
@@ -253,6 +257,8 @@ void AddrSpace::decrement_running_thread_count() {
 //  and file tables
 //----------------------------------------------------------------------
 AddrSpace::~AddrSpace() {
+    // TODO release allocated pages
+    delete address_space_mutex;
     delete pageTable;
 }
 

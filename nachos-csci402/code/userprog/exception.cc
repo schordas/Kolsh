@@ -29,6 +29,8 @@
 
 using namespace std;
 
+int thread_count = 0;
+
 int copyin(unsigned int vaddr, int len, char *buf) {
     // Copy len bytes from the current thread's virtual address vaddr.
     // Return the number of bytes so read, or -1 if an error occors.
@@ -250,14 +252,15 @@ void Close_Syscall(int fd) {
     }
 }
 
-void kernel_thread_function(unsigned int vaddr) {
+/**
+ * thread_data[0] = vaddr of fork function
+ * thread_data[1] = stack start address of thread
+ */
+void kernel_thread_function(unsigned int* thread_data) {
     forkInitializationLock->Acquire();
     
-    int stack_start = currentThread->space->allocate_new_thread_stack();
-    if(stack_start == -1) {
-      // process has reached its thread limit.
-      // the fork request cannot be completed
-    }
+    unsigned int vaddr = thread_data[0];
+    unsigned int stack_start = thread_data[1];
     
     machine->WriteRegister(PCReg, vaddr);
     machine->WriteRegister(NextPCReg, vaddr+4);
@@ -271,14 +274,33 @@ void kernel_thread_function(unsigned int vaddr) {
     machine->Run();
 }
 
-void sc_fork(unsigned int vaddr) {
-    //printf("fork syscall: [%d]\n", vaddr);
+unsigned int sc_fork(unsigned int vaddr) {
+    int* thread_data = new int[2];
+    char buffer[50];
+    forkInitializationLock->Acquire();
+    sprintf(buffer, "Kernel Thread %d", thread_count);
+    thread_count++;
+    forkInitializationLock->Release();
+    Thread *kernel_thread = new Thread(buffer);
+    printf("forking - thread %s\n", kernel_thread->getName());
+    //printf("thread @location: [%d]\n", kernel_thread);
 
-    Thread *kernel_thread = new Thread("Kernel Thread");
     kernel_thread->space = currentThread->space;
-    kernel_thread->Fork((VoidFunctionPtr)kernel_thread_function, vaddr);
+    
+    int stack_start = kernel_thread->space->allocate_new_thread_stack();
+    if(stack_start == -1) {
+        // process has reached its thread limit.
+        // the fork request cannot be completed
+        printf("OVER MAX PROCESS THREADS. FAILING REQUEST");
+        return 1;
+    }
 
-    currentThread->Yield();
+    thread_data[0] = vaddr;
+    thread_data[1] = (unsigned int)stack_start;
+
+    kernel_thread->Fork((VoidFunctionPtr)kernel_thread_function, (int)thread_data);
+
+    return 0;
 }
 
 void sc_print_f(const unsigned int vaddr, const unsigned int buff_length) {

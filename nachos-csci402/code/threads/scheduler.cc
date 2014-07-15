@@ -106,7 +106,7 @@ Scheduler::Run (Thread *nextThread)
     currentThread->setStatus(RUNNING);      // nextThread is now running
     
     DEBUG('t', "Switching from thread \"%s\" to thread \"%s\"\n",
-      oldThread->getName(), nextThread->getName());
+        oldThread->getName(), nextThread->getName());
     
     // This is a machine-dependent assembly language routine defined 
     // in switch.s.  You may have to think
@@ -122,10 +122,11 @@ Scheduler::Run (Thread *nextThread)
     // before now (for example, in Thread::Finish()), because up to this
     // point, we were still running on the old thread's stack!
     if(threadToBeDestroyed != NULL) {
+#ifdef USER_PROGRAM
         // we need to do some book-keeping in the address space
         // before we delete the thread
         threadToBeDestroyed->space->decrement_running_thread_count();
-
+#endif
         delete threadToBeDestroyed;
         threadToBeDestroyed = NULL;
     }

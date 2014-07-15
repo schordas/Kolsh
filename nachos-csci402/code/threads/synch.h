@@ -66,28 +66,33 @@ class Semaphore {
 //
 // In addition, by convention, only the thread that acquired the lock
 // may release it.  As with semaphores, you can't read the lock value
-// (because the value might change immediately after you read it).  
-
+// (because the value might change immediately after you read it).
+//
+// This implementation defines a Reentrant Lock. Simply that there is an
+// acquisition count associated with the lock, and if a thread that holds
+// the lock acquires it again, the acquisition count is incremented and the
+// lock then needs to be released twice to truly release the lock.
 class Lock {
-  public:
-    Lock(char* debugName);          // initialize lock to be FREE
-    ~Lock();                // deallocate lock
+public:
+    Lock(char* debugName);              // initialize lock to be FREE
+    ~Lock();                            // deallocate lock
     char* getName() { return name; }    // debugging assist
 
     void Acquire(); // these are the only operations on a lock
     void Release(); // they are both *atomic*
 
     bool isHeldByCurrentThread();   // true if the current thread
-                    // holds this lock.  Useful for
-                    // checking in Release, and in
-                    // Condition variable ops below.
+                                    // holds this lock.  Useful for
+                                    // checking in Release, and in
+                                    // Condition variable ops below.
 
-  private:
+private:
+    bool isBusy;            // to determine if the lock has been acquired (busy) or is released (free)
+    char* name;
+    int entrant_count;      // the number of times the lock has been acquired by the owning thread
+
     List *waitQueue;
-    char* name;             // for debugging
-    // plus some other stuff you'll need to define
-    bool isBusy; //to determine if the lock has been aquired (busy) or is released (free)
-    Thread* ownerThread; //To set to the current thread in isHeldByCurrentThread()
+    Thread* ownerThread;    // A reference to the thread that currently owns the lock
 };
 
 // The following class defines a "condition variable".  A condition
