@@ -853,9 +853,9 @@ void ExceptionHandler(ExceptionType which) {
 
         //Set the dirty bits
         for (int i = 0; i < TLBSize; i++){
-            if(machine->tlb[i].dirty == TRUE){
+            if(machine->tlb[i].valid == TRUE){
                 //If the tlb is dirty, write to the corresponding IPT
-                IPT[machine->tlb[i].physicalPage].dirty = TRUE;
+                IPT[machine->tlb[i].physicalPage].dirty = machine->tlb[i].dirty;
             }
         }
 
