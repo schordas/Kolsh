@@ -141,7 +141,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
 
     numPages = divRoundUp(size, PageSize) + divRoundUp(UserStackSize,PageSize);
     file_size = numPages;
-    pageTable = new ExtendedTranslationEntry[numPages];
+    ExPageTable = new ExtendedTranslationEntry[numPages];
     /*
     NotStackPages = divRoundUp(size, PageSize);
                                                 // we need to increase the size
@@ -204,16 +204,16 @@ int AddrSpace::newStack(){
     newStackLock.Acquire();
     int ppn;
     unsigned int newNumPages = numPages + 8;
-    TranslationEntry *NewPageTable = new TranslationEntry[newNumPages];
+    ExtendedTranslationEntry *NewPageTable = new ExtendedTranslationEntry[newNumPages];
     //Copy the old page table to the new one
     for(unsigned int i = 0; i < newNumPages; i++){
         if (i < numPages){
-            NewPageTable[i].virtualPage = pageTable[i].virtualPage;
-            NewPageTable[i].physicalPage = pageTable[i].physicalPage;
-            NewPageTable[i].valid = pageTable[i].valid;
-            NewPageTable[i].use = pageTable[i].use;
-            NewPageTable[i].dirty = pageTable[i].dirty;
-            NewPageTable[i].readOnly = pageTable[i].readOnly;
+            NewPageTable[i].virtualPage = ExPageTable[i].virtualPage;
+            NewPageTable[i].physicalPage = ExPageTable[i].physicalPage;
+            NewPageTable[i].valid = ExPageTable[i].valid;
+            NewPageTable[i].use = ExPageTable[i].use;
+            NewPageTable[i].dirty = ExPageTable[i].dirty;
+            NewPageTable[i].readOnly = ExPageTable[i].readOnly;
         }
         else{
             //New Stack Pages Here
@@ -234,10 +234,10 @@ int AddrSpace::newStack(){
         }
     }
     //Remove the old table to free up resources
-    delete pageTable;
+    delete ExPageTable;
     //update numPages and pageTable and store the starting position of stack
     numPages = newNumPages;
-    pageTable = NewPageTable;
+    ExPageTable = NewPageTable;
     newStackLock.Release();
     return newNumPages*PageSize;
 }
@@ -252,38 +252,38 @@ void AddrSpace::removeStack(int stack){
     unsigned int stack_page = divRoundUp(stack,PageSize);
         printf("Deleting stack pages: %d in Thread: %s\n", stack_page, currentThread->getName());
     unsigned int newNumPages = numPages - 8;
-    TranslationEntry *NewPageTable = new TranslationEntry[newNumPages];
+    ExtendedTranslationEntry *NewPageTable = new ExtendedTranslationEntry[newNumPages];
     //Copy the section before the stack
     for(unsigned int i = 0; i < stack_page - 8; i++){
-        NewPageTable[i].virtualPage = pageTable[i].virtualPage;
-        NewPageTable[i].physicalPage = pageTable[i].physicalPage;
-        NewPageTable[i].valid = pageTable[i].valid;
-        NewPageTable[i].use = pageTable[i].use;
-        NewPageTable[i].dirty = pageTable[i].dirty;
-        NewPageTable[i].readOnly = pageTable[i].readOnly;
+        NewPageTable[i].virtualPage = ExPageTable[i].virtualPage;
+        NewPageTable[i].physicalPage = ExPageTable[i].physicalPage;
+        NewPageTable[i].valid = ExPageTable[i].valid;
+        NewPageTable[i].use = ExPageTable[i].use;
+        NewPageTable[i].dirty = ExPageTable[i].dirty;
+        NewPageTable[i].readOnly = ExPageTable[i].readOnly;
            // printf("Copying pageTable[%d] to NewPageTable with ppn: %d\n", i, pageTable[i].physicalPage);
     }
     //Free up physical memory space
     for(unsigned int i = stack_page - 8; i < stack_page; i++){
-        int pa = pageTable[i].physicalPage;
+        int pa = ExPageTable[i].physicalPage;
             printf("Freeing physical page: %d\n", pa);
         memory_map->Clear(pa);
     }
     //Copy the section after the stack
     for(unsigned int i = stack_page - 8; i < newNumPages; i++){
-        NewPageTable[i].virtualPage = pageTable[stack_page].virtualPage;
-        NewPageTable[i].physicalPage = pageTable[stack_page].physicalPage;
-        NewPageTable[i].valid = pageTable[stack_page].valid;
-        NewPageTable[i].use = pageTable[stack_page].use;
-        NewPageTable[i].dirty = pageTable[stack_page].dirty;
-        NewPageTable[i].readOnly = pageTable[stack_page].readOnly;
+        NewPageTable[i].virtualPage = ExPageTable[stack_page].virtualPage;
+        NewPageTable[i].physicalPage = ExPageTable[stack_page].physicalPage;
+        NewPageTable[i].valid = ExPageTable[stack_page].valid;
+        NewPageTable[i].use = ExPageTable[stack_page].use;
+        NewPageTable[i].dirty = ExPageTable[stack_page].dirty;
+        NewPageTable[i].readOnly = ExPageTable[stack_page].readOnly;
         stack_page++;
            // printf("Copying pageTable[%d] to NewPageTable[%d] with ppn: %d\n", stack_page, i, pageTable[i].physicalPage);
     }
     //Remove the old table
-    delete pageTable;
+    delete ExPageTable;
     numPages = newNumPages;
-    pageTable = NewPageTable;
+    ExPageTable = NewPageTable;
     stackLock.Release();
 }
 
@@ -298,7 +298,7 @@ void AddrSpace::returnMemory(){
     printf("AddrSpace returnMemory:");
     stackLock.Acquire();
     for(unsigned int i = 0; i < numPages; i++){
-        int pa = pageTable[i].physicalPage;
+        int pa = ExPageTable[i].physicalPage;
             printf("Freeing physical page: %d\n", pa);
         memory_map->Clear(pa);
     }
@@ -314,7 +314,7 @@ void AddrSpace::returnMemory(){
 //----------------------------------------------------------------------
 
 AddrSpace::~AddrSpace() {
-    delete pageTable;
+    delete ExPageTable;
 }
 
 //----------------------------------------------------------------------

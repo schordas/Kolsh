@@ -572,7 +572,12 @@ int sprintf_syscall(unsigned int mychar, unsigned int text, int i){
             text, machine->pageTableSize);
         return 1;
     }
-    entry = &machine->pageTable[vpn];
+    if(machine->tlb == NULL){
+        entry = &machine->pageTable[vpn];
+    }
+    else{
+        entry = &machine->tlb[vpn];
+    }
     pageFrame = entry->physicalPage;
     if (pageFrame >= NumPhysPages) { 
         DEBUG('a', "*** frame %d > %d!\n", pageFrame, NumPhysPages);
@@ -601,6 +606,41 @@ int sprintf_syscall(unsigned int mychar, unsigned int text, int i){
 }
 
 //-----------------------------------------------
+//             Handle Memory Full
+//
+// When the memory is filled, evict one page of
+// memory using FIFO or random select method.
+//-----------------------------------------------
+
+int handleMemoryFull(){
+    int ppn,vpn;
+    memFullLock->Acquire();
+    if(isFIFO){
+        //Use FIFO
+        ppn = (int) FIFO_list->Remove();
+    }
+    else {
+        //Use Random
+        ppn = rand() % NumPhysPages;
+    }
+    IPT[ppn].use = TRUE;
+    vpn = IPT[ppn].virtualPage;
+    currentThread->space->ExPageTable[vpn].use = TRUE;
+    memFullLock->Release();
+    if(IPT[ppn].dirty == TRUE){
+        //Write to swap file
+        int swapPage = swap_map->Find();
+        swap_file->WriteAt(&machine->mainMemory[ppn*PageSize],PageSize, swapPage*PageSize);
+    }
+
+    currentThread->space->ExPageTable[vpn].use = FALSE;
+    IPT[ppn].use = FALSE;
+    //Add this page back to FIFO queue at the end
+    FIFO_list->Append((void*)ppn);
+    return ppn;
+}
+
+//-----------------------------------------------
 //             Handle IPT Misses
 //
 // If IPT missed during the PageFault Exception
@@ -609,7 +649,8 @@ int sprintf_syscall(unsigned int mychar, unsigned int text, int i){
 //-----------------------------------------------
 
 int handleIPTMiss(int vpn){
-    //define the range of vpn that is within the executable
+    //define the range of vpn that is within the executable, file_size includes stack pages.
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
     int vpn_range = currentThread->space->file_size;
     int ppn, P_ID;
     P_ID = currentThread->space->ProcessID;
@@ -620,51 +661,55 @@ int handleIPTMiss(int vpn){
     }
     else{
         //The data is not in IPT, so we are loading the data into memory
-        IntStatus oldLevel = interrupt->SetLevel(IntOff);
-
         //Virtual Page is in the executable
         ppn = memory_map->Find();
+        //Insert the page to the back of the FIFO list
+        FIFO_list->Append((void*)ppn);
+
         if(ppn == -1){
             //All memory occupied,  evict a page
-
+            printf("Memory Full, evict a page\n");
+            ppn = handleMemoryFull();
         }
         printf("Found an available physical page: %d\n", ppn);
         //Clear the space one page at a time
         bzero(&machine->mainMemory[ppn*PageSize], PageSize);
-        //Update Translation Tables
-            currentThread->space->pageTable[vpn].virtualPage = vpn;
-            currentThread->space->pageTable[vpn].physicalPage = ppn;
-            currentThread->space->pageTable[vpn].valid = TRUE;
-            currentThread->space->pageTable[vpn].use = FALSE;
-            currentThread->space->pageTable[vpn].dirty = FALSE;
-            currentThread->space->pageTable[vpn].readOnly = FALSE;
-            currentThread->space->pageTable[vpn].byteoffset = 40 + vpn*PageSize;
-            currentThread->space->pageTable[vpn].diskLocation = 0;
+        // Update Translation Tables
+        // ExPageTable is the extended version of page table decalred in addrspace.h
+        currentThread->space->ExPageTable[vpn].virtualPage = vpn;
+        currentThread->space->ExPageTable[vpn].physicalPage = ppn;
+        currentThread->space->ExPageTable[vpn].valid = TRUE;
+        currentThread->space->ExPageTable[vpn].use = FALSE;
+        currentThread->space->ExPageTable[vpn].dirty = FALSE;
+        currentThread->space->ExPageTable[vpn].readOnly = FALSE;
+        currentThread->space->ExPageTable[vpn].byteoffset = 40 + vpn*PageSize;
+        currentThread->space->ExPageTable[vpn].diskLocation = 0;
+        //IPT is the inverted page table declared in system.h with size of MaxPhysPages
+        IPT[ppn].virtualPage = vpn;
+        IPT[ppn].physicalPage = ppn;
+        IPT[ppn].valid = TRUE;
+        IPT[ppn].ProcessID = currentThread->space->ProcessID;
+        IPT[ppn].use = FALSE;
+        IPT[ppn].dirty = FALSE;
 
+        machine->tlb[currentTLB].virtualPage = vpn;
+        machine->tlb[currentTLB].physicalPage = ppn;
+        machine->tlb[currentTLB].valid = TRUE;
+        machine->tlb[currentTLB].dirty = FALSE;
+        machine->tlb[currentTLB].use = FALSE;
+        machine->tlb[currentTLB].readOnly = TRUE;
 
-            IPT[ppn].virtualPage = vpn;
-            IPT[ppn].physicalPage = ppn;
-            IPT[ppn].valid = TRUE;
-            IPT[ppn].use = FALSE;
-            IPT[ppn].dirty = FALSE;
-
-            machine->tlb[currentTLB].virtualPage = vpn;
-            machine->tlb[currentTLB].physicalPage = ppn;
-            machine->tlb[currentTLB].valid = TRUE;
-            machine->tlb[currentTLB].dirty = FALSE;
-            machine->tlb[currentTLB].use = FALSE;
-            machine->tlb[currentTLB].readOnly = TRUE;
-
-            //Update the TLB index
-            currentTLB = (currentTLB + 1) % TLBSize;
+        //Update the TLB index
+        currentTLB = (currentTLB + 1) % TLBSize;
 
         if(vpn < (vpn_range - divRoundUp(UserStackSize,PageSize))) {
+            printf("Writing into memory[%d]\n", ppn*PageSize);
             currentThread->space->file_ptr->ReadAt(&(machine->mainMemory[ppn*PageSize]),
-                    PageSize, ExPT[vpn].byteoffset);
+                    PageSize, currentThread->space->ExPageTable[vpn].byteoffset);
         }
 
-        (void) interrupt->SetLevel(oldLevel);
     }
+    (void) interrupt->SetLevel(oldLevel);
     return ppn;
 }
 
@@ -795,7 +840,7 @@ void ExceptionHandler(ExceptionType which) {
         //Record the virtual address that throw this error in vpn
         int vpn = (machine->ReadRegister(BadVAddrReg)) / PageSize;
         //Validate the vpn
-        int vpn_range = divRoundUp(currentThread->space->file_size, PageSize);
+        int vpn_range = currentThread->space->file_size;
             printf("BadVAddrReg: %d, P_ID: %d, vpn_range: %d\n", vpn, P_ID, vpn_range);
         if(vpn > vpn_range){
             //Invalid vpn
@@ -808,8 +853,7 @@ void ExceptionHandler(ExceptionType which) {
             if(IPT[i].valid == TRUE && IPT[i].virtualPage == vpn && IPT[i].ProcessID == P_ID ){
                 ppn = i;
                 //Perform algorithms for choosing what TLB page to be replaced
-                    printf("Found a matching entry: IPT[%d], Saving to TLB[%d]\n", i, currentTLB);
-
+                printf("Found a matching entry: IPT[%d], Saving to TLB[%d]\n", i, currentTLB);
                 machine->tlb[currentTLB].virtualPage = vpn;
                 machine->tlb[currentTLB].physicalPage = i;
                 machine->tlb[currentTLB].valid = TRUE;
@@ -827,7 +871,6 @@ void ExceptionHandler(ExceptionType which) {
                 printf("IPT missed, going to handleIPTMiss\n");
             ppn = handleIPTMiss(vpn);
         }
-        // Put in the return value and increment the PC
         (void) interrupt->SetLevel(oldLevel);
         machine->Run();
         return;

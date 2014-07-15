@@ -43,7 +43,11 @@ int Process_counter;
 //--------------------------
 InvertedPageTable *IPT;         // Inverted Page Table, Physical address to virtual address
 bool isFIFO;
-int currentTLB;                 //Will be the index for the TLB, FIFO
+int currentTLB;                 //Will be the index for the TLB
+List *FIFO_list;                //Physical Page Queue to implement FIFO
+OpenFile *swap_file;                 //Swap file, for dirty pages
+BitMap *swap_map;               //Swap map for locating used spaces
+Lock *memFullLock;
 #endif
 
 
@@ -161,26 +165,30 @@ void Initialize(int argc, char **argv) {
     CallOnUserAbort(Cleanup);                           // if user hits ctl-C
     
 #ifdef USER_PROGRAM
-    machine = new Machine(debugUserProg);               // this must come first
-	memory_map = new BitMap(NumPhysPages);
-    memory_map_mutex = new Lock("Memory map mutex.");
-    synchronization_lut = new SynchronizationLut();
-    ProcessTable = new ProcessEntry[Ptable_MaxProcess];
-    //Initialize the ProcessTable
-    Process_counter = 0;
-    for(int i = 0; i < Ptable_MaxProcess; i++){
+machine = new Machine(debugUserProg);               // this must come first
+memory_map = new BitMap(NumPhysPages);
+memory_map_mutex = new Lock("Memory map mutex.");
+synchronization_lut = new SynchronizationLut();
+ProcessTable = new ProcessEntry[Ptable_MaxProcess];
+//Initialize the ProcessTable
+Process_counter = 0;
+for(int i = 0; i < Ptable_MaxProcess; i++){
         ProcessTable[i].as = NULL;
-        ProcessTable[i].threadCount = 0;
+        ProcessTable[i].threadCount = 0;                                
         for(int j = 0; j < Ptable_MaxThread; j++){
-            ProcessTable[i].threads[j].myThread = NULL;
-            ProcessTable[i].threads[j].firstStackPage = 0;
-        }
-    }
-    //--------------------------
-    // Virtual memory management
-    //--------------------------
-    IPT = new InvertedPageTable[NumPhysPages];
-    currentTLB = 0;
+                ProcessTable[i].threads[j].myThread = NULL;
+                ProcessTable[i].threads[j].firstStackPage = 0;
+            }
+}
+//--------------------------
+// Virtual memory management
+//--------------------------
+IPT = new InvertedPageTable[NumPhysPages];
+currentTLB = 0;
+FIFO_list = new List;
+swap_map = new BitMap(1000);
+memFullLock = new Lock("memoryFullLock");
+
 #endif
 
 #ifdef FILESYS
@@ -194,6 +202,17 @@ void Initialize(int argc, char **argv) {
 #ifdef NETWORK
     postOffice = new PostOffice(netname, rely, 10);
 #endif
+    //Create a new swap file
+    if(!fileSystem->Create("swapfile", 3000)){
+        printf("Unable to create swap file\n");
+        interrupt->Halt();
+    }
+    swap_file = fileSystem->Open("swapfile");
+    if (swap_file == NULL){
+        //If the swap file cannot be opened, quit the program
+        printf("Unable to open swap file\n");
+        interrupt->Halt();
+    }
 }
 
 //----------------------------------------------------------------------

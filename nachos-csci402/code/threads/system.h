@@ -47,24 +47,6 @@ struct ProcessEntry{
     ThreadEntry threads[Ptable_MaxThread];
 };
 
-
-extern Thread *currentThread;           // the thread holding the CPU
-extern Thread *threadToBeDestroyed;     // the thread that just finished
-extern Scheduler *scheduler;            // the ready list
-extern Interrupt *interrupt;            // interrupt status
-extern Statistics *stats;               // performance metrics
-extern Timer *timer;                    // the hardware alarm clock
-
-#ifdef USER_PROGRAM
-#include "machine.h"
-#include "bitmap.h"
-#include "synchronization_lut.h"
-extern bool isFIFO;
-extern Machine* machine;            // user program memory and registers
-extern BitMap *memory_map;
-extern ProcessEntry *ProcessTable;
-extern SynchronizationLut *synchronization_lut; // user program synchronization lock lookup table
-extern int Process_counter;
 //--------------------------
 // Virtual Memory Management
 //--------------------------
@@ -82,27 +64,31 @@ class InvertedPageTable {
     bool dirty;             // This bit is set by the hardware every time the
                             // page is modified.
 };
-class ExtendedTranslationEntry {
-  public:
-    int virtualPage;        // The page number in virtual memory.
-    int physicalPage;       // The page number in real memory (relative to the
-                            //  start of "mainMemory"
-    bool valid;             // If this bit is set, the translation is ignored.
-                            // (In other words, the entry hasn't been initialized.)
-    bool readOnly;          // If this bit is set, the user program is not allowed
-                            // to modify the contents of the page.
-    bool use;               // This bit is set by the hardware every time the
-                            // page is referenced or modified.
-    bool dirty;             // This bit is set by the hardware every time the
-                            // page is modified.
-    int diskLocation;       // The location for the current page
-                            // 0 = execuatable, 1 = swap file, 2 = neither
-    int byteoffset;
-};
 
+extern Thread *currentThread;           // the thread holding the CPU
+extern Thread *threadToBeDestroyed;     // the thread that just finished
+extern Scheduler *scheduler;            // the ready list
+extern Interrupt *interrupt;            // interrupt status
+extern Statistics *stats;               // performance metrics
+extern Timer *timer;                    // the hardware alarm clock
+
+#ifdef USER_PROGRAM
+#include "machine.h"
+#include "bitmap.h"
+#include "synchronization_lut.h"
+extern bool isFIFO;
+extern Machine *machine;            // user program memory and registers
+extern BitMap *memory_map;
+extern ProcessEntry *ProcessTable;
+extern SynchronizationLut *synchronization_lut; // user program synchronization lock lookup table
+extern int Process_counter;
+// Virtual Memory Management
 extern InvertedPageTable *IPT;
 extern int currentTLB;
-extern ExtendedTranslationEntry *ExPT;
+extern List *FIFO_list;
+extern OpenFile *swap_file;
+extern BitMap *swap_map;
+extern Lock *memFullLock;
 #endif
 
 
