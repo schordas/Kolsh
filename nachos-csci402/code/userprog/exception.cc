@@ -673,7 +673,7 @@ int handleIPTMiss(int vpn){
         }
         printf("Found an available physical page: %d\n", ppn);
         //Clear the space one page at a time
-        bzero(&machine->mainMemory[ppn*PageSize], PageSize);
+        bzero(&(machine->mainMemory[ppn*PageSize]), PageSize);
         // Update Translation Tables
         // ExPageTable is the extended version of page table decalred in addrspace.h
         currentThread->space->ExPageTable[vpn].virtualPage = vpn;
@@ -697,7 +697,7 @@ int handleIPTMiss(int vpn){
         machine->tlb[currentTLB].valid = TRUE;
         machine->tlb[currentTLB].dirty = FALSE;
         machine->tlb[currentTLB].use = FALSE;
-        machine->tlb[currentTLB].readOnly = TRUE;
+        machine->tlb[currentTLB].readOnly = FALSE;
 
         //Update the TLB index
         currentTLB = (currentTLB + 1) % TLBSize;
@@ -852,17 +852,6 @@ void ExceptionHandler(ExceptionType which) {
         for (int i = 0; i < NumPhysPages; i++){
             if(IPT[i].valid == TRUE && IPT[i].virtualPage == vpn && IPT[i].ProcessID == P_ID ){
                 ppn = i;
-                //Perform algorithms for choosing what TLB page to be replaced
-                printf("Found a matching entry: IPT[%d], Saving to TLB[%d]\n", i, currentTLB);
-                machine->tlb[currentTLB].virtualPage = vpn;
-                machine->tlb[currentTLB].physicalPage = i;
-                machine->tlb[currentTLB].valid = TRUE;
-                machine->tlb[currentTLB].dirty = FALSE;
-                machine->tlb[currentTLB].use = FALSE;
-                machine->tlb[currentTLB].readOnly = TRUE;
-
-                //Update the TLB index
-                currentTLB = (currentTLB + 1) % TLBSize;
                 break;
             }
         }
@@ -871,6 +860,17 @@ void ExceptionHandler(ExceptionType which) {
                 printf("IPT missed, going to handleIPTMiss\n");
             ppn = handleIPTMiss(vpn);
         }
+        printf("Updating to TLB[%d] with ppn: %d\n", currentTLB, ppn);
+        //Update the tlb page table
+        machine->tlb[currentTLB].virtualPage = vpn;
+        machine->tlb[currentTLB].physicalPage = ppn;
+        machine->tlb[currentTLB].valid = TRUE;
+        machine->tlb[currentTLB].dirty = FALSE;
+        machine->tlb[currentTLB].use = FALSE;
+        machine->tlb[currentTLB].readOnly = FALSE;
+        //Update the TLB index
+        currentTLB = (currentTLB + 1) % TLBSize;
+
         (void) interrupt->SetLevel(oldLevel);
         machine->Run();
         return;
