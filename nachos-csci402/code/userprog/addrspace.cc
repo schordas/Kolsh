@@ -117,12 +117,14 @@ SwapHeader (NoffHeader *noffH)
 //      constructed set to false.
 //----------------------------------------------------------------------
 AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
-    
-    // initialize class private data
-    address_space_mutex = new Lock("address_space_mutex");
-    number_of_running_threads = 1;      // we start with the main thread running.
-
+    // function data
+    unsigned int executable_pages;
+    int executable_size;
     NoffHeader noffH;
+
+    // initialize class private data
+    this->address_space_mutex = new Lock("address_space_mutex");
+    this->number_of_running_threads = 1;      // we start with the main thread running.
 
     // Don't allocate the input or output to disk files
     fileTable.Put(0);
@@ -132,26 +134,28 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     if((noffH.noffMagic != NOFFMAGIC) && (WordToHost(noffH.noffMagic) == NOFFMAGIC)) {
         SwapHeader(&noffH);
     }
+    
+    // validate executable
     ASSERT(noffH.noffMagic == NOFFMAGIC);
+    ASSERT(noffH.code.size > 0);
 
-    int executable_size = noffH.code.size + noffH.initData.size + noffH.uninitData.size ;
+    this->code_vaddr_fence = noffH.code.size;
+
+    executable_size = noffH.code.size + noffH.initData.size + noffH.uninitData.size ;
    
-    // Total No. of physical pages required by the process to accomodate
-    // Code, Initialized Data and Unitialized Data. Left The Stack Alone
-    numPages=divRoundUp(executable_size, PageSize) + 8;
+    // Total number of physical pages required by the process to accommodate
+    // code, initialized data, uninitialized data and one thread stack space.
+    this->numPages=divRoundUp(executable_size, PageSize) + 8;
+    this->address_space_size = numPages * PageSize;
 
-    address_space_size = numPages * PageSize;
-
-    ASSERT(numPages <= NumPhysPages);   // check we're not trying
-                                        // to run anything too big --
-                                        // at least until we have
-                                        // virtual memory
+    // TODO remove once we having memory paging.
+    ASSERT(numPages <= NumPhysPages);
 
     DEBUG('a', "Initializing address space, num pages %d, size %d\n", numPages, address_space_size);
         
-    pageTable = new TranslationEntry[numPages + 8]; // Size is pages for Code, initData, uninitData
-                                                    // and 8 for the first thread in the process
-    memory_map_mutex -> Acquire();
+    this->pageTable = new TranslationEntry[numPages];
+
+    memory_map_mutex->Acquire();
     for (unsigned int i = 0; i < numPages; i++) {
         int physical_page_number = memory_map->Find();   // Find an available physical memory page
         if(physical_page_number == -1) {
@@ -167,17 +171,15 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
         pageTable[i].valid = TRUE;
         pageTable[i].use = FALSE;
         pageTable[i].dirty = FALSE;
-        pageTable[i].readOnly = FALSE;  // if the code segment was entirely on 
-                                        // a separate page, we could set its 
-                                        // pages to be read-only
+        pageTable[i].readOnly = FALSE;
 
         bzero(&machine -> mainMemory[PageSize * pageTable[i].physicalPage], PageSize);
     }
     memory_map_mutex -> Release();
     
     // read the executable to main memory
-    unsigned int executable_pages = divRoundUp(executable_size, PageSize);
-    for (unsigned int i=0; i < executable_pages; i++) {
+    executable_pages = divRoundUp(executable_size, PageSize);
+    for(unsigned int i = 0; i < executable_pages; i++) {
         executable->ReadAt(&(machine -> mainMemory[pageTable[i].physicalPage * PageSize]),
         PageSize, noffH.code.inFileAddr + i * PageSize);
     }
@@ -196,7 +198,7 @@ int AddrSpace::allocate_new_thread_stack() {
     if(this->number_of_running_threads == MAX_PROCESS_THREADS) {
         // the process has reached its thread limit. Reject the request
         // TODO ensure we release any requested resources for this failed request
-        printf("OVER MAX PROCESS THREADS. FAILING REQUEST");
+        DEBUG('t', "OVER MAX PROCESS THREADS. FAILING REQUEST\n");
         this->address_space_mutex->Release();
         return -1;
     }
@@ -239,6 +241,14 @@ int AddrSpace::allocate_new_thread_stack() {
 
     this->address_space_mutex->Release();
     return return_value;
+}
+
+bool AddrSpace::is_valid_code_vaddr(const unsigned int vaddr) {
+    return (vaddr >= 0 && vaddr <= this->code_vaddr_fence);
+}
+
+bool AddrSpace::is_valid_data_vaddr(const unsigned int vaddr) {
+    return (vaddr > this->code_vaddr_fence && vaddr < this->address_space_size);
 }
 
 /**

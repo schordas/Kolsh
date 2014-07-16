@@ -23,6 +23,7 @@
 
 #include "copyright.h"
 #include "system.h"
+#include "addrspace.h"
 #include "syscall.h"
 #include <stdio.h>
 #include <iostream>
@@ -274,26 +275,36 @@ int sc_fork(const unsigned int func_to_fork_vaddr,
                 const unsigned int char_buff,
                 const unsigned int buff_length) {
 
+    AddrSpace *currentThread_addrspace = currentThread->space;
     int* thread_data = new int[2];
     char *thread_name;
+
+    // validate the function pointer
+    // since we can accept NULL as an input for char_buff
+    // we'll validate that later on.
+    if(!currentThread_addrspace->is_valid_code_vaddr(func_to_fork_vaddr)) {
+        return -1;
+    }
 
     if(char_buff == NULL) {
         thread_name = new char[sizeof("user thread")];
         sprintf(thread_name, "user thread");
     }else {
+        if(!currentThread_addrspace->is_valid_data_vaddr(char_buff)) {
+            return -1;
+        }
         thread_name = read_into_new_buffer(char_buff, buff_length); // this is freed when delete 
                                                                     // is called on the thread   
     }
 
     Thread *kernel_thread = new Thread(thread_name);
 
-    kernel_thread->space = currentThread->space;
+    kernel_thread->space = currentThread_addrspace;
     int stack_start = kernel_thread->space->allocate_new_thread_stack();
     if(stack_start == -1) {
         // process has reached its thread limit.
         // the fork request cannot be completed
-        printf("OVER MAX PROCESS THREADS. FAILING REQUEST");
-        return 1;
+        return -2;
     }
 
     thread_data[0] = func_to_fork_vaddr;

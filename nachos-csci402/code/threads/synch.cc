@@ -137,9 +137,6 @@ void Lock::Acquire() {
     }
     else { 
         // the lock is busy. Put the calling thread into the wait queue and sleep 
-        printf("thread [%s] waiting for lock [%s]\n", 
-            currentThread->getName(),
-            name);
         waitQueue->Append((void *)currentThread);
         currentThread->Sleep();
     }

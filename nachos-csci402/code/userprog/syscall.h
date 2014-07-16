@@ -113,23 +113,27 @@ int Read(char *buffer, int size, OpenFileId id);
 void Close(OpenFileId id);
 
 
-
-/* User-level thread operations: Fork and Yield.  To allow multiple
- * threads to run within a user program. 
- */
-
 /** 
  * Fork a thread to run a procedure ("func") in the *same* address space 
  * as the current thread.
  *
- * @param void* func                    pointer to the function to fork
- * @param const char* thread_name       pointer to thread name buffer. Can be NULL and a default
- *                                      thread name will be provided.
- * @param const int thread_name_length  length of thread_name buffer.
+ * @param void* func                                A pointer to the function that will be executed in
+ *                                                  a new thread. The address must point to a valid code
+ *                                                  section.
  *
- * @return int - 0 on success, -1 if the process cannot allocate anymore user threads, -2 otherwise.
+ * @param const char* thread_name                   Will be used to name the forked thread. If NULL, 
+ *                                                  the name will default. Must point to a valid data
+ *                                                  section.
+ *                                                  
+ * @param const unsigned int thread_name_length     The size of the name string not including the null
+ *                                                  terminator.
+ *
+ * @return int  - 0 on success
+ *              - 1 invalid input
+ *              - 2 max process threads allocated
+ *              - 3 otherwise
  */
-int Fork(void (*func)(), const char* thread_name, const int thread_name_length);
+int Fork(void (*func)(), const char* thread_name, const unsigned int thread_name_length);
 
 /* Yield the CPU to another runnable thread, whether in this address space 
  * or not. 

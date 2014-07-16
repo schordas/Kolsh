@@ -31,8 +31,6 @@ SynchDisk   *synchDisk;
 Machine *machine;	// user program memory and registers
 BitMap *memory_map;
 Lock *memory_map_mutex;
-Lock *forkInitializationLock;
-Lock *memLock;
 #endif
 
 #ifdef NETWORK
@@ -154,9 +152,7 @@ Initialize(int argc, char **argv)
 #ifdef USER_PROGRAM
     machine = new Machine(debugUserProg);	// this must come first
     memory_map = new BitMap(NumPhysPages);
-    forkInitializationLock = new Lock("forkInitializationLock");
     memory_map_mutex = new Lock("memory_map_mutex");
-    memLock = new Lock("memLock");
 #endif
 
 #ifdef FILESYS
@@ -187,9 +183,7 @@ Cleanup()
 #ifdef USER_PROGRAM
     delete machine;
     delete memory_map;
-    delete forkInitializationLock;
     delete memory_map_mutex;
-    delete memLock;
 #endif
 
 #ifdef FILESYS_NEEDED

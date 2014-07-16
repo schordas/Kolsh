@@ -34,9 +34,7 @@ extern Timer *timer;                        // the hardware alarm clock
 #include "machine.h"
 extern Machine* machine;                    // user program memory and registers
 extern BitMap *memory_map;                  // memory map
-extern Lock *forkInitializationLock;
 extern Lock *memory_map_mutex;
-extern Lock *memLock;
 #endif
 
 #ifdef FILESYS_NEEDED                       // FILESYS or FILESYS_STUB 
