@@ -623,6 +623,7 @@ int handleMemoryFull(){
         //Use Random
         ppn = rand() % NumPhysPages;
     }
+    //Need to check if this ppn is in the TLB, if it is, we need to invalidate it
     vpn = IPT[ppn].virtualPage;
     IPT[ppn].use = TRUE;
     currentThread->space->ExPageTable[vpn].use = TRUE;
@@ -634,8 +635,8 @@ int handleMemoryFull(){
             printf("SwapFile full, Exiting program\n");
             interrupt->Halt();
         }
-        swap_file->WriteAt(&machine->mainMemory[ppn*PageSize],PageSize, 40 + swapPage*PageSize);
-        currentThread->space->ExPageTable[vpn].byteoffset = 40 + swapPage*PageSize;
+        swap_file->WriteAt(&machine->mainMemory[ppn*PageSize],PageSize, swapPage*PageSize);
+        currentThread->space->ExPageTable[vpn].byteoffset =  swapPage*PageSize;
         currentThread->space->ExPageTable[vpn].diskLocation = 1;
         currentThread->space->ExPageTable[vpn].valid = FALSE;
     }
@@ -897,7 +898,6 @@ void ExceptionHandler(ExceptionType which) {
         currentTLB = (currentTLB + 1) % TLBSize;
 
         (void) interrupt->SetLevel(oldLevel);
-        machine->Run();
         return;
 
     }else if(which == ReadOnlyException) {

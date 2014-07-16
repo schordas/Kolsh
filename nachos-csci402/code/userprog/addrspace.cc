@@ -117,7 +117,6 @@ static void SwapHeader(NoffHeader *noffH) {
 //----------------------------------------------------------------------
 
 AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
-    Lock bitmap_lock("bitmap_lock");
     NoffHeader noffH;
     unsigned int i;
     //### Declare virtual, physical page number to read file
@@ -142,7 +141,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     numPages = divRoundUp(size, PageSize) + divRoundUp(UserStackSize,PageSize);
     file_size = divRoundUp(size, PageSize);
     ExPageTable = new ExtendedTranslationEntry[numPages];
-    /*
+    
     NotStackPages = divRoundUp(size, PageSize);
                                                 // we need to increase the size
                                                 // to leave room for the stack
@@ -156,8 +155,6 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
                     numPages, size);
                     
-    bitmap_lock.Acquire();
-    pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
         //Find an available physical page
         ppn = memory_map->Find(); 
@@ -189,8 +186,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
             printf("\tPageTable.physicalPage : %d\n", ppn);
         }
     }
-    bitmap_lock.Release();
-    */
+    
 }
 
 //------------------------

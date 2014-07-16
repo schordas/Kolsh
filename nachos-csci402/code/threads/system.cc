@@ -186,7 +186,7 @@ for(int i = 0; i < Ptable_MaxProcess; i++){
 IPT = new InvertedPageTable[NumPhysPages];
 currentTLB = 0;
 FIFO_list = new List;
-swap_map = new BitMap(4000);
+swap_map = new BitMap(2000);
 memFullLock = new Lock("memoryFullLock");
 
 #endif
