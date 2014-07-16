@@ -202,15 +202,15 @@ Condition_Delete:
     j   $31
     .end Condition_Delete
 
-    .globl  Sprin_F 
-    .ent    Sprin_F
-Sprin_F:
+    .globl  Sprint_f 
+    .ent    Sprint_f
+Sprint_f:
     addiu $2,$0,SC_Sprintf
     syscall
     j   $31
-    .end Sprin_F 
+    .end Sprint_f 
+    
     .globl  Print_F 
-
     .ent    Print_F
 Print_F:
     addiu $2,$0,SC_Print_F

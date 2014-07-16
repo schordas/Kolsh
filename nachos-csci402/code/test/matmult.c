@@ -20,10 +20,8 @@ int C[Dim][Dim];
 int
 main()
 {
-	char* text = "Starting matmult\n";
     int i, j, k;
 
-	Print_F(text,sizeof(text));
     for (i = 0; i < Dim; i++)		/* first initialize the matrices */
 	for (j = 0; j < Dim; j++) {
 	     A[i][j] = i;
@@ -35,10 +33,6 @@ main()
 	for (j = 0; j < Dim; j++)
             for (k = 0; k < Dim; k++)
 		 C[i][j] += A[i][k] * B[k][j];
-	text = "Outputting C:";
-	Print_F(text,sizeof(text));
-	Print_F(C[i][j],10);
-	text = "\nDone\n";
-	Print_F(text,sizeof(text));
+
     Exit(C[Dim-1][Dim-1]);		/* and then we're done */
 }

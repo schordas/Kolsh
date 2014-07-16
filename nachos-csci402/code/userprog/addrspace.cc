@@ -118,7 +118,6 @@ static void SwapHeader(NoffHeader *noffH) {
 
 AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     NoffHeader noffH;
-    unsigned int i;
     //### Declare virtual, physical page number to read file
     int vpn, ppn, size;
     unsigned int NotStackPages;
@@ -147,46 +146,21 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
                                                 // to leave room for the stack
     size = numPages * PageSize;
 
-    // ASSERT(numPages <= NumPhysPages);       // check we're not trying
-                                             // to run anything too big --
-                                             // at least until we have
-                                             // virtual memory
-
     DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
                     numPages, size);
-                    
-    for (i = 0; i < numPages; i++) {
-        //Find an available physical page
-        ppn = memory_map->Find(); 
-        if(ppn == -1){
-            //Error, all memory occupied
-            printf("Error, all memory occupied\n");
-            interrupt->Halt();
-        }
-        //Clear the space one page at a time
-        bzero(&machine->mainMemory[ppn*PageSize], PageSize);
-        pageTable[i].virtualPage = i;
-        pageTable[i].physicalPage = ppn;
-        pageTable[i].valid = TRUE;
-        pageTable[i].use = FALSE;
-        pageTable[i].dirty = FALSE;
-        pageTable[i].readOnly = FALSE;  // if the code segment was entirely on 
-                        // a separate page, we could set its 
-                        // pages to be read-only
-        if(i < NotStackPages){
-            printf("PageTable[%d]\n", i);
-            printf("\tPageTable.physicalPage : %d\n", ppn);
-            printf("\tReading from file address : %d\n", noffH.code.inFileAddr + i*PageSize);
-            executable->ReadAt(&(machine->mainMemory[ppn*PageSize]),
-                PageSize, noffH.code.inFileAddr + i*PageSize);
-        }
-        else {
-            //Assigning Stack pages
-            printf("PageTable[%d]\n", i);
-            printf("\tPageTable.physicalPage : %d\n", ppn);
+    printf("NumPage: %d, NotStackPage: %d\n", numPages, NotStackPages);
+    for (unsigned int i = 0; i < numPages; i++) {
+        ExPageTable[i].virtualPage = i;
+        ExPageTable[i].valid = TRUE;
+        ExPageTable[i].use = FALSE;
+        ExPageTable[i].dirty = FALSE;
+        ExPageTable[i].readOnly = FALSE;
+        ExPageTable[i].diskLocation = 0;
+        if(i > NotStackPages - 1){
+            printf("StackPage[%d]\n",i);
+            ExPageTable[i].diskLocation = 2;
         }
     }
-    
 }
 
 //------------------------
@@ -384,6 +358,7 @@ void AddrSpace::RestoreState() {
     for (int i = 0; i < TLBSize; i++){
         if(machine->tlb[i].valid == TRUE){
             IPT[machine->tlb[i].physicalPage].dirty = TRUE;
+            ExPageTable[machine->tlb[i].virtualPage].dirty = machine->tlb[i].dirty;
         }
         machine->tlb[i].valid = FALSE;
     }

@@ -254,7 +254,13 @@ int Condition_Delete(int condition_index);
 
 void Print_F(char* buf, int size);
 
-void Sprin_F(char* mychar, char* text, int i);
+/*----------Sprintf-----------------
+mychar is the output char*
+text will be use to determine the formatting Ex: "Today is the %d\n"
+i is the number that will replace %d in text
+------------------------------------*/
+
+void Sprint_f(char* mychar, char* text, int i);
 
 #endif /* IN_ASM */
 
