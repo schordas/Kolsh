@@ -49,6 +49,7 @@ OpenFile *swap_file;                 //Swap file, for dirty pages
 BitMap *swap_map;               //Swap map for locating used spaces
 Lock *memFullLock;
 Lock *forkLock;                 //Lock for fork method
+Lock *IPTLock;                  //Lock for searching through IPT
 #endif
 
 
@@ -190,6 +191,7 @@ FIFO_list = new List;
 swap_map = new BitMap(2000);
 memFullLock = new Lock("memoryFullLock");
 forkLock = new Lock("ForkKernelLock");
+IPTLock = new Lock("IPTLock");
 
 #endif
 

@@ -491,7 +491,7 @@ int exec_syscall(unsigned int vaddr, int size){
     exec_thread->Fork(exec_kernel_function, 0);
 
     
-    delete user_executable;          // close file
+    //delete user_executable;          // close file
     printf("Current Thread: %s\n", currentThread->getName());
     while(!scheduler->getreadyList()->IsEmpty()){
         currentThread->Yield();
@@ -518,6 +518,10 @@ int exit_syscall(unsigned int status){
         printf("\tProcess Count: %d, Thread Count: %d\n", Process_counter, ProcessTable[P_ID].threadCount);
         printf("\tProcessTable[%d]\t Thread_ID: %d\n", P_ID, ptr);
         printf("CurrentThread: %s, ProcessTable[%d]\n", currentThread->getName(), P_ID);
+        //Set the process table to exit the current thread
+        ProcessTable[P_ID].threads[ptr].myThread = NULL;
+        ProcessTable[P_ID].threads[ptr].firstStackPage = 0;
+        ProcessTable[P_ID].threadCount--;
     if(ProcessTable[P_ID].threadCount > 1){
             printf("Going to Remove Stack\n");
         //Child threads exist, reclaim 8 stack pages and go to sleep
@@ -527,9 +531,6 @@ int exit_syscall(unsigned int status){
             return -1;
         }
         currentThread->space->removeStack(stack_start);
-        ProcessTable[P_ID].threadCount--;
-        ProcessTable[P_ID].threads[ptr].myThread = NULL;
-        ProcessTable[P_ID].threads[ptr].firstStackPage = 0;
         exitLock.Release();
         currentThread->Finish();
     }
@@ -539,10 +540,8 @@ int exit_syscall(unsigned int status){
         //Reclaim all memory
         currentThread->space->returnMemory();
         //Recliam all locks
-
+        delete ProcessTable[P_ID].as->file_ptr;
         ProcessTable[P_ID].as = NULL;
-        ProcessTable[P_ID].threads[ptr].myThread = NULL;
-        ProcessTable[P_ID].threadCount--;
         exitLock.Release();
         currentThread->Finish();
 
@@ -550,7 +549,7 @@ int exit_syscall(unsigned int status){
     else if(ProcessTable[P_ID].threadCount == 1 && Process_counter == 1){
         //Last Thread in the last process
         printf("Last Thread in the last process\n");
-        ProcessTable[P_ID].threadCount--;
+        delete ProcessTable[P_ID].as->file_ptr;
         exitLock.Release();
         interrupt->Halt();
     }
@@ -690,6 +689,8 @@ int handleIPTMiss(int vpn){
         //Insert the page to the back of the FIFO list
         FIFO_list->Append((void*)ppn);
     }
+    //Acquire the IPT lock
+    IPTLock->Acquire();
     //printf("Found an available physical page: %d\n", ppn);
     //Clear the space one page at a time and write to memory
     bzero(&(machine->mainMemory[ppn*PageSize]), PageSize);
@@ -869,6 +870,8 @@ void ExceptionHandler(ExceptionType which) {
             printf("Invalid vpn address\n");
             interrupt->Halt();
         }
+        //###### Need an IPT lock
+        IPTLock->Acquire();
 
         //Check all the pages stored in IPT for the 3 parameters
         for (int i = 0; i < NumPhysPages; i++){
@@ -880,7 +883,9 @@ void ExceptionHandler(ExceptionType which) {
         if(ppn == -1){
             //IPT missed
                 //printf("IPT missed, going to handleIPTMiss\n");
-            ppn = handleIPTMiss(vpn);
+            //RElease IPT lock here
+            IPTLock->Release();
+            ppn = handleIPTMiss(vpn);   ///### Need to acquire a ipt lock in this function
         }
         //printf("Updating to TLB[%d] with ppn: %d\n", currentTLB, ppn);
         //Update the tlb page table
@@ -894,6 +899,7 @@ void ExceptionHandler(ExceptionType which) {
         currentTLB = (currentTLB + 1) % TLBSize;
 
         (void) interrupt->SetLevel(oldLevel);
+        IPTLock->Release();
         return;
 
     }else if(which == ReadOnlyException) {
