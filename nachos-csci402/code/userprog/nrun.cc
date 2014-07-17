@@ -62,5 +62,7 @@ int main(int argc, char **argv) {
         }
     }
 
+    printf("\a\a\a");
+    printf("\n\nALL TESTS COMPLETED SUCCESSFULLY\n\n");
     return error;
 }

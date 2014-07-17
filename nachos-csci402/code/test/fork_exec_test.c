@@ -45,7 +45,6 @@ void hello_world() {
 }
 
 void thread_yield() {
-    PrintF("Hello World from a thread\n", sizeof("Hello World from a thread\n"));
     while(TRUE) {
         Yield();
     }
@@ -96,9 +95,7 @@ int main() {
     
 
     for(i = 0; i < 100; i++) {
-        thread_name_2[12] = (char)(((int)'0')+i);
-        PrintF(thread_name_2, 13);
-        PrintF(" \n", 2);
+        thread_name_2[12] = (char)(((int)' ')+i);
         Fork(thread_yield, thread_name_2, 13);
     }
     fnt_3_result = Fork(thread_yield,

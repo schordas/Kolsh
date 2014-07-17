@@ -296,11 +296,8 @@ int sc_fork(const unsigned int func_to_fork_vaddr,
         thread_name = read_into_new_buffer(char_buff, buff_length); // this is freed when delete 
                                                                     // is called on the thread   
     }
-
-    /*printf("\npreparing to fork [%s] from thread [%s]\n\n", thread_name, currentThread->getName());*/
+    
     Thread *kernel_thread = new Thread(thread_name);
-    printf("Preparing to fork [%s] with function [%d] from [%s]\n", 
-        thread_name, func_to_fork_vaddr, currentThread->getName());
 
     kernel_thread->space = currentThread_addrspace;
     int stack_start = kernel_thread->space->allocate_new_thread_stack();
@@ -335,54 +332,63 @@ void sc_exit(const int exit_status) {
     currentThread->Finish();
 };
 
+void sc_yield() {
+    currentThread->Yield();
+}
+
 void ExceptionHandler(ExceptionType which) {
     int type = machine->ReadRegister(2);    // Which syscall?
     int rv=0;                               // the return value from a syscall
 
-    if ( which == SyscallException ) {
+    if(which == SyscallException ) {
         switch (type) {
             default:
-                DEBUG('a', "Unknown syscall - shutting down.\n");
+                DEBUG('e', "Unknown syscall type [%d] - shutting down.\n", type);
+                break;
+            case SC_Yield:
+                DEBUG('e', "Yield syscall\n");
+                sc_yield();
+                break;
             case SC_Fork:
-                DEBUG('a', "Fork syscall.\n");
+                DEBUG('e', "Fork syscall.\n");
                 rv = sc_fork(machine->ReadRegister(4),
                                 machine->ReadRegister(5),
                                 machine->ReadRegister(6));
                 break;
             case SC_Halt:
-                DEBUG('a', "Shutdown, initiated by user program.\n");
+                DEBUG('e', "Shutdown, initiated by user program.\n");
                 interrupt->Halt();
                 break;
             case SC_Exit:
-                DEBUG('a', "Exit Syscall.\n");
+                DEBUG('e', "Exit Syscall.\n");
                 sc_exit(machine->ReadRegister(4));
                 break;
             case SC_Create:
-                DEBUG('a', "Create syscall.\n");
+                DEBUG('e', "Create syscall.\n");
                 Create_Syscall(machine->ReadRegister(4), machine->ReadRegister(5));
                 break;
             case SC_Open:
-                DEBUG('a', "Open syscall.\n");
+                DEBUG('e', "Open syscall.\n");
                 rv = Open_Syscall(machine->ReadRegister(4), machine->ReadRegister(5));
                 break;
             case SC_Write:
-                DEBUG('a', "Write syscall.\n");
+                DEBUG('e', "Write syscall.\n");
                 Write_Syscall(machine->ReadRegister(4),
                         machine->ReadRegister(5),
                         machine->ReadRegister(6));
                 break;
             case SC_Read:
-                DEBUG('a', "Read syscall.\n");
+                DEBUG('e', "Read syscall.\n");
                 rv = Read_Syscall(machine->ReadRegister(4),
                         machine->ReadRegister(5),
                         machine->ReadRegister(6));
                 break;
             case SC_Close:
-                DEBUG('a', "Close syscall.\n");
+                DEBUG('e', "Close syscall.\n");
                 Close_Syscall(machine->ReadRegister(4));
                 break;
             case SC_PrintF:
-                DEBUG('a', "Print_F system call.\n");
+                DEBUG('e', "Print_F system call.\n");
                 sc_printf(machine->ReadRegister(4),
                             machine->ReadRegister(5));
                 break;

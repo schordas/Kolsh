@@ -129,7 +129,6 @@ void Scheduler::Run (Thread *nextThread) {
         threadToBeDestroyed->space->decrement_running_thread_count();
 #endif
         delete threadToBeDestroyed;
-        this->Print();
     }
     thread_op_mutex->Release();
     
