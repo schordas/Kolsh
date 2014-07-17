@@ -17,6 +17,7 @@
 #include "timer.h"
 #include "synch.h"
 #include "list.h"
+#include "process_table.h"
 
 // Initialization and cleanup routines
 extern void Initialize(int argc, char **argv);  // Initialization,
@@ -25,7 +26,6 @@ extern void Cleanup();                          // Cleanup, called when
                                                 // Nachos is done.
 
 extern Lock *thread_op_mutex;               // lock to allow for mutual exclusion of thread ops
-extern Condition *thread_destroy_cond;      // condition to wait on for thread_ops
 extern Thread *currentThread;               // the thread holding the CPU
 extern List *thread_destroy_queue;          // queue of threads pending destruction
 extern Scheduler *scheduler;                // the ready list
@@ -38,6 +38,7 @@ extern Timer *timer;                        // the hardware alarm clock
 extern Machine* machine;                    // user program memory and registers
 extern BitMap *memory_map;                  // memory map
 extern Lock *memory_map_mutex;
+extern ProcessTable *process_table;         // process table to manage system process
 #endif
 
 #ifdef FILESYS_NEEDED                       // FILESYS or FILESYS_STUB 

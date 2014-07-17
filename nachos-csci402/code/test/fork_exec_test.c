@@ -22,6 +22,8 @@
 #define NULL                0
 #define MAX_PROCESS_THREADS 100
 
+int run_yield_test = TRUE;
+
 void ASSERT(int assert_value, char *assert_message, int message_size, int expected, int rcvd) {
     if(!assert_value) {
         PrintF("Assertion Failed: ", sizeof("Assertion Failed: "));
@@ -45,10 +47,10 @@ void hello_world() {
 }
 
 void thread_yield() {
-    while(TRUE) {
+    while(run_yield_test) {
         Yield();
     }
-    Halt();
+    Exit(0);
     return;
 }
 
@@ -103,10 +105,9 @@ int main() {
                             sizeof("fork_ntest_thread_3"));
     ASSERT((fnt_3_result == -2), "fnt_3", sizeof("fnt_3"), -2, fnt_3_result);
     
+    run_yield_test = FALSE;
 
     PrintF("ALL TESTS COMPLETED SUCCESSFULLY\n", sizeof("ALL TESTS COMPLETED SUCCESSFULLY\n"));
-
-    Halt();
     
     return 0;
 }

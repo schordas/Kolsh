@@ -8,6 +8,7 @@
 // All rights reserved.  See copyright.h for copyright notice and limitation 
 // of liability and disclaimer of warranty provisions.
 
+#include <assert.h>
 #include "copyright.h"
 #include "system.h"
 #include "console.h"
@@ -25,14 +26,25 @@
 void StartProcess(char *filename) {
     OpenFile *executable = fileSystem->Open(filename);
     AddrSpace *space;
+    unsigned int process_id;
 
     if(executable == NULL) {
         printf("Unable to open file %s\n", filename);
         return;
     }
     
-    space = new AddrSpace(executable);
-    
+    process_id = process_table->acquire_new_process_id();
+    if(process_id == -1) {
+        // this is the first process in the system...
+        // this code block should never execute
+        ASSERT(FALSE);
+    }
+    space = new AddrSpace(executable, process_id);
+    if(!process_table->bind_address_space(process_id, space)) {
+        // what the hell went wrong? Recovery isn't really possible.
+        ASSERT(FALSE);
+    }
+
     currentThread->space = space;
     
     delete executable;          // close file

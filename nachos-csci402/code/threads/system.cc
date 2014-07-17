@@ -12,7 +12,6 @@
 // These are all initialized and de-allocated by this file.
 
 Lock *thread_op_mutex;              // lock to allow for mutual exclusion of thread ops
-Condition *thread_destroy_cond;     // condition to wait on for thread_ops
 Thread *currentThread;              // the thread we are running now
 List *thread_destroy_queue;         // queue of threads pending destruction
 Scheduler *scheduler;               // the ready list
@@ -29,10 +28,11 @@ FileSystem  *fileSystem;
 SynchDisk   *synchDisk;
 #endif
 
-#ifdef USER_PROGRAM // requires either FILESYS or FILESYS_STUB
-Machine *machine;   // user program memory and registers
+#ifdef USER_PROGRAM                 // requires either FILESYS or FILESYS_STUB
+Machine *machine;                   // user program memory and registers
 BitMap *memory_map;
 Lock *memory_map_mutex;
+ProcessTable *process_table;        // process table to manage system process
 #endif
 
 #ifdef NETWORK
@@ -148,8 +148,6 @@ Initialize(int argc, char **argv)
     currentThread = new Thread("main");     
     currentThread->setStatus(RUNNING);
     thread_op_mutex = new Lock("thread_op_mutex");
-    thread_destroy_cond = new Condition("thread_destroy_cond");
-
 
     interrupt->Enable();
     CallOnUserAbort(Cleanup);           // if user hits ctl-C
@@ -158,6 +156,7 @@ Initialize(int argc, char **argv)
     machine = new Machine(debugUserProg);   // this must come first
     memory_map = new BitMap(NumPhysPages);
     memory_map_mutex = new Lock("memory_map_mutex");
+    process_table = new ProcessTable();
 #endif
 
 #ifdef FILESYS
@@ -177,9 +176,7 @@ Initialize(int argc, char **argv)
 // Cleanup
 //  Nachos is halting.  De-allocate global data structures.
 //----------------------------------------------------------------------
-void
-Cleanup()
-{
+void Cleanup() {
     printf("\nCleaning up...\n");
 #ifdef NETWORK
     delete postOffice;
@@ -189,6 +186,7 @@ Cleanup()
     delete machine;
     delete memory_map;
     delete memory_map_mutex;
+    delete process_table;
 #endif
 
 #ifdef FILESYS_NEEDED
@@ -200,7 +198,6 @@ Cleanup()
 #endif
     delete thread_destroy_queue;
     delete thread_op_mutex;
-    delete thread_destroy_cond;
     delete timer;
     delete scheduler;
     delete interrupt;

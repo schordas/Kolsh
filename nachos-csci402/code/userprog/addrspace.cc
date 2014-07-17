@@ -116,7 +116,7 @@ SwapHeader (NoffHeader *noffH)
 //      Incompletely consretucted address spaces have the member
 //      constructed set to false.
 //----------------------------------------------------------------------
-AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
+AddrSpace::AddrSpace(OpenFile *executable, const unsigned int process_id) : fileTable(MaxOpenFiles) {
     // function data
     unsigned int executable_pages;
     int executable_size;
@@ -125,6 +125,8 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     // initialize class private data
     this->address_space_mutex = new Lock("address_space_mutex");
     this->number_of_running_threads = 1;      // we start with the main thread running.
+    this->process_id = process_id;
+
 
     // Don't allocate the input or output to disk files
     fileTable.Put(0);
@@ -159,7 +161,8 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     for (unsigned int i = 0; i < numPages; i++) {
         int physical_page_number = memory_map->Find();   // Find an available physical memory page
         if(physical_page_number == -1) {
-            // Error, all memory occupied
+            // Error, all memory occupied -- this should be resolved when we
+            //                                  implement paging so don't stress for now
             // TODO: release all requested memory back to the OS
             printf("FATAL ERROR:\n");
             printf("AddrSpace::AddrSpace out of system memory.\n");
@@ -197,7 +200,7 @@ int AddrSpace::allocate_new_thread_stack() {
 
     if(this->number_of_running_threads == MAX_PROCESS_THREADS) {
         // the process has reached its thread limit. Reject the request
-        // TODO ensure we release any requested resources for this failed request
+        // we haven't requested any resources at this point so we're good
         DEBUG('t', "OVER MAX PROCESS THREADS. FAILING REQUEST\n");
         this->address_space_mutex->Release();
         return -1;
@@ -245,11 +248,19 @@ int AddrSpace::allocate_new_thread_stack() {
 
 bool AddrSpace::is_valid_code_vaddr(const unsigned int vaddr) {
     // we are making the assumption you cannot fork main
+    // therefore vaddr 0 is invalid
     return (vaddr > 0 && vaddr <= this->code_vaddr_fence);
 }
 
 bool AddrSpace::is_valid_data_vaddr(const unsigned int vaddr) {
     return (vaddr > this->code_vaddr_fence && vaddr < this->address_space_size);
+}
+
+/**
+ *
+ */
+unsigned int AddrSpace::get_process_id() {
+    return this->process_id;
 }
 
 /**

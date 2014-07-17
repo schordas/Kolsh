@@ -29,8 +29,8 @@ class Lock;
 
 class AddrSpace {
   public:
-    AddrSpace(OpenFile *executable);                        // Create an address space,
-                                                            // initializing it with the program
+    AddrSpace(OpenFile *executable,                         // Create an address space,
+        const unsigned int process_id);                     // initializing it with the program
                                                             // stored in the file "executable"
     
     ~AddrSpace();                                           // De-allocate an address space
@@ -46,12 +46,14 @@ class AddrSpace {
     bool is_valid_data_vaddr(const unsigned int vaddr);     // returns if vaddr is within the data bounds
     int allocate_new_thread_stack();                        // allocate a new thread stack
                                                             // returns the start address of the stack
+    unsigned int get_process_id();                          // returns the process id
     void decrement_running_thread_count();                  // thread safe decrement of number_of_running_threads
 
  private:
     unsigned int address_space_size;            // returns numPages * PageSize
     unsigned int numPages;                      // Number of memory pages in the virtual address space
     unsigned int code_vaddr_fence;              // last virtual address of code in the address space
+    unsigned int process_id;                    // process id
     int number_of_running_threads;              // number of running threads in address space
 
     TranslationEntry *pageTable;                // Assume linear page table translation for now!
