@@ -87,21 +87,20 @@ Scheduler::FindNextToRun ()
 //  "nextThread" is the thread to be put into the CPU.
 //----------------------------------------------------------------------
 
-void
-Scheduler::Run (Thread *nextThread)
-{
+void Scheduler::Run (Thread *nextThread) {
     Thread *oldThread = currentThread;
     
 #ifdef USER_PROGRAM         // ignore until running user programs 
     if (currentThread->space != NULL) { // if this thread is a user program,
         currentThread->SaveUserState(); // save the user's CPU registers
-    currentThread->space->SaveState();
+        currentThread->space->SaveState();
     }
 #endif
     
     oldThread->CheckOverflow();         // check if the old thread
-                        // had an undetected stack overflow
+                                        // had an undetected stack overflow
 
+    ASSERT(nextThread != NULL);
     currentThread = nextThread;         // switch to the next thread
     currentThread->setStatus(RUNNING);      // nextThread is now running
     
@@ -121,15 +120,18 @@ Scheduler::Run (Thread *nextThread)
     // we need to delete its carcass.  Note we cannot delete the thread
     // before now (for example, in Thread::Finish()), because up to this
     // point, we were still running on the old thread's stack!
-    if(threadToBeDestroyed != NULL) {
+    thread_op_mutex->Acquire();
+    if(!thread_destroy_queue->IsEmpty()) {
 #ifdef USER_PROGRAM
         // we need to do some book-keeping in the address space
         // before we delete the thread
+        Thread *threadToBeDestroyed = (Thread *)thread_destroy_queue->Remove();
         threadToBeDestroyed->space->decrement_running_thread_count();
 #endif
         delete threadToBeDestroyed;
-        threadToBeDestroyed = NULL;
+        this->Print();
     }
+    thread_op_mutex->Release();
     
 #ifdef USER_PROGRAM
     if (currentThread->space != NULL) {     // if there is an address space

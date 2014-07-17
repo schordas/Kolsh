@@ -16,6 +16,7 @@
 #include "stats.h"
 #include "timer.h"
 #include "synch.h"
+#include "list.h"
 
 // Initialization and cleanup routines
 extern void Initialize(int argc, char **argv);  // Initialization,
@@ -23,8 +24,10 @@ extern void Initialize(int argc, char **argv);  // Initialization,
 extern void Cleanup();                          // Cleanup, called when
                                                 // Nachos is done.
 
+extern Lock *thread_op_mutex;               // lock to allow for mutual exclusion of thread ops
+extern Condition *thread_destroy_cond;      // condition to wait on for thread_ops
 extern Thread *currentThread;               // the thread holding the CPU
-extern Thread *threadToBeDestroyed;         // the thread that just finished
+extern List *thread_destroy_queue;          // queue of threads pending destruction
 extern Scheduler *scheduler;                // the ready list
 extern Interrupt *interrupt;                // interrupt status
 extern Statistics *stats;                   // performance metrics

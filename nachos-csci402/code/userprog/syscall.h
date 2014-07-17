@@ -31,6 +31,7 @@
 #define SC_Yield    10
 
 #define SC_PrintF   20
+#define SC_PrintL   21
 
 #define MAXFILENAME 256
 
@@ -144,6 +145,11 @@ void Yield();
  * Print a statement from a user-program
  */   
 void PrintF(char* buff, int buf_length);
+
+/**
+ * Print a literal from a user-program
+ */   
+void PrintL(const int literal);
 
 #endif /* IN_ASM */
 

@@ -143,7 +143,10 @@ void Thread::Finish () {
     
     DEBUG('t', "Finishing thread \"%s\"\n", getName());
     
-    threadToBeDestroyed = currentThread;
+    thread_op_mutex->Acquire();
+    thread_destroy_queue->Append((void *)this);
+    thread_op_mutex->Release();
+
     Sleep();                    // invokes SWITCH
     // not reached
 }
@@ -177,9 +180,9 @@ Thread::Yield ()
     DEBUG('t', "Yielding thread \"%s\"\n", getName());
     
     nextThread = scheduler->FindNextToRun();
-    if (nextThread != NULL) {
-    scheduler->ReadyToRun(this);
-    scheduler->Run(nextThread);
+    if(nextThread != NULL) {
+        scheduler->ReadyToRun(this);
+        scheduler->Run(nextThread);
     }
     (void) interrupt->SetLevel(oldLevel);
 }
@@ -203,9 +206,7 @@ Thread::Yield ()
 //  so that there can't be a time slice between pulling the first thread
 //  off the ready list, and switching to it.
 //----------------------------------------------------------------------
-void
-Thread::Sleep ()
-{
+void Thread::Sleep () {
     Thread *nextThread;
     
     ASSERT(this == currentThread);
@@ -216,7 +217,8 @@ Thread::Sleep ()
     status = BLOCKED;
     while ((nextThread = scheduler->FindNextToRun()) == NULL)
     interrupt->Idle();  // no one to run, wait for an interrupt
-        
+    
+    DEBUG('t', "Waking thread \"%s\"\n", nextThread->getName());        
     scheduler->Run(nextThread); // returns when we've been signalled
 }
 

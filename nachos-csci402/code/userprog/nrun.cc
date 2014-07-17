@@ -27,8 +27,8 @@
 #include <string.h>
 
 #define STARTRS     1
-#define ENDRS       9999
-#define WhenToPrint 100
+#define ENDRS       100
+#define WhenToPrint 5
 
 int main(int argc, char **argv) {
     char nachos_command[50];

@@ -22,29 +22,41 @@
 #define NULL                0
 #define MAX_PROCESS_THREADS 100
 
-void ASSERT(int assert_value, char *assert_message, int message_size) {
+void ASSERT(int assert_value, char *assert_message, int message_size, int expected, int rcvd) {
     if(!assert_value) {
         PrintF("Assertion Failed: ", sizeof("Assertion Failed: "));
         PrintF(assert_message, message_size);
+        PrintF(" expected [", sizeof(" expected ["));
+        PrintL(expected);
+        PrintF("]", 1);
+        PrintF(" rcvd [", sizeof(" rcvd ["));
+        PrintL(rcvd);
+        PrintF("]\n", 2);
         Halt();
+        return;
     }
+    return;
 }
 
 void hello_world() {
     PrintF("Hello World from a thread\n", sizeof("Hello World from a thread\n"));
     Exit(0);
+    return;
 }
 
 void thread_yield() {
+    PrintF("Hello World from a thread\n", sizeof("Hello World from a thread\n"));
     while(TRUE) {
         Yield();
     }
-    Exit(0);
+    Halt();
+    return;
 }
 
 int main() {
     
     char *thread_name = "fork_test_thread_1";
+    char *thread_name_2 = "fnt_3_yield- ";
     unsigned int i = 0;
 
     /**
@@ -62,23 +74,37 @@ int main() {
      */
     int fnt_1_result, fnt_2_result, fnt_3_result;
 
-    fpt_1_result = Fork(hello_world, thread_name, sizeof("fork_test_thread_1"));
-    ASSERT((fpt_1_result == 0), "fpt_1\n", sizeof("fpt_1\n"));
+    fpt_1_result = Fork(hello_world, 
+                            "fork_test_thread_1",
+                            sizeof("fork_test_thread_1"));
+    ASSERT((fpt_1_result == 0), "fpt_1", sizeof("fpt_1"), 0, fpt_1_result);
     
-    fpt_2_result = Fork(hello_world, NULL, NULL);
-    ASSERT((fpt_2_result == 0), "fpt_2\n", sizeof("fpt_2\n"));
-
-    fnt_1_result = Fork((void *)thread_name, thread_name, sizeof("fork_test_thread_1"));
-    ASSERT((fnt_1_result == -1), "fnt_1\n", sizeof("fnt_1\n"));
-
-    fnt_2_result = Fork(hello_world, (char *)hello_world, sizeof("fork_test_thread_1"));
-    ASSERT((fnt_2_result == -1), "fnt_2\n", sizeof("fnt_2\n"));
+    fpt_2_result = Fork(hello_world,
+                            NULL,
+                            NULL);
+    ASSERT((fpt_2_result == 0), "fpt_2", sizeof("fpt_2"), 0, fpt_2_result);
     
-    for(i = 0; i < MAX_PROCESS_THREADS; i++) {
-        Fork(thread_yield, NULL, NULL);
+    fnt_1_result = Fork((void *)thread_name, 
+                            "fork_ntest_thread_1", 
+                            sizeof("fork_ntest_thread_1"));
+    ASSERT((fnt_1_result == -1), "fnt_1", sizeof("fnt_1"), -1, fnt_1_result);
+
+    fnt_2_result = Fork(hello_world, 
+                            (char *)hello_world,
+                            sizeof("fork_ntest_thread_2"));
+    ASSERT((fnt_2_result == -1), "fnt_2", sizeof("fnt_2"), -1, fnt_2_result);
+    
+
+    for(i = 0; i < 100; i++) {
+        thread_name_2[12] = (char)(((int)'0')+i);
+        PrintF(thread_name_2, 13);
+        PrintF(" \n", 2);
+        Fork(thread_yield, thread_name_2, 13);
     }
-    fnt_3_result = Fork(thread_yield, NULL, NULL);
-    ASSERT((fnt_3_result == -2), "fnt_3\n", sizeof("fnt_3\n"));
+    fnt_3_result = Fork(thread_yield,
+                            "fork_ntest_thread_3", 
+                            sizeof("fork_ntest_thread_3"));
+    ASSERT((fnt_3_result == -2), "fnt_3", sizeof("fnt_3"), -2, fnt_3_result);
     
 
     PrintF("ALL TESTS COMPLETED SUCCESSFULLY\n", sizeof("ALL TESTS COMPLETED SUCCESSFULLY\n"));

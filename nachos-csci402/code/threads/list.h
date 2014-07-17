@@ -1,10 +1,10 @@
 // list.h 
-//	Data structures to manage LISP-like lists.  
+//  Data structures to manage LISP-like lists.  
 //
 //      As in LISP, a list can contain any type of data structure
-//	as an item on the list: thread control blocks, 
-//	pending interrupts, etc.  That is why each item is a "void *",
-//	or in other words, a "pointers to anything".
+//  as an item on the list: thread control blocks, 
+//  pending interrupts, etc.  That is why each item is a "void *",
+//  or in other words, a "pointers to anything".
 //
 // Copyright (c) 1992-1993 The Regents of the University of California.
 // All rights reserved.  See copyright.h for copyright notice and limitation 
@@ -26,12 +26,12 @@
 
 class ListElement {
    public:
-     ListElement(void *itemPtr, int64_t sortKey);	// initialize a list element
+     ListElement(void *itemPtr, int64_t sortKey);   // initialize a list element
 
-     ListElement *next;		// next element on list, 
-				// NULL if this is the last
-     int64_t key;		    	// priority, for a sorted list
-     void *item; 	    	// pointer to item on the list
+     ListElement *next;     // next element on list, 
+                            // NULL if this is the last
+     int64_t key;           // priority, for a sorted list
+     void *item;            // pointer to item on the list
 };
 
 // The following class defines a "list" -- a singly linked list of
@@ -42,25 +42,25 @@ class ListElement {
 
 class List {
   public:
-    List();			// initialize the list
-    ~List();			// de-allocate the list
+    List();             // initialize the list
+    ~List();            // de-allocate the list
 
-    void Prepend(void *item); 	// Put item at the beginning of the list
-    void Append(void *item); 	// Put item at the end of the list
-    void *Remove(); 	 	// Take item off the front of the list
+    void Prepend(void *item);   // Put item at the beginning of the list
+    void Append(void *item);    // Put item at the end of the list
+    void *Remove();             // Take item off the front of the list
 
-    void Mapcar(VoidFunctionPtr func);	// Apply "func" to every element 
-					// on the list
-    bool IsEmpty();		// is the list empty? 
+    void Mapcar(VoidFunctionPtr func);  // Apply "func" to every element 
+                                        // on the list
+    bool IsEmpty();                     // is the list empty? 
     
 
     // Routines to put/get items on/off list in order (sorted by key)
-    void SortedInsert(void *item, int64_t sortKey);	// Put item into list
-    void *SortedRemove(int64_t *keyPtr); 	  	// Remove first item from list
+    void SortedInsert(void *item, int64_t sortKey); // Put item into list
+    void *SortedRemove(int64_t *keyPtr);        // Remove first item from list
 
   private:
-    ListElement *first;  	// Head of the list, NULL if list is empty
-    ListElement *last;		// Last element of list
+    ListElement *first;     // Head of the list, NULL if list is empty
+    ListElement *last;      // Last element of list
 };
 
 #endif // LIST_H

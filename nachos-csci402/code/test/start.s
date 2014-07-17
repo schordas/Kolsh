@@ -148,6 +148,14 @@ PrintF:
 	j	$31
 	.end PrintF
 
+	.globl PrintL
+	.ent	PrintL
+PrintL:
+	addiu $2,$0,SC_PrintL
+	syscall
+	j	$31
+	.end PrintL
+
 
 /* dummy function to keep gcc happy */
         .globl  __main

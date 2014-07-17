@@ -244,7 +244,8 @@ int AddrSpace::allocate_new_thread_stack() {
 }
 
 bool AddrSpace::is_valid_code_vaddr(const unsigned int vaddr) {
-    return (vaddr >= 0 && vaddr <= this->code_vaddr_fence);
+    // we are making the assumption you cannot fork main
+    return (vaddr > 0 && vaddr <= this->code_vaddr_fence);
 }
 
 bool AddrSpace::is_valid_data_vaddr(const unsigned int vaddr) {

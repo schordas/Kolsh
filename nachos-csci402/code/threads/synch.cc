@@ -189,6 +189,12 @@ void Lock::Release() {
     (void) interrupt->SetLevel(oldLevel);
 }
 
+void Lock::printLockDetails() {
+    printf("\nLock Owner:\t [%s]\n", ownerThread->getName());
+    waitQueue->Mapcar((VoidFunctionPtr) ThreadPrint);
+    printf("\n");
+}
+
 
 Condition::Condition(char* debugName) {
     name = debugName;

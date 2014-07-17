@@ -297,7 +297,10 @@ int sc_fork(const unsigned int func_to_fork_vaddr,
                                                                     // is called on the thread   
     }
 
+    /*printf("\npreparing to fork [%s] from thread [%s]\n\n", thread_name, currentThread->getName());*/
     Thread *kernel_thread = new Thread(thread_name);
+    printf("Preparing to fork [%s] with function [%d] from [%s]\n", 
+        thread_name, func_to_fork_vaddr, currentThread->getName());
 
     kernel_thread->space = currentThread_addrspace;
     int stack_start = kernel_thread->space->allocate_new_thread_stack();
@@ -322,6 +325,10 @@ void sc_printf(const unsigned int vaddr,
     char* output_buffer = read_into_new_buffer(vaddr, buff_length);
     printf("%s", output_buffer);
     delete output_buffer;
+}
+
+void sc_printl(const int literal) {
+    printf("%d", literal);
 }
 
 void sc_exit(const int exit_status) {
@@ -379,6 +386,9 @@ void ExceptionHandler(ExceptionType which) {
                 sc_printf(machine->ReadRegister(4),
                             machine->ReadRegister(5));
                 break;
+            case SC_PrintL:
+                sc_printl(machine->ReadRegister(4));
+                break;
         }
 
         // Put in the return value and increment the PC
@@ -389,6 +399,7 @@ void ExceptionHandler(ExceptionType which) {
         return;
     }else {
         cout<<"Unexpected user mode exception - which:"<<which<<"  type:"<< type<<endl;
+        printf("[%d]\n", machine->ReadRegister(BadVAddrReg));
         interrupt->Halt();
     }
 }

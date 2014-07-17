@@ -86,6 +86,8 @@ public:
                                     // checking in Release, and in
                                     // Condition variable ops below.
 
+    void printLockDetails();
+
 private:
     bool isBusy;            // to determine if the lock has been acquired (busy) or is released (free)
     char* name;
