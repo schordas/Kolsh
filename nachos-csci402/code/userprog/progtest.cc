@@ -32,6 +32,7 @@ void StartProcess(char *filename) {
    
     space = new AddrSpace(executable);
     currentThread->space = space;
+    currentThread->space->ProcessID = Process_counter;
 
 
     //delete executable;          // close file
@@ -42,11 +43,10 @@ void StartProcess(char *filename) {
     //Set ProcessTable
 
     int ptr = ProcessTable[Process_counter].threadCount;
-    currentThread->space->ProcessID = Process_counter;
     currentThread->thread_ID = ptr;
     ProcessTable[Process_counter].as = space;
     ProcessTable[Process_counter].threads[ptr].myThread = currentThread;
-    ProcessTable[Process_counter].threads[ptr].firstStackPage = machine->pageTableSize * PageSize;
+    ProcessTable[Process_counter].threads[ptr].firstStackPage = machine->pageTableSize;
     ProcessTable[Process_counter].threadCount++;
     Process_counter++;
 

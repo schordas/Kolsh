@@ -122,6 +122,8 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     int vpn, ppn, size;
     unsigned int NotStackPages;
     //###Lock for bit map
+    newStackLock = new Lock("NewStackLock");
+    stackLock = new Lock("RemoveStackLock");
 
     // Don't allocate the input or output to disk files
     fileTable.Put(0);
@@ -161,6 +163,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
             ExPageTable[i].diskLocation = 2;
         }
     }
+    
 }
 
 //------------------------
@@ -170,8 +173,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
 int AddrSpace::newStack(){
     //Update numPages to include 8 new pages of stack
     printf("allocating new stack pages\n");
-    Lock newStackLock("NewStackLock");
-    newStackLock.Acquire();
+    newStackLock->Acquire();
     int ppn;
     unsigned int newNumPages = numPages + 8;
     ExtendedTranslationEntry *NewPageTable = new ExtendedTranslationEntry[newNumPages];
@@ -187,16 +189,8 @@ int AddrSpace::newStack(){
         }
         else{
             //New Stack Pages Here
-            ppn = memory_map->Find(); 
-            if(ppn == -1){
-                //Error, all memory occupied
-                printf("Error, all memory occupied\n");
-                interrupt->Halt();
-            }
-            bzero(&machine->mainMemory[ppn*PageSize], PageSize);
-            printf("Assigning new Stack Pages [%d] with ppn : [%d]\n", i, ppn);
+            //printf("Assigning new Stack Pages [%d] with ppn : [%d]\n", i, ppn);
             NewPageTable[i].virtualPage = i;
-            NewPageTable[i].physicalPage = ppn;
             NewPageTable[i].valid = TRUE;
             NewPageTable[i].use = FALSE;
             NewPageTable[i].dirty = FALSE;
@@ -208,7 +202,7 @@ int AddrSpace::newStack(){
     //update numPages and pageTable and store the starting position of stack
     numPages = newNumPages;
     ExPageTable = NewPageTable;
-    newStackLock.Release();
+    newStackLock->Release();
     return newNumPages*PageSize;
 }
 
@@ -217,9 +211,8 @@ int AddrSpace::newStack(){
 //------------------------
 
 void AddrSpace::removeStack(int stack){
-    Lock stackLock("RemoveStackLock");
-    stackLock.Acquire();
-    unsigned int stack_page = divRoundUp(stack,PageSize);
+    stackLock->Acquire();
+    unsigned int stack_page = stack;
         printf("Deleting stack pages: %d in Thread: %s\n", stack_page, currentThread->getName());
     unsigned int newNumPages = numPages - 8;
     ExtendedTranslationEntry *NewPageTable = new ExtendedTranslationEntry[newNumPages];
@@ -235,10 +228,33 @@ void AddrSpace::removeStack(int stack){
     }
     //Free up physical memory space
     for(unsigned int i = stack_page - 8; i < stack_page; i++){
-        int pa = ExPageTable[i].physicalPage;
-            printf("Freeing physical page: %d\n", pa);
-        memory_map->Clear(pa);
+        for(int j = 0; j <TLBSize; i++){
+            if(machine->tlb[j].virtualPage == ExPageTable[i].virtualPage){
+                machine->tlb[j].valid = FALSE;
+                //Remove it from the memory map
+                memory_map->Clear(ExPageTable[i].physicalPage);
+                //Update FIFO list
+                List *newList = new List;
+                int currentFIFO = 0;
+                while(!FIFO_list->IsEmpty() ) {
+                    currentFIFO = (int) FIFO_list->Remove();
+                    if(currentFIFO != ExPageTable[i].physicalPage){
+                        newList->Append( (void*) currentFIFO );
+                    }
+                }
+                delete FIFO_list;
+                FIFO_list = newList;
+            }
+        }
+        for(int j = 0; j < NumPhysPages; j++){
+            if(IPT[j].virtualPage == ExPageTable[i].virtualPage){
+                IPT[j].valid = FALSE;
+            }
+        }
     }
+        // int pa = ExPageTable[i].physicalPage;
+        //     printf("Freeing physical page: %d\n", pa);
+        // memory_map->Clear(pa);
     //Copy the section after the stack
     for(unsigned int i = stack_page - 8; i < newNumPages; i++){
         NewPageTable[i].virtualPage = ExPageTable[stack_page].virtualPage;
@@ -254,7 +270,7 @@ void AddrSpace::removeStack(int stack){
     delete ExPageTable;
     numPages = newNumPages;
     ExPageTable = NewPageTable;
-    stackLock.Release();
+    stackLock->Release();
 }
 
 //----------------------------------------------------------------------
@@ -264,15 +280,37 @@ void AddrSpace::removeStack(int stack){
 //----------------------------------------------------------------------
 
 void AddrSpace::returnMemory(){
-    Lock stackLock("RemoveAddrsMemoryLock");
     printf("AddrSpace returnMemory:");
-    stackLock.Acquire();
+    stackLock->Acquire();
     for(unsigned int i = 0; i < numPages; i++){
-        int pa = ExPageTable[i].physicalPage;
-            printf("Freeing physical page: %d\n", pa);
-        memory_map->Clear(pa);
+        for(int j = 0; j < NumPhysPages; j++){
+            if(ExPageTable[i].virtualPage == IPT[j].virtualPage){
+                IPT[j].valid == FALSE;
+                //Remove it from the memory map
+                memory_map->Clear(ExPageTable[i].physicalPage);
+                //Update FIFO list
+                List *newList = new List;
+                int currentFIFO = 0;
+                while(!FIFO_list->IsEmpty() ) {
+                    currentFIFO = (int) FIFO_list->Remove();
+                    if(currentFIFO != ExPageTable[i].physicalPage){
+                        newList->Append( (void*) currentFIFO );
+                    }
+                }
+                delete FIFO_list;
+                FIFO_list = newList;
+            }
+
+    
+        }
+        for(int j = 0; j <TLBSize; i++){
+            if(machine->tlb[j].virtualPage == ExPageTable[i].virtualPage){
+                machine->tlb[j].valid = FALSE;
+            }
+        }
+        //printf("Freeing physical page: %d\n", ExPageTable[i].physicalPage);
     }
-    stackLock.Release();
+    stackLock->Release();
 }
 
 

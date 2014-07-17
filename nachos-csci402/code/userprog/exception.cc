@@ -684,7 +684,7 @@ int handleIPTMiss(int vpn){
         //All memory occupied,  evict a page
         //printf("Memory Full, evict a page\n");
         ppn = handleMemoryFull();
-        printf("MemFull: obtain ppn:%d\n", ppn);
+        //printf("MemFull: obtain ppn:%d\n", ppn);
     }
     else{
         //Insert the page to the back of the FIFO list
@@ -698,13 +698,13 @@ int handleIPTMiss(int vpn){
     }
     else if(currentThread->space->ExPageTable[vpn].diskLocation == 1){
         //Read from the swap file
-        printf("Writing into mainMemoryPage#%d from swap file\n", ppn);
+        //printf("Writing into mainMemoryPage#%d from swap file\n", ppn);
         swap_file->ReadAt(&(machine->mainMemory[ppn*PageSize]),
                 PageSize, currentThread->space->ExPageTable[vpn].byteoffset);
     }
     else {
         //Read from the executable
-        printf("Writing into physicalPage[%d]\n", ppn);
+        //printf("Writing into physicalPage[%d]\n", ppn);
         currentThread->space->file_ptr->ReadAt(&(machine->mainMemory[ppn*PageSize]),
                 PageSize, 40 + vpn*PageSize);
     }
