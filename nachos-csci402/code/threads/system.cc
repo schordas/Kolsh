@@ -48,6 +48,7 @@ List *FIFO_list;                //Physical Page Queue to implement FIFO
 OpenFile *swap_file;                 //Swap file, for dirty pages
 BitMap *swap_map;               //Swap map for locating used spaces
 Lock *memFullLock;
+Lock *forkLock;                 //Lock for fork method
 #endif
 
 
@@ -188,6 +189,7 @@ currentTLB = 0;
 FIFO_list = new List;
 swap_map = new BitMap(2000);
 memFullLock = new Lock("memoryFullLock");
+forkLock = new Lock("ForkKernelLock");
 
 #endif
 

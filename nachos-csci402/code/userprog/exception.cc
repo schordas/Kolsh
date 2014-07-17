@@ -367,7 +367,7 @@ void kernel_thread(int value){
         printf("Store into PC registers: func = %d\n", (int) my_info->func);
         printf("Store into NextPC registers: func = %d\n", (int) my_info->func + 4);
     //write to the stack register , the starting postion of the stack for this thread.
-    machine->WriteRegister(StackReg, start_point-16);
+    machine->WriteRegister(StackReg, (start_point*PageSize) - 16);
     machine->Run();
 
 }

@@ -89,6 +89,7 @@ extern List *FIFO_list;
 extern OpenFile *swap_file;
 extern BitMap *swap_map;
 extern Lock *memFullLock;
+extern Lock *forkLock;
 #endif
 
 

@@ -163,7 +163,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
             ExPageTable[i].diskLocation = 2;
         }
     }
-    
+
 }
 
 //------------------------
@@ -186,6 +186,8 @@ int AddrSpace::newStack(){
             NewPageTable[i].use = ExPageTable[i].use;
             NewPageTable[i].dirty = ExPageTable[i].dirty;
             NewPageTable[i].readOnly = ExPageTable[i].readOnly;
+            NewPageTable[i].byteoffset = ExPageTable[i].byteoffset;
+            NewPageTable[i].diskLocation = ExPageTable[i].diskLocation;
         }
         else{
             //New Stack Pages Here
@@ -195,6 +197,7 @@ int AddrSpace::newStack(){
             NewPageTable[i].use = FALSE;
             NewPageTable[i].dirty = FALSE;
             NewPageTable[i].readOnly = FALSE;
+            NewPageTable[i].diskLocation = 2;
         }
     }
     //Remove the old table to free up resources
