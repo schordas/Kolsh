@@ -17,6 +17,7 @@
 #include "filesys.h"
 #include "table.h"
 #include "synch.h"
+#include "thread.h"
 
 #define UserStackSize       1024    // increase this as necessary!
 
@@ -26,12 +27,13 @@
 #define MAX_PROCESS_THREADS 100
 
 class Lock;
+class Thread;
 
 class AddrSpace {
   public:
     AddrSpace(OpenFile *executable,                         // Create an address space,
-        const unsigned int process_id);                     // initializing it with the program
-                                                            // stored in the file "executable"
+        const unsigned int process_id,                      // initializing it with the program
+        Thread* main_thread);                               // stored in the file "executable"
     
     ~AddrSpace();                                           // De-allocate an address space
 
@@ -44,10 +46,10 @@ class AddrSpace {
     
     bool is_valid_code_vaddr(const unsigned int vaddr);     // returns if passed in vaddr is within the code bounds
     bool is_valid_data_vaddr(const unsigned int vaddr);     // returns if vaddr is within the data bounds
-    int allocate_new_thread_stack();                        // allocate a new thread stack
+    int allocate_new_thread_stack(Thread* thread_ptr);      // allocate a new thread stack
                                                             // returns the start address of the stack
     unsigned int get_process_id();                          // returns the process id
-    void decrement_running_thread_count();                  // thread safe decrement of number_of_running_threads
+    bool release_thread_resources(Thread* thread_ptr);      // thread safe decrement of number_of_running_threads
 
  private:
     unsigned int address_space_size;            // returns numPages * PageSize

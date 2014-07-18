@@ -125,7 +125,7 @@ void Scheduler::Run (Thread *nextThread) {
         // we need to do some book-keeping in the address space
         // before we delete the thread
         Thread *threadToBeDestroyed = (Thread *)thread_destroy_queue->Remove();
-        printf("going to delete thread [%s]\n", threadToBeDestroyed->getName());
+        //printf("going to delete thread [%s]\n", threadToBeDestroyed->getName());
 #ifdef USER_PROGRAM
         if(!threadToBeDestroyed->space->release_thread_resources(threadToBeDestroyed)) {
             // the thread failed to be released from the address space, try again later

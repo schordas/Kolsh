@@ -116,7 +116,9 @@ SwapHeader (NoffHeader *noffH)
 //      Incompletely consretucted address spaces have the member
 //      constructed set to false.
 //----------------------------------------------------------------------
-AddrSpace::AddrSpace(OpenFile *executable, const unsigned int process_id) : fileTable(MaxOpenFiles) {
+AddrSpace::AddrSpace(OpenFile *executable, 
+                        const unsigned int process_id,
+                        Thread* main_thread) : fileTable(MaxOpenFiles) {
     // function data
     unsigned int executable_pages;
     int executable_size;
@@ -191,7 +193,7 @@ AddrSpace::AddrSpace(OpenFile *executable, const unsigned int process_id) : file
 /**
  * Allocate another thread stack.
  */
-int AddrSpace::allocate_new_thread_stack() {
+int AddrSpace::allocate_new_thread_stack(Thread* thread_ptr) {
     // declare local variables
     int return_value;
     TranslationEntry *new_page_table;
@@ -266,10 +268,11 @@ unsigned int AddrSpace::get_process_id() {
 /**
  *
  */
-void AddrSpace::decrement_running_thread_count() {
+bool AddrSpace::release_thread_resources(Thread* thread_ptr) {
     this->address_space_mutex->Acquire();
     this->number_of_running_threads--;
     this->address_space_mutex->Release();
+    return true;
 }
 
 //----------------------------------------------------------------------

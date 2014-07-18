@@ -121,10 +121,10 @@ bool Lock::isHeldByCurrentThread() {
 
 void Lock::Acquire() {
     IntStatus oldLevel = interrupt->SetLevel(IntOff);
-    printLockDetails();
+    //printLockDetails();
     if(isHeldByCurrentThread()) {
         // the owning thread has reacquired the lock.
-        printf("[%s] is held by current thread [%s]\n",name, currentThread->getName());
+        //printf("[%s] is held by current thread [%s]\n",name, currentThread->getName());
         entrant_count++;
         (void) interrupt->SetLevel(oldLevel);
         return;
@@ -135,12 +135,12 @@ void Lock::Acquire() {
         isBusy = true;
         ownerThread = currentThread;
         entrant_count++;
-        printf("[%s] is acquired by new thread [%s]\n",name, currentThread->getName());
+        //printf("[%s] is acquired by new thread [%s]\n",name, currentThread->getName());
     }
     else { 
         // the lock is busy. Put the calling thread into the wait queue and sleep 
         waitQueue->Append((void *)currentThread);
-        printf("[%s] is busy, thread [%s] is waiting\n",name, currentThread->getName());
+        //printf("[%s] is busy, thread [%s] is waiting\n",name, currentThread->getName());
         currentThread->Sleep();
     }
 
@@ -172,7 +172,7 @@ void Lock::Release() {
     // this is a reentrant lock. The entrant count must
     // be 0 before we can specify the lock as available again.
     if(entrant_count == 0) {
-        printf("[%s] is being released by [%s]\n", name, ownerThread->getName());
+        //printf("[%s] is being released by [%s]\n", name, ownerThread->getName());
         if(waitQueue->IsEmpty()) {
             // there are no threads waiting on the lock.
             // set the the lock to be available and return.
