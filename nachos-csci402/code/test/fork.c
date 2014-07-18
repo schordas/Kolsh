@@ -21,6 +21,6 @@ int main() {
     Fork(myfunc, "Thread 2", sizeof("Thread 2"));
     Fork(myfunc, "Thread 3", sizeof("Thread 3"));
     Fork(myfunc, "Thread 4", sizeof("Thread 4"));
-    
+    Exit(0);
     return 0;
 }

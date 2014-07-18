@@ -401,7 +401,7 @@ int Fork_Syscall(void (*func), unsigned int vaddr, int length){
     t->space = currentThread->space;
     t->Fork((VoidFunctionPtr) kernel_thread, (int)info_ptr);
     //machine->Run();
-    currentThread->Yield();
+    //currentThread->Yield();
     return 0;
 
 }
