@@ -150,8 +150,21 @@ AddrSpace::AddrSpace(OpenFile *executable,
     // Total number of physical pages required by the process to accommodate
     // code, initialized data, uninitialized data and one thread stack space.
     stack_vpn_offset = divRoundUp(executable_size, PageSize);
-    numPages = stack_vpn_offset + 8;
+    numPages = stack_vpn_offset + (8 * MAX_PROCESS_THREADS);
     address_space_size = numPages * PageSize;
+
+    stackTable = new StackTableEntry[MAX_PROCESS_THREADS];
+    numStacks = MAX_PROCESS_THREADS;
+    for(unsigned int i = 0; i < MAX_PROCESS_THREADS; i++) {
+        stackTable[i].thread_ptr = NULL;
+        stackTable[i].vpn_stack_start = ((8*i)+1)+stack_vpn_offset;
+        stackTable[i].vpn_stack_end = (8*(i+1))+stack_vpn_offset;
+        stackTable[i].vaddr_stack_start = (stackTable[i].vpn_stack_end * PageSize) - 16;
+        stackTable[i].in_use = FALSE;
+    }
+
+    stackTable[0].thread_ptr = main_thread;
+    stackTable[0].in_use = TRUE;
 
     // TODO remove once we having memory paging.
     ASSERT(numPages <= NumPhysPages);
@@ -189,74 +202,140 @@ AddrSpace::AddrSpace(OpenFile *executable,
         PageSize, noffH.code.inFileAddr + i * PageSize);
     }
 
-    stackTable = new StackTableEntry[1];
-    stackTable[0].thread_ptr = main_thread;
-    stackTable[0].vpn_stack_start = stack_vpn_offset + 1;
-    stackTable[0].vpn_stack_end = stack_vpn_offset + 8;
-    stackTable[0].in_use = TRUE;
+    printf("sTable[1].vpn_s_start [%d]\n", stackTable[1].vpn_stack_start);
+    printf("sTable[1].vpn_s_end [%d]\n", stackTable[1].vpn_stack_end);
+    printf("sTable[1].vaddr_stack_start [%d]\n", stackTable[1].vaddr_stack_start);
+    
 }
 
 /**
- * Allocate another thread stack.
+ * Find an available thread stack to use.
  */
 int AddrSpace::allocate_new_thread_stack(Thread* thread_ptr) {
-    // declare local variables
-    int return_value;
-    TranslationEntry *new_page_table;
-
+    if(thread_ptr == NULL) {
+        return -2;
+    }
+    printf("allocate new thread stack\n");
     address_space_mutex->Acquire();
 
     if(number_of_running_threads == MAX_PROCESS_THREADS) {
-        // the process has reached its thread limit. Reject the request
-        // we haven't requested any resources at this point so we're good
         DEBUG('t', "OVER MAX PROCESS THREADS. FAILING REQUEST\n");
         address_space_mutex->Release();
         return -1;
     }
 
-    // TODO ensure we have the pages available for a new thread stack
-    new_page_table = new TranslationEntry[numPages + 8];
-    
-    // copy old page table to new page table
-    memcpy(new_page_table, pageTable, numPages * sizeof(TranslationEntry));
+    if(number_of_running_threads == numStacks) {
+        ASSERT(FALSE);
+        if(!allocate_additional_stack_spaces_()) {
+            // this should never happen
+            ASSERT(FALSE);
+        }
+    }
 
-    //Initializing the new 8 pages for the process's thread
+    unsigned int next_sSpace = 0;
+    for(next_sSpace; next_sSpace < numStacks; next_sSpace++) {
+        if(stackTable[next_sSpace].in_use) {
+            continue;
+        }
+        break;
+    }
+
+    if(next_sSpace == numStacks) {
+        // should never happen
+        ASSERT(FALSE);
+    }
+
+    stackTable[next_sSpace].in_use = TRUE;
+    stackTable[next_sSpace].thread_ptr = thread_ptr;
+    unsigned int vpn_start = stackTable[next_sSpace].vpn_stack_start;
+    unsigned int vpn_end = stackTable[next_sSpace].vpn_stack_end;
+
+    // request physical RAM for stack space
+    /*
     memory_map_mutex->Acquire();
-    for(unsigned int x = numPages; x < numPages + 8; x++) {           
+    for(vpn_start; vpn_start <= vpn_end; vpn_start++) {
         int physical_page_number = memory_map->Find();   // Find an available physical memory page
         if(physical_page_number == -1) {
-            // Error, all memory occupied
+            // Error, all memory occupied -- this should be resolved when we
+            //                                  implement paging so don't stress for now
             // TODO: release all requested memory back to the OS
             printf("FATAL ERROR:\n");
             printf("AddrSpace::AddrSpace out of system memory.\n");
             assert(FALSE);
         }
 
-        new_page_table[x].physicalPage = physical_page_number;
-        new_page_table[x].virtualPage = x;
-        new_page_table[x].valid = TRUE;
-        new_page_table[x].use = FALSE;
-        new_page_table[x].dirty = FALSE;
-        new_page_table[x].readOnly = FALSE;
+        pageTable[vpn_start].physicalPage = physical_page_number;
+        pageTable[vpn_start].virtualPage = vpn_start;
+        pageTable[vpn_start].valid = TRUE;
+        pageTable[vpn_start].use = FALSE;
+        pageTable[vpn_start].dirty = FALSE;
+        pageTable[vpn_start].readOnly = FALSE;
+
+        bzero(&machine -> mainMemory[PageSize * pageTable[vpn_start].physicalPage], PageSize);
     }
     memory_map_mutex->Release();
+    */
 
-    delete[] pageTable;
-
-    numPages += 8;
-    pageTable = new_page_table;
     number_of_running_threads++;
-    address_space_size = numPages * PageSize;
-    machine->pageTable=pageTable;
-    return_value = address_space_size - 16;
 
     address_space_mutex->Release();
-    return return_value;
+    printf("next_sSpace: [%d]\n", next_sSpace);
+    printf("vaddr_stack_start: [%d]\n", stackTable[next_sSpace].vaddr_stack_start);
+    printf("done allocate new thread stack\n");
+    return stackTable[next_sSpace].vaddr_stack_start;
+}
+
+bool AddrSpace::allocate_additional_stack_spaces_() {
+    const unsigned int num_additional_stacks = 8;
+    address_space_mutex->Acquire();
+    
+    if(numStacks + num_additional_stacks > MAX_PROCESS_THREADS) {
+        // can't allocate additional space
+        address_space_mutex->Release();
+        return false;
+    }
+
+
+    TranslationEntry *new_page_table = new TranslationEntry[numPages + (num_additional_stacks*8)];
+    StackTableEntry *new_stack_table = new StackTableEntry[numStacks + num_additional_stacks];
+
+    // copy the two tables
+    memcpy(new_page_table, pageTable, numPages * sizeof(TranslationEntry));
+    memcpy(new_stack_table, stackTable, numStacks * sizeof(StackTableEntry));
+
+    // prime the new page table
+    // full init will be 
+
+    // initialize the new stack table
+    for(unsigned int i = numStacks; i < numStacks + num_additional_stacks; i++) {
+        stackTable[i].thread_ptr = NULL;
+        stackTable[i].vpn_stack_start = ((8*i)+1)+stack_vpn_offset;
+        stackTable[i].vpn_stack_end = (8*(i+1))+stack_vpn_offset;
+        stackTable[i].vaddr_stack_start = stackTable[i].vpn_stack_end - 16;
+        stackTable[i].in_use = FALSE;
+    }
+
+    // we really shouldn't be context switched in the following section
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
+    delete pageTable;
+    delete stackTable;
+
+    pageTable = new_page_table;
+    stackTable = new_stack_table;
+    (void) interrupt->SetLevel(oldLevel);
+
+    numPages += num_additional_stacks * 8;
+    numStacks += num_additional_stacks;
+    address_space_size = numPages * PageSize;
+    machine->pageTable=pageTable;
+
+    address_space_mutex->Release();
+    return TRUE;
 }
 
 bool AddrSpace::is_valid_code_vaddr(const unsigned int vaddr) {
     // we are making the assumption you cannot fork main
-    // therefore vaddr 0 is invalid
+    // therefore vaddr 0 (NULL) is invalid
     return (vaddr > 0 && vaddr <= code_vaddr_fence);
 }
 
@@ -275,8 +354,31 @@ unsigned int AddrSpace::get_process_id() {
  *
  */
 bool AddrSpace::release_thread_resources(Thread* thread_ptr) {
+    if(address_space_mutex->isHeldByCurrentThread()) {
+        return false;
+    }
     address_space_mutex->Acquire();
+
+    // find the stackTable entry that corresponds to thread_ptr
+    unsigned int sTable_index = 0;
+    for(sTable_index; sTable_index < numStacks; sTable_index++) {
+        if(stackTable[sTable_index].thread_ptr != thread_ptr) {
+            continue;
+        }
+        break;
+    }
+
+    if(sTable_index == numStacks) {
+        printf("kernel inconsistencies: Thread does not exist in bond address space\n");
+        ASSERT(FALSE);
+    }
+
+    stackTable[sTable_index].thread_ptr = NULL;
+    stackTable[sTable_index].in_use = FALSE;
     number_of_running_threads--;
+
+    // TODO release RAM back to system
+
     address_space_mutex->Release();
     return true;
 }

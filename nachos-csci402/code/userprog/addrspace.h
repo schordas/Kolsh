@@ -24,7 +24,7 @@
 #define MaxOpenFiles        256
 #define MaxChildSpaces      256
 
-#define MAX_PROCESS_THREADS 100
+#define MAX_PROCESS_THREADS 105
 
 class Lock;
 class Thread;
@@ -63,15 +63,18 @@ class AddrSpace {
     unsigned int address_space_size;            // returns numPages * PageSize
 
     unsigned int numPages;                      // Number of memory pages in the virtual address space
+    unsigned int numStacks;                     // number of allocated stacks for this address space
     unsigned int code_vaddr_fence;              // last virtual address of code in the address space
     unsigned int stack_vpn_offset;              // offset to the beginning of the first stack page
     unsigned int process_id;                    // process id
     unsigned int number_of_running_threads;     // number of running threads in address space
-    unsigned int numStacks;                     // number of allocated stacks for this address space
+    
 
     StackTableEntry *stackTable;                // stack table
     TranslationEntry *pageTable;                // Assume linear page table translation for now!
     Lock *address_space_mutex;                  // mutex for address space operations
+
+    bool allocate_additional_stack_spaces_();   // expand the page and stack table to accommodate 8 more threads
 
 };
 
