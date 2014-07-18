@@ -21,18 +21,26 @@
 
 #define UserStackSize       1024    // increase this as necessary!
 
-#define MaxOpenFiles 256
-#define MaxChildSpaces 256
+#define MaxOpenFiles        256
+#define MaxChildSpaces      256
 
 #define MAX_PROCESS_THREADS 100
 
 class Lock;
 class Thread;
 
+struct StackTableEntry {
+    Thread* thread_ptr;
+    unsigned int vpn_stack_start;
+    unsigned int vpn_stack_end;
+    unsigned int vaddr_stack_start;
+    bool in_use;
+};
+
 class AddrSpace {
   public:
     AddrSpace(OpenFile *executable,                         // Create an address space,
-        const unsigned int process_id,                      // initializing it with the program
+        unsigned int in_process_id,                         // initializing it with the program
         Thread* main_thread);                               // stored in the file "executable"
     
     ~AddrSpace();                                           // De-allocate an address space
@@ -53,13 +61,18 @@ class AddrSpace {
 
  private:
     unsigned int address_space_size;            // returns numPages * PageSize
+
     unsigned int numPages;                      // Number of memory pages in the virtual address space
     unsigned int code_vaddr_fence;              // last virtual address of code in the address space
+    unsigned int stack_vpn_offset;              // offset to the beginning of the first stack page
     unsigned int process_id;                    // process id
-    int number_of_running_threads;              // number of running threads in address space
+    unsigned int number_of_running_threads;     // number of running threads in address space
+    unsigned int numStacks;                     // number of allocated stacks for this address space
 
+    StackTableEntry *stackTable;                // stack table
     TranslationEntry *pageTable;                // Assume linear page table translation for now!
     Lock *address_space_mutex;                  // mutex for address space operations
+
 };
 
 #endif // ADDRSPACE_H

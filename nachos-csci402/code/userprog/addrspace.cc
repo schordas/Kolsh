@@ -117,7 +117,7 @@ SwapHeader (NoffHeader *noffH)
 //      constructed set to false.
 //----------------------------------------------------------------------
 AddrSpace::AddrSpace(OpenFile *executable, 
-                        const unsigned int process_id,
+                        unsigned int in_process_id,
                         Thread* main_thread) : fileTable(MaxOpenFiles) {
     // function data
     unsigned int executable_pages;
@@ -125,9 +125,9 @@ AddrSpace::AddrSpace(OpenFile *executable,
     NoffHeader noffH;
 
     // initialize class private data
-    this->address_space_mutex = new Lock("address_space_mutex");
-    this->number_of_running_threads = 1;      // we start with the main thread running.
-    this->process_id = process_id;
+    address_space_mutex = new Lock("address_space_mutex");
+    number_of_running_threads = 1;      // we start with the main thread running.
+    process_id = in_process_id;
 
 
     // Don't allocate the input or output to disk files
@@ -143,22 +143,22 @@ AddrSpace::AddrSpace(OpenFile *executable,
     ASSERT(noffH.noffMagic == NOFFMAGIC);
     ASSERT(noffH.code.size > 0);
 
-    this->code_vaddr_fence = noffH.code.size;
+    code_vaddr_fence = noffH.code.size;
 
-    executable_size = noffH.code.size + noffH.initData.size + noffH.uninitData.size ;
+    executable_size = noffH.code.size + noffH.initData.size + noffH.uninitData.size;
    
     // Total number of physical pages required by the process to accommodate
     // code, initialized data, uninitialized data and one thread stack space.
-    this->numPages=divRoundUp(executable_size, PageSize) + 8;
-    this->address_space_size = numPages * PageSize;
+    stack_vpn_offset = divRoundUp(executable_size, PageSize);
+    numPages = stack_vpn_offset + 8;
+    address_space_size = numPages * PageSize;
 
     // TODO remove once we having memory paging.
     ASSERT(numPages <= NumPhysPages);
 
     DEBUG('a', "Initializing address space, num pages %d, size %d\n", numPages, address_space_size);
         
-    this->pageTable = new TranslationEntry[numPages];
-
+    pageTable = new TranslationEntry[numPages];
     memory_map_mutex->Acquire();
     for (unsigned int i = 0; i < numPages; i++) {
         int physical_page_number = memory_map->Find();   // Find an available physical memory page
@@ -188,6 +188,12 @@ AddrSpace::AddrSpace(OpenFile *executable,
         executable->ReadAt(&(machine -> mainMemory[pageTable[i].physicalPage * PageSize]),
         PageSize, noffH.code.inFileAddr + i * PageSize);
     }
+
+    stackTable = new StackTableEntry[1];
+    stackTable[0].thread_ptr = main_thread;
+    stackTable[0].vpn_stack_start = stack_vpn_offset + 1;
+    stackTable[0].vpn_stack_end = stack_vpn_offset + 8;
+    stackTable[0].in_use = TRUE;
 }
 
 /**
@@ -198,13 +204,13 @@ int AddrSpace::allocate_new_thread_stack(Thread* thread_ptr) {
     int return_value;
     TranslationEntry *new_page_table;
 
-    this->address_space_mutex->Acquire();
+    address_space_mutex->Acquire();
 
-    if(this->number_of_running_threads == MAX_PROCESS_THREADS) {
+    if(number_of_running_threads == MAX_PROCESS_THREADS) {
         // the process has reached its thread limit. Reject the request
         // we haven't requested any resources at this point so we're good
         DEBUG('t', "OVER MAX PROCESS THREADS. FAILING REQUEST\n");
-        this->address_space_mutex->Release();
+        address_space_mutex->Release();
         return -1;
     }
 
@@ -237,41 +243,41 @@ int AddrSpace::allocate_new_thread_stack(Thread* thread_ptr) {
 
     delete[] pageTable;
 
-    this->numPages += 8;
-    this->pageTable = new_page_table;
-    this->number_of_running_threads++;
-    this->address_space_size = numPages * PageSize;
+    numPages += 8;
+    pageTable = new_page_table;
+    number_of_running_threads++;
+    address_space_size = numPages * PageSize;
     machine->pageTable=pageTable;
     return_value = address_space_size - 16;
 
-    this->address_space_mutex->Release();
+    address_space_mutex->Release();
     return return_value;
 }
 
 bool AddrSpace::is_valid_code_vaddr(const unsigned int vaddr) {
     // we are making the assumption you cannot fork main
     // therefore vaddr 0 is invalid
-    return (vaddr > 0 && vaddr <= this->code_vaddr_fence);
+    return (vaddr > 0 && vaddr <= code_vaddr_fence);
 }
 
 bool AddrSpace::is_valid_data_vaddr(const unsigned int vaddr) {
-    return (vaddr > this->code_vaddr_fence && vaddr < this->address_space_size);
+    return (vaddr > code_vaddr_fence && vaddr < address_space_size);
 }
 
 /**
  *
  */
 unsigned int AddrSpace::get_process_id() {
-    return this->process_id;
+    return process_id;
 }
 
 /**
  *
  */
 bool AddrSpace::release_thread_resources(Thread* thread_ptr) {
-    this->address_space_mutex->Acquire();
-    this->number_of_running_threads--;
-    this->address_space_mutex->Release();
+    address_space_mutex->Acquire();
+    number_of_running_threads--;
+    address_space_mutex->Release();
     return true;
 }
 
