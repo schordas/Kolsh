@@ -114,23 +114,30 @@ void Scheduler::Run (Thread *nextThread) {
 
     SWITCH(oldThread, nextThread);
     
-    DEBUG('t', "Now in thread \"%s\"\n", currentThread->getName());
+    DEBUG('g', "Now in thread \"%s\"\n", currentThread->getName());
 
     // If the old thread gave up the processor because it was finishing,
     // we need to delete its carcass.  Note we cannot delete the thread
     // before now (for example, in Thread::Finish()), because up to this
     // point, we were still running on the old thread's stack!
-    thread_op_mutex->Acquire();
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
     if(!thread_destroy_queue->IsEmpty()) {
-#ifdef USER_PROGRAM
         // we need to do some book-keeping in the address space
         // before we delete the thread
         Thread *threadToBeDestroyed = (Thread *)thread_destroy_queue->Remove();
-        threadToBeDestroyed->space->decrement_running_thread_count();
+        printf("going to delete thread [%s]\n", threadToBeDestroyed->getName());
+#ifdef USER_PROGRAM
+        if(!threadToBeDestroyed->space->release_thread_resources(threadToBeDestroyed)) {
+            // the thread failed to be released from the address space, try again later
+            thread_destroy_queue->Append((void *)threadToBeDestroyed);
+        }else {
 #endif
-        delete threadToBeDestroyed;
+            delete threadToBeDestroyed;
+#ifdef USER_PROGRAM
+        }
+#endif
     }
-    thread_op_mutex->Release();
+    (void) interrupt->SetLevel(oldLevel);
     
 #ifdef USER_PROGRAM
     if (currentThread->space != NULL) {     // if there is an address space

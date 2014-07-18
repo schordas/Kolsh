@@ -19,7 +19,7 @@
 #define TRUE                1
 #define FALSE               0
 #define NULL                0
-#define MAX_PROCESS_THREADS 100
+#define MAX_PROCESS_THREADS 105
 
 int run_yield_test = TRUE;
 
@@ -97,7 +97,7 @@ int main() {
     ASSERT((fnt_2_result == -1), "fnt_2", sizeof("fnt_2"), -1, fnt_2_result);
     
 
-    for(i = 0; i < 100; i++) {
+    for(i = 0; i < MAX_PROCESS_THREADS; i++) {
         thread_name_2[12] = (char)(((int)' ')+i);
         Fork(thread_yield, thread_name_2, 13);
     }

@@ -39,7 +39,7 @@ void StartProcess(char *filename) {
         // this code block should never execute
         ASSERT(FALSE);
     }
-    space = new AddrSpace(executable, process_id);
+    space = new AddrSpace(executable, process_id, currentThread);
     if(!process_table->bind_address_space(process_id, space)) {
         // what the hell went wrong? Recovery isn't really possible.
         ASSERT(FALSE);

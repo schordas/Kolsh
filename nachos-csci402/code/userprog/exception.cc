@@ -300,7 +300,7 @@ int sc_fork(const unsigned int func_to_fork_vaddr,
     Thread *kernel_thread = new Thread(thread_name);
 
     kernel_thread->space = currentThread_addrspace;
-    int stack_start = kernel_thread->space->allocate_new_thread_stack();
+    int stack_start = kernel_thread->space->allocate_new_thread_stack(kernel_thread);
     if(stack_start == -1) {
         // process has reached its thread limit.
         // the fork request cannot be completed

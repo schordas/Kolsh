@@ -143,9 +143,7 @@ void Thread::Finish () {
     
     DEBUG('t', "Finishing thread \"%s\"\n", getName());
     
-    thread_op_mutex->Acquire();
     thread_destroy_queue->Append((void *)this);
-    thread_op_mutex->Release();
 
     Sleep();                    // invokes SWITCH
     // not reached
