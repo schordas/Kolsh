@@ -336,6 +336,63 @@ void sc_yield() {
     currentThread->Yield();
 }
 
+/**
+ * exec_data[0] = OpenFile* executable
+ * exec_data[1] = int process_id
+ */
+void kernel_exec_function(int exec_data) {
+    currentThread->space->InitRegisters();     // set the initial register values
+    currentThread->space->RestoreState();      // load page table register
+
+    printf("running a new proceess?\n");
+
+    machine->Run();             // jump to the user progam
+    ASSERT(FALSE);              // machine->Run never returns;
+                                // the address space exits
+                                // by doing the syscall "exit"
+}
+
+int sc_exec(const unsigned int filename_addr, 
+                const unsigned int buff_length) {
+
+    char *filename = read_into_new_buffer(filename_addr, buff_length);
+    OpenFile *executable = fileSystem->Open(filename);
+
+    if(executable == NULL) {
+        printf("Unable to open file %s\n", filename);
+        delete filename;
+        delete executable;
+        return -1;
+    }
+
+    int process_id = process_table->acquire_new_process_id();
+    if(process_id < 0) {
+        // we've reached the limit on the number of processes we can have
+        delete filename;
+        delete executable;
+        return -2;
+    }
+
+    char *process_name = new char[buff_length + 5];
+    sprintf(process_name,"%s_main", filename);
+    Thread *kernel_exec_thread = new Thread(process_name);
+
+    AddrSpace *space = new AddrSpace(executable, process_id, kernel_exec_thread);
+    if(!process_table->bind_address_space(process_id, space)) {
+        // what the hell went wrong? Recovery isn't really possible.
+        ASSERT(FALSE);
+    }
+
+    kernel_exec_thread->space = space;
+
+    kernel_exec_thread->Fork((VoidFunctionPtr)kernel_exec_function, process_id);
+    
+    delete executable;
+    delete filename;
+
+    return process_id;
+}
+
 void ExceptionHandler(ExceptionType which) {
     int type = machine->ReadRegister(2);    // Which syscall?
     int rv=0;                               // the return value from a syscall
@@ -348,6 +405,11 @@ void ExceptionHandler(ExceptionType which) {
             case SC_Yield:
                 DEBUG('e', "Yield syscall\n");
                 sc_yield();
+                break;
+            case SC_Exec:
+                DEBUG('e', "Exec syscall\n");
+                rv = sc_exec(machine->ReadRegister(4),
+                                machine->ReadRegister(5));
                 break;
             case SC_Fork:
                 DEBUG('e', "Fork syscall.\n");
