@@ -26,7 +26,7 @@
 void StartProcess(char *filename) {
     OpenFile *executable = fileSystem->Open(filename);
     AddrSpace *space;
-    unsigned int process_id;
+    int process_id;
 
     if(executable == NULL) {
         printf("Unable to open file %s\n", filename);

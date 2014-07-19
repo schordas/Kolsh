@@ -201,13 +201,6 @@ AddrSpace::AddrSpace(OpenFile *executable,
 
     stackTable[0].thread_ptr = main_thread;
     stackTable[0].in_use = TRUE;
-
-    /*
-    printf("sTable[1].vpn_s_start [%d]\n", stackTable[1].vpn_stack_start);
-    printf("sTable[1].vpn_s_end [%d]\n", stackTable[1].vpn_stack_end);
-    printf("sTable[1].vaddr_stack_start [%d]\n", stackTable[1].vaddr_stack_start);
-    */
-    
 }
 
 /**
@@ -217,7 +210,6 @@ int AddrSpace::allocate_new_thread_stack(Thread* thread_ptr) {
     if(thread_ptr == NULL) {
         return -2;
     }
-    /*printf("allocate new thread stack\n");*/
     address_space_mutex->Acquire();
 
     if(number_of_running_threads == MAX_PROCESS_THREADS) {
@@ -252,12 +244,6 @@ int AddrSpace::allocate_new_thread_stack(Thread* thread_ptr) {
     number_of_running_threads++;
 
     address_space_mutex->Release();
-    
-    /*
-    printf("next_sSpace: [%d]\n", next_sSpace);
-    printf("vaddr_stack_start: [%d]\n", stackTable[next_sSpace].vaddr_stack_start);
-    printf("done allocate new thread stack\n");
-    */
     
     return stackTable[next_sSpace].vaddr_stack_start;
 }
@@ -377,7 +363,13 @@ bool AddrSpace::release_thread_resources(Thread* thread_ptr) {
     number_of_running_threads--;
 
     // TODO release RAM back to system
-
+    memory_map_mutex->Acquire();
+    for(unsigned int i = stackTable[sTable_index].vpn_stack_start;
+            i <= stackTable[sTable_index].vpn_stack_start; 
+            i++) {
+        memory_map->Clear(pageTable[i].physicalPage);
+    }
+    memory_map_mutex->Release();
     address_space_mutex->Release();
     return true;
 }
