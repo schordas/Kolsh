@@ -358,6 +358,17 @@ unsigned int AddrSpace::get_process_id() {
 /**
  *
  */
+unsigned int AddrSpace::get_running_thread_count() {
+    unsigned int return_value;
+    address_space_mutex->Acquire();
+    return_value = number_of_running_threads;
+    address_space_mutex->Release();
+    return return_value;
+}
+
+/**
+ *
+ */
 bool AddrSpace::release_thread_resources(Thread* thread_ptr) {
     if(address_space_mutex->isHeldByCurrentThread()) {
         return false;

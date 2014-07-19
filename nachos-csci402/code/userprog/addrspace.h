@@ -57,6 +57,7 @@ class AddrSpace {
     int allocate_new_thread_stack(Thread* thread_ptr);      // allocate a new thread stack
                                                             // returns the start address of the stack
     unsigned int get_process_id();                          // returns the process id
+    unsigned int get_running_thread_count();                // returns the number of running threads
     bool release_thread_resources(Thread* thread_ptr);      // thread safe decrement of number_of_running_threads
 
  private:

@@ -331,11 +331,39 @@ void sc_printl(const int literal) {
 void sc_exit(const int exit_status) {
 
     /**
-     *
+     * There are three exit cases for a thread
+     *  1: not last thread in process; not last process
+     *      reclaim thread resources and terminate
+     *  2: last thread in process; not last process
+     *      reclaim process resources. Locks, CVS and terminate
+     *  3: last thread in last process
+     *      terminate the system (halt)
      */
 
+     // all cases need to release their thread resources first
+     // this is also the only thing that needs to be done for
+     // case 1 so we'll only check for the other two cases
+    if(!currentThread->space->release_thread_resources(currentThread)) {
+        // shouldn't happen
+        ASSERT(FALSE);
+    }
 
-    currentThread->space->release_thread_resources(currentThread);
+    unsigned int running_thread_count = currentThread->space->get_running_thread_count();
+    unsigned int running_process_count = process_table->get_number_of_running_processes();
+    unsigned int process_id = currentThread->space->get_process_id();
+
+    if(running_thread_count == 0 && running_process_count > 1) {
+        // last thread in process, reclaim all process resources
+        process_table->release_process_id(process_id);
+        delete currentThread->space;
+        
+        // TODO reclaim all cvs and locks   
+    }
+
+    if(running_thread_count == 0 && running_process_count == 1) {
+        interrupt->Halt();
+    }
+    
     currentThread->Finish();
 };
 
