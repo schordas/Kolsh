@@ -149,9 +149,10 @@ AddrSpace::AddrSpace(OpenFile *executable,
    
     // Total number of physical pages required by the process to accommodate
     // code, initialized data, uninitialized data and one thread stack space.
-    stack_vpn_offset = divRoundUp(executable_size, PageSize);
+    numPages = divRoundUp(executable_size, PageSize);
+    stack_vpn_offset = numPages - 1;
     numStacks = 1;
-    numPages = stack_vpn_offset + (8 * numStacks);
+    numPages += (8 * numStacks);
     address_space_size = numPages * PageSize;
 
     // TODO remove once we having memory paging.
@@ -241,6 +242,37 @@ int AddrSpace::allocate_new_thread_stack(Thread* thread_ptr) {
     stackTable[next_sSpace].in_use = TRUE;
     stackTable[next_sSpace].thread_ptr = thread_ptr;
 
+    // request RAM for stack space
+    memory_map_mutex->Acquire();
+    for(unsigned int i = stackTable[next_sSpace].vpn_stack_start;
+            i <= stackTable[next_sSpace].vpn_stack_end;
+            i++) {
+
+        if(pageTable[i].physicalPage != -1) {
+            // this should never happen. The physical page entry is
+            // initialized to -1 and set to -1 on page release.
+            printf("[%s]\n", currentThread->getName());
+            printf("i: [%d]\n", i);
+            printf("pageTable[i].physicalPage: [%d]\n", pageTable[i].physicalPage);
+            ASSERT(FALSE);
+        }
+
+        int physical_page_number = memory_map->Find();   // Find an available physical memory page
+        if(physical_page_number == -1) {
+            // Error, all memory occupied -- this should be resolved when we
+            //                                  implement paging so don't stress for now
+            // TODO: release all requested memory back to the OS
+            printf("FATAL ERROR:\n");
+            printf("AddrSpace::AddrSpace out of system memory.\n");
+            assert(FALSE);
+        }
+
+        pageTable[i].physicalPage = physical_page_number;
+        pageTable[i].valid = TRUE;
+        bzero(&machine -> mainMemory[PageSize * pageTable[i].physicalPage], PageSize);
+    }
+    memory_map_mutex->Release();
+
     number_of_running_threads++;
 
     address_space_mutex->Release();
@@ -267,30 +299,18 @@ bool AddrSpace::allocate_additional_stack_spaces_() {
     memcpy(new_page_table, pageTable, numPages * sizeof(TranslationEntry));
     memcpy(new_stack_table, stackTable, numStacks * sizeof(StackTableEntry));
 
-    // request RAM for new stack space
-    memory_map_mutex->Acquire();
+    // initialize new page table
+    // RAM is requested when the stack space
+    // is actually about to be used
     for(unsigned int i = numPages; i < numPages + num_additional_pages; i++) {
-        int physical_page_number = memory_map->Find();   // Find an available physical memory page
-        if(physical_page_number == -1) {
-            // Error, all memory occupied -- this should be resolved when we
-            //                                  implement paging so don't stress for now
-            // TODO: release all requested memory back to the OS
-            printf("FATAL ERROR:\n");
-            printf("AddrSpace::AddrSpace out of system memory.\n");
-            assert(FALSE);
-        }
-
-        new_page_table[i].physicalPage = physical_page_number;
+        new_page_table[i].physicalPage = -1;
         new_page_table[i].virtualPage = i;
-        new_page_table[i].valid = TRUE;
+        new_page_table[i].valid = FALSE;
         new_page_table[i].use = FALSE;
         new_page_table[i].dirty = FALSE;
         new_page_table[i].readOnly = FALSE;
-
-        bzero(&machine -> mainMemory[PageSize * new_page_table[i].physicalPage], PageSize);
     }
-    memory_map_mutex->Release();
-    
+
     // initialize the new stack table
     for(unsigned int i = numStacks; i < numStacks + num_additional_stacks; i++) {
         new_stack_table[i].thread_ptr = NULL;
@@ -362,12 +382,13 @@ bool AddrSpace::release_thread_resources(Thread* thread_ptr) {
     stackTable[sTable_index].in_use = FALSE;
     number_of_running_threads--;
 
-    // TODO release RAM back to system
     memory_map_mutex->Acquire();
     for(unsigned int i = stackTable[sTable_index].vpn_stack_start;
-            i <= stackTable[sTable_index].vpn_stack_start; 
+            i <= stackTable[sTable_index].vpn_stack_end; 
             i++) {
         memory_map->Clear(pageTable[i].physicalPage);
+        pageTable[i].physicalPage = -1;
+        pageTable[i].valid = FALSE;
     }
     memory_map_mutex->Release();
     address_space_mutex->Release();

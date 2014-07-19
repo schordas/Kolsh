@@ -329,6 +329,13 @@ void sc_printl(const int literal) {
 }
 
 void sc_exit(const int exit_status) {
+
+    /**
+     *
+     */
+
+
+    currentThread->space->release_thread_resources(currentThread);
     currentThread->Finish();
 };
 

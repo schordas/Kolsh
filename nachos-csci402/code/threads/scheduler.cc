@@ -120,29 +120,14 @@ void Scheduler::Run (Thread *nextThread) {
     // we need to delete its carcass.  Note we cannot delete the thread
     // before now (for example, in Thread::Finish()), because up to this
     // point, we were still running on the old thread's stack!
-    IntStatus oldLevel = interrupt->SetLevel(IntOff);
     if(!thread_destroy_queue->IsEmpty()) {
-        // we need to do some book-keeping in the address space
-        // before we delete the thread
         Thread *threadToBeDestroyed = (Thread *)thread_destroy_queue->Remove();
-        //printf("going to delete thread [%s]\n", threadToBeDestroyed->getName());
-#ifdef USER_PROGRAM
-        if(!threadToBeDestroyed->space->release_thread_resources(threadToBeDestroyed)) {
-            // the thread failed to be released from the address space, try again later
-            thread_destroy_queue->Append((void *)threadToBeDestroyed);
-        }else {
-#endif
-            delete threadToBeDestroyed;
-#ifdef USER_PROGRAM
-        }
-#endif
+        delete threadToBeDestroyed;
     }
-    (void) interrupt->SetLevel(oldLevel);
-    
 #ifdef USER_PROGRAM
-    if (currentThread->space != NULL) {     // if there is an address space
-        currentThread->RestoreUserState();     // to restore, do it.
-    currentThread->space->RestoreState();
+    if (currentThread->space != NULL) {         // if there is an address space
+        currentThread->RestoreUserState();      // to restore, do it.
+        currentThread->space->RestoreState();
     }
 #endif
 }
