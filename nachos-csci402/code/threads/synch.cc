@@ -148,7 +148,7 @@ void Lock::Acquire() {
 }
 
 
-void Lock::Release() {
+bool Lock::Release() {
     Thread *thread;
     IntStatus oldLevel = interrupt->SetLevel(IntOff);
     
@@ -164,7 +164,7 @@ void Lock::Release() {
         ASSERT(FALSE);
         
         (void) interrupt->SetLevel(oldLevel);
-        return;
+        return false;
     }
 
     entrant_count--;
@@ -191,6 +191,7 @@ void Lock::Release() {
 
     //restore interrupts
     (void) interrupt->SetLevel(oldLevel);
+    return true;
 }
 
 void Lock::printLockDetails() {

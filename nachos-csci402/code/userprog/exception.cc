@@ -379,8 +379,6 @@ void kernel_exec_function(int exec_data) {
     currentThread->space->InitRegisters();     // set the initial register values
     currentThread->space->RestoreState();      // load page table register
 
-    printf("running a new proceess?\n");
-
     machine->Run();             // jump to the user progam
     ASSERT(FALSE);              // machine->Run never returns;
                                 // the address space exits
@@ -427,6 +425,65 @@ int sc_exec(const unsigned int filename_addr,
 
     return process_id;
 }
+
+// **************************************************************************************
+// LOCK SYSTEM CALLS
+// User-level lock operations: Create, Acquire, Release, Delete.
+// Input validation is done in target functions
+//
+
+int lock_create_syscall(unsigned int vaddr, int length) {
+    char* lock_name = read_into_new_buffer(vaddr, length);
+    if(lock_name == NULL) {
+        lock_name = "Synchronization lock";
+    }
+
+    return synchronization_lut->lock_create(lock_name);
+}
+
+int lock_acquire_syscall(int lock_index) {
+    return synchronization_lut->lock_acquire(lock_index);
+}
+
+int lock_release_syscall(int lock_index) {
+    return synchronization_lut->lock_release(lock_index);
+}
+
+int lock_delete_syscall(int lock_index) {
+    return synchronization_lut->lock_delete(lock_index);
+}
+
+// **************************************************************************************
+// CONDITION INTERFACE
+// User-level condition operations: Create, Wait, Signal, Broadcast, Delete.
+// Input validation is done in target functions
+//
+
+int condition_create_syscall(unsigned int vaddr, int length) {
+    char* condition_name = read_into_new_buffer(vaddr, length);
+    if(condition_name == NULL) {
+        condition_name = "Synchronization condition";
+    }
+
+    return synchronization_lut->condition_create(condition_name);
+}
+
+int condition_wait_syscall(int condition_index, int lock_index) {
+    return synchronization_lut->condition_wait(condition_index, lock_index);
+}
+
+int condition_signal_syscall(int condition_index, int lock_index) {
+    return synchronization_lut->condition_signal(condition_index, lock_index);
+}
+
+int condition_broadcast_syscall(int condition_index, int lock_index) {
+    return synchronization_lut->condition_broadcast(condition_index, lock_index);
+}
+
+int condition_delete_syscall(int condition_index) {
+    return synchronization_lut->condition_delete(condition_index);
+}
+
 
 void ExceptionHandler(ExceptionType which) {
     int type = machine->ReadRegister(2);    // Which syscall?
@@ -483,6 +540,49 @@ void ExceptionHandler(ExceptionType which) {
             case SC_Close:
                 DEBUG('e', "Close syscall.\n");
                 Close_Syscall(machine->ReadRegister(4));
+                break;
+             // LOCK SYSTEM CALLS
+            case SC_LOCK_CREATE:
+                DEBUG('a', "Lock create syscall.\n");
+                rv = lock_create_syscall(machine->ReadRegister(4),
+                                            machine->ReadRegister(5));
+                break;
+            case SC_LOCK_ACQUIRE:
+                DEBUG('a', "Lock acquire syscall.\n");
+                rv = lock_acquire_syscall(machine->ReadRegister(4));
+                break;      
+            case SC_LOCK_RELEASE:
+                DEBUG('a', "Lock release syscall.\n");
+                rv = lock_release_syscall(machine->ReadRegister(4));
+                break;
+            case SC_LOCK_DELETE:
+                DEBUG('a', "Lock delete syscall.\n");
+                rv = lock_delete_syscall(machine->ReadRegister(4));
+                break;
+            // CONDITION SYSTEM CALLS
+            case SC_CONDITION_CREATE:
+                DEBUG('a', "Condition create syscall.\n");
+                rv = condition_create_syscall(machine->ReadRegister(4),
+                                                machine->ReadRegister(5));
+                break;
+            case SC_CONDITION_WAIT:
+                DEBUG('a', "Condition wait syscall.\n");
+                rv = condition_wait_syscall(machine->ReadRegister(4),
+                                                machine->ReadRegister(5));
+                break;
+            case SC_CONDITION_SIGNAL:
+                DEBUG('a', "Condition signal syscall.\n");
+                rv = condition_signal_syscall(machine->ReadRegister(4),
+                                                machine->ReadRegister(5));
+                break;
+            case SC_CONDITION_BROADCAST:
+                DEBUG('a', "Condition broadcast syscall.\n");
+                rv = condition_broadcast_syscall(machine->ReadRegister(4),
+                                                    machine->ReadRegister(5));
+                break;
+            case SC_CONDITION_DELETE:
+                DEBUG('a', "Condition delete syscall.\n");
+                rv = condition_delete_syscall(machine->ReadRegister(4));
                 break;
             case SC_PrintF:
                 DEBUG('e', "Print_F system call.\n");

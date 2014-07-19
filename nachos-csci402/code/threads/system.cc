@@ -28,11 +28,12 @@ FileSystem  *fileSystem;
 SynchDisk   *synchDisk;
 #endif
 
-#ifdef USER_PROGRAM                 // requires either FILESYS or FILESYS_STUB
-Machine *machine;                   // user program memory and registers
+#ifdef USER_PROGRAM                         // requires either FILESYS or FILESYS_STUB
+Machine *machine;                           // user program memory and registers
 BitMap *memory_map;
 Lock *memory_map_mutex;
-ProcessTable *process_table;        // process table to manage system process
+ProcessTable *process_table;                // process table to manage system process
+SynchronizationLut *synchronization_lut;    // user program synchronization lock lookup table
 #endif
 
 #ifdef NETWORK
@@ -157,6 +158,7 @@ Initialize(int argc, char **argv)
     memory_map = new BitMap(NumPhysPages);
     memory_map_mutex = new Lock("memory_map_mutex");
     process_table = new ProcessTable();
+    synchronization_lut = new SynchronizationLut();
 #endif
 
 #ifdef FILESYS
@@ -187,6 +189,7 @@ void Cleanup() {
     delete memory_map;
     delete memory_map_mutex;
     delete process_table;
+    delete synchronization_lut;
 #endif
 
 #ifdef FILESYS_NEEDED

@@ -113,6 +113,7 @@ Write:
 	j	$31
 	.end Write
 
+
 	.globl Close
 	.ent	Close
 Close:
@@ -140,6 +141,87 @@ Yield:
 	.end Yield
 
 
+.globl  Lock_Create
+    .ent    Lock_Create
+Lock_Create:
+    addiu $2,$0,SC_LOCK_CREATE
+    syscall
+    j   $31
+    .end Lock_Create
+    
+
+    .globl  Lock_Acquire
+    .ent    Lock_Acquire
+Lock_Acquire:
+    addiu $2,$0,SC_LOCK_ACQUIRE
+    syscall
+    j   $31
+    .end Lock_Acquire
+
+
+    .globl  Lock_Release
+    .ent    Lock_Release
+Lock_Release:
+    addiu $2,$0,SC_LOCK_RELEASE
+    syscall
+    j   $31
+    .end Lock_Release
+
+
+    .globl  Lock_Delete
+    .ent    Lock_Delete
+Lock_Delete:
+    addiu $2,$0,SC_LOCK_DELETE
+    syscall
+    j   $31
+    .end Lock_Delete
+
+
+    .globl  Condition_Create
+    .ent    Condition_Create
+Condition_Create:
+    addiu $2,$0,SC_CONDITION_CREATE
+    syscall
+    j   $31
+    .end Condition_Create
+
+
+    .globl  Condition_Wait
+    .ent    Condition_Wait
+Condition_Wait:
+    addiu $2,$0,SC_CONDITION_WAIT
+    syscall
+    j   $31
+    .end Condition_Wait
+
+
+    .globl  Condition_Signal
+    .ent    Condition_Signal
+Condition_Signal:
+    addiu $2,$0,SC_CONDITION_SIGNAL
+    syscall
+    j   $31
+    .end Condition_Signal
+
+
+    .globl  Condition_Broadcast
+    .ent    Condition_Broadcast
+Condition_Broadcast:
+    addiu $2,$0,SC_CONDITION_BROADCAST
+    syscall
+    j   $31
+    .end Condition_Broadcast
+
+
+    .globl  Condition_Delete
+    .ent    Condition_Delete
+Condition_Delete:
+    addiu $2,$0,SC_CONDITION_DELETE
+    syscall
+    j   $31
+    .end Condition_Delete
+
+
 	.globl PrintF
 	.ent	PrintF
 PrintF:
@@ -147,6 +229,7 @@ PrintF:
 	syscall
 	j	$31
 	.end PrintF
+
 
 	.globl PrintL
 	.ent	PrintL

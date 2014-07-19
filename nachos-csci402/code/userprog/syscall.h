@@ -18,22 +18,35 @@
 /* system call codes -- used by the stubs to tell the kernel which system call
  * is being asked for
  */
-#define SC_Halt     0
-#define SC_Exit     1
-#define SC_Exec     2
-#define SC_Join     3
-#define SC_Create   4
-#define SC_Open     5
-#define SC_Read     6
-#define SC_Write    7
-#define SC_Close    8
-#define SC_Fork     9
-#define SC_Yield    10
+#define SC_Halt                 0
+#define SC_Exit                 1
+#define SC_Exec                 2
+#define SC_Join                 3
+#define SC_Create               4
+#define SC_Open                 5
+#define SC_Read                 6
+#define SC_Write                7
+#define SC_Close                8
+#define SC_Fork                 9
+#define SC_Yield                10
 
-#define SC_PrintF   20
-#define SC_PrintL   21
+/* Lock system calls */
+#define SC_LOCK_CREATE          11
+#define SC_LOCK_ACQUIRE         12
+#define SC_LOCK_RELEASE         13
+#define SC_LOCK_DELETE          14
 
-#define MAXFILENAME 256
+/* Condition system calls */
+#define SC_CONDITION_CREATE     15
+#define SC_CONDITION_WAIT       16
+#define SC_CONDITION_SIGNAL     17
+#define SC_CONDITION_BROADCAST  18
+#define SC_CONDITION_DELETE     19
+
+#define SC_PrintF               20
+#define SC_PrintL               21
+
+#define MAXFILENAME             256
 
 #ifndef IN_ASM
 
@@ -51,10 +64,7 @@
 void Halt();        
  
 
-/* Address space control operations: Exit, Exec, and Join */
-
-/* This user program is done (status = 0 means exited normally). */
-void Exit(int status);  
+/* Address space control operations: Exec, and Join */
 
 /* A unique identifier for an executing user program (address space) */
 typedef int SpaceId;    
@@ -114,6 +124,12 @@ int Read(char *buffer, int size, OpenFileId id);
 void Close(OpenFileId id);
 
 
+/*******************************************************************************************\
+| THREAD OPERATIONS:                                                                        |
+|   user-level thread operations: Fork, Yield, Exit.                                        |
+|   Allows multiple threads to operate within a user program.                               |
+\*******************************************************************************************/
+
 /** 
  * Fork a thread to run a procedure ("func") in the *same* address space 
  * as the current thread.
@@ -140,6 +156,111 @@ int Fork(void (*func)(), const char* thread_name, const unsigned int thread_name
  * or not. 
  */
 void Yield();
+
+/* This user program is done (status = 0 means exited normally). */
+void Exit(int status);  
+
+
+/*******************************************************************************************\
+| LOCK OPERATIONS:                                                                          |
+|   user-level lock operations: Create, Acquire, Release, Delete.                           |
+\*******************************************************************************************/
+
+/**
+ * Create a new lock. If the system is unable to allocate a new lock, this
+ * function will return -1. On success it will return an index to the newly created lock.
+ *
+ * @param name_buffer           name of the lock.
+ * @param name_buffer_size      size of name buffer (not null terminated).
+ *
+ * @return int - index of lock or -1 on failure
+ */
+int Lock_Create(char* name_buffer, int name_buffer_size);
+
+/**
+ * Acquire a lock
+ *
+ * @param lock_index    index of lock
+ *
+ * @return int - 0 on success -1 otherwise
+ */
+int Lock_Acquire(int lock_index);
+
+/**
+ * Acquire a lock
+ *
+ * @param lock_index    index of lock
+ *
+ * @return int - 0 on success -1 otherwise
+ */
+int Lock_Release(int lock_index);
+
+/**
+ * Delete a lock. If the lock is in use, marks the lock to be deleted at a
+ * later time. Returns 0 if the lock has been deleted or scheduled for delete.
+ *
+ * @param lock_index    index of lock
+ *
+ * @return int - 0 on success -1 otherwise
+ */
+int Lock_Delete(int lock_index);
+
+
+/*******************************************************************************************\
+| CONDITION OPERATIONS:                                                                     |
+|   user-level condition operations: Create, Wait, Signal, Broadcast, Delete.               |
+\*******************************************************************************************/
+
+/**
+ * Allocate a new condition. If the system is unable to allocate a new condition, this
+ * function will return -1. On success it will return an index to the newly created condition.
+ *
+ * @param name_buffer           name of the condition.
+ * @param size_of_name_buffer   size of name buffer (not null terminated).
+ *
+ * @return int - index of condition or -1 on failure
+ */
+int Condition_Create(char* name_buffer, int size_of_name_buffer);
+
+/**
+ * Wait on a condition.
+ *
+ * @param condition_index   index of condition
+ * @param lock_index        index of lock
+ *
+ * @return int - 0 on success -1 otherwise
+ */
+int Condition_Wait(int condition_index, int lock_index);
+
+/**
+ * Signal on a condition.
+ *
+ * @param condition_index   index of condition
+ * @param lock_index        index of lock
+ *
+ * @return int - 0 on success -1 otherwise
+ */
+int Condition_Signal(int condition_index, int lock_index);
+
+/**
+ * Broadcast on a condition.
+ *
+ * @param condition_index   index of condition
+ * @param lock_index        index of lock
+ *
+ * @return int - 0 on success -1 otherwise
+ */
+int Condition_Broadcast(int condition_index, int lock_index);
+
+/**
+ * Delete a condition. If the lock is in use, marks the condition to be deleted at a
+ * later time. Returns 0 if the condition has been deleted or scheduled for delete.
+ *
+ * @param condition_index   index of condition
+ *
+ * @return int - 0 on success -1 otherwise
+ */
+int Condition_Delete(int condition_index);
 
 /**
  * Print a statement from a user-program
