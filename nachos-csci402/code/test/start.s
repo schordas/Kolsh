@@ -204,7 +204,7 @@ Condition_Delete:
 
     .globl  Sprin_F 
     .ent    Sprin_F
-Sprin_F:
+Sprint_F:
     addiu $2,$0,SC_Sprintf
     syscall
     j   $31

@@ -254,7 +254,7 @@ int Condition_Delete(int condition_index);
 
 void Print_F(char* buf, int size);
 
-void Sprin_F(char* mychar, char* text, int i);
+void Sprint_F(char* mychar, char* text, int i);
 
 #endif /* IN_ASM */
 
