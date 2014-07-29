@@ -7,6 +7,7 @@
 
 + nachos-csci402/nachos.ps
 + nachos-csci402/code/GROUPNAME
++ nachos-csci402/code/WRITEUP
 
 + nachos-csci402/code/Makefile
 + nachos-csci402/code/Makefile.common
